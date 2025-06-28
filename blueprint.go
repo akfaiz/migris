@@ -47,6 +47,7 @@ type Blueprint struct {
 	dropForeignKeys []string          // foreign keys to be dropped
 	dropPrimaryKeys []string          // primary keys to be dropped
 	dropUniqueKeys  []string          // unique keys to be dropped
+	renameIndexes   map[string]string // old index name to new index name
 }
 
 // Boolean creates a new boolean column definition in the blueprint.
@@ -244,7 +245,7 @@ func (b *Blueprint) TimestampTz(name string, precission ...int) ColumnDefinition
 	col := &columnDefinition{
 		tableName:  b.name,
 		name:       name,
-		columnType: columnTypeTimestamp,
+		columnType: columnTypeTimestampTz,
 		precision:  optionalInt(0, precission...),
 	}
 	b.columns = append(b.columns, col)
@@ -292,6 +293,12 @@ func (b *Blueprint) UUID(name string) ColumnDefinition {
 }
 
 // Index creates a new index definition in the blueprint.
+//
+// Example:
+//
+//	table.Index("email")
+//	table.Index("email", "username") // creates a composite index
+//	table.Index("email").Algorithm("btree") // creates a btree index
 func (b *Blueprint) Index(column string, otherColumns ...string) IndexDefinition {
 	index := &indexDefinition{
 		tableName: b.name,
@@ -304,6 +311,11 @@ func (b *Blueprint) Index(column string, otherColumns ...string) IndexDefinition
 }
 
 // Unique creates a new unique index definition in the blueprint.
+//
+// Example:
+//
+//	table.Unique("email")
+//	table.Unique("email", "username") // creates a composite unique index
 func (b *Blueprint) Unique(column string, otherColumns ...string) {
 	index := &indexDefinition{
 		indexType: indexTypeUnique,
@@ -314,6 +326,11 @@ func (b *Blueprint) Unique(column string, otherColumns ...string) {
 }
 
 // Primary creates a new primary key index definition in the blueprint.
+//
+// Example:
+//
+//	table.Primary("id")
+//	table.Primary("id", "email") // creates a composite primary key
 func (b *Blueprint) Primary(column string, otherColumns ...string) {
 	index := &indexDefinition{
 		indexType: indexTypePrimary,
@@ -324,6 +341,10 @@ func (b *Blueprint) Primary(column string, otherColumns ...string) {
 }
 
 // Foreign creates a new foreign key definition in the blueprint.
+//
+// Example:
+//
+//	table.Foreign("user_id").References("id").On("users").OnDelete("CASCADE").OnUpdate("CASCADE")
 func (b *Blueprint) Foreign(column string) ForeignKeyDefinition {
 	fk := &foreignKeyDefinition{
 		tableName: b.name,
@@ -334,11 +355,20 @@ func (b *Blueprint) Foreign(column string) ForeignKeyDefinition {
 }
 
 // DropColumn adds a column to be dropped from the table.
+//
+// Example:
+//
+//	table.DropColumn("old_column")
+//	table.DropColumn("old_column", "another_old_column") // drops multiple columns
 func (b *Blueprint) DropColumn(column string, otherColumns ...string) {
 	b.dropColumns = append(b.dropColumns, append([]string{column}, otherColumns...)...)
 }
 
-// Rename changes the name of the table in the blueprint.
+// RenameColumn changes the name of the table in the blueprint.
+//
+// Example:
+//
+//	table.RenameColumn("old_table_name", "new_table_name")
 func (b *Blueprint) RenameColumn(oldColumn string, newColumn string) {
 	if b.renameColumns == nil {
 		b.renameColumns = make(map[string]string)
@@ -364,6 +394,17 @@ func (b *Blueprint) DropPrimary(primaryKeyName string) {
 // DropUnique adds a unique key to be dropped from the table.
 func (b *Blueprint) DropUnique(uniqueKeyName string) {
 	b.dropUniqueKeys = append(b.dropUniqueKeys, uniqueKeyName)
+}
+
+// RenameIndex changes the name of an index in the blueprint.
+// Example:
+//
+//	table.RenameIndex("old_index_name", "new_index_name")
+func (b *Blueprint) RenameIndex(oldIndexName string, newIndexName string) {
+	if b.renameIndexes == nil {
+		b.renameIndexes = make(map[string]string)
+	}
+	b.renameIndexes[oldIndexName] = newIndexName
 }
 
 func (b *Blueprint) getAddeddColumns() []*columnDefinition {

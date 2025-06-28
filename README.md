@@ -58,3 +58,6 @@ func downCreateUsersTable(ctx context.Context, tx *sql.Tx) error {
 }
 
 ```
+
+## Documentation
+For detailed documentation, please refer to the [GoDoc](https://pkg.go.dev/github.com/ahmadfaizk/schema) page.
