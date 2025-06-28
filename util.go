@@ -3,7 +3,7 @@ package schema
 import (
 	"context"
 	"database/sql"
-	"log/slog"
+	"log"
 )
 
 func optionalInt(defaultValue int, values ...int) int {
@@ -29,9 +29,13 @@ func optionalBool(defaultValue bool, values ...bool) bool {
 
 func execContext(ctx context.Context, tx *sql.Tx, sqls ...string) error {
 	for _, sql := range sqls {
-		slog.DebugContext(ctx, "Executing SQL", "sql", sql)
+		if debug {
+			log.Printf("Executing SQL: %s\n", sql)
+		}
 		if _, err := tx.ExecContext(ctx, sql); err != nil {
-			slog.ErrorContext(ctx, "Failed to execute SQL", "error", err)
+			if debug {
+				log.Printf("Error executing SQL: %s\nError: %v\n", sql, err)
+			}
 			return err
 		}
 	}
