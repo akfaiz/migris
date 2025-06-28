@@ -1,6 +1,6 @@
 module github.com/ahmadfaizk/schema/examples/basic
 
-go 1.24.4
+go 1.23.0
 
 require (
 	github.com/ahmadfaizk/schema v0.0.0-20250628084548-72dd3231ab0a
