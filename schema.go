@@ -9,8 +9,7 @@ import (
 // The blueprint function is used to define the structure of the table.
 // It returns an error if the table creation fails.
 //
-// Example usage:
-// ```go
+// Example:
 //
 //	err := schema.Create(ctx, tx, "users", func(table *schema.Blueprint) {
 //	    table.ID()
@@ -20,8 +19,6 @@ import (
 //	    table.Timestamp("created_at").Default("CURRENT_TIMESTAMP").Nullable(false)
 //	    table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP").Nullable(false)
 //	})
-//
-// ```
 func Create(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
 	builder, err := newBuilder()
 	if err != nil {
@@ -35,8 +32,7 @@ func Create(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *
 // The blueprint function is used to define the structure of the table.
 // It returns an error if the table creation fails.
 //
-// Example usage:
-// ```go
+// Example:
 //
 //	err := schema.CreateIfNotExists(ctx, tx, "users", func(table *schema.Blueprint) {
 //	    table.ID()
@@ -46,8 +42,6 @@ func Create(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *
 //	    table.Timestamp("created_at").Default("CURRENT_TIMESTAMP").Nullable(false)
 //	    table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP").Nullable(false)
 //	})
-//
-// ```
 func CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
 	builder, err := newBuilder()
 	if err != nil {
@@ -72,12 +66,9 @@ func Table(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *B
 // Drop removes the table with the given name.
 // It returns an error if the table removal fails.
 //
-// Example usage:
-// ```go
+// Example:
 //
 //	err := schema.Drop(ctx, tx, "users")
-//
-// ```
 func Drop(ctx context.Context, tx *sql.Tx, name string) error {
 	builder, err := newBuilder()
 	if err != nil {
@@ -90,12 +81,9 @@ func Drop(ctx context.Context, tx *sql.Tx, name string) error {
 // DropIfExists removes the table with the given name if it exists.
 // It returns an error if the table removal fails.
 //
-// Example usage:
-// ```go
+// Example:
 //
 //	err := schema.DropIfExists(ctx, tx, "users")
-//
-// ```
 func DropIfExists(ctx context.Context, tx *sql.Tx, name string) error {
 	builder, err := newBuilder()
 	if err != nil {
@@ -109,11 +97,8 @@ func DropIfExists(ctx context.Context, tx *sql.Tx, name string) error {
 // It returns an error if the renaming fails.
 //
 // Example usage:
-// ```go
 //
 //	err := schema.Rename(ctx, tx, "users", "people")
-//
-// ```
 func Rename(ctx context.Context, tx *sql.Tx, name string, newName string) error {
 	builder, err := newBuilder()
 	if err != nil {
