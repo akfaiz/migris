@@ -8,9 +8,13 @@ import (
 
 type grammar interface {
 	compileTableExists(schema string, table string) (string, error)
+	compileTables() (string, error)
+	compileColumns(schema, table string) (string, error)
+	compileIndexes(schema, table string) (string, error)
 	compileCreate(bp *Blueprint) (string, error)
 	compileCreateIfNotExists(bp *Blueprint) (string, error)
 	compileAdd(bp *Blueprint) (string, error)
+	compileChange(bp *Blueprint) ([]string, error)
 	compileDrop(bp *Blueprint) (string, error)
 	compileDropIfExists(bp *Blueprint) (string, error)
 	compileRename(bp *Blueprint) (string, error)
@@ -33,6 +37,18 @@ func (g *grammarImpl) compileTableExists(schema string, table string) (string, e
 	return "", errors.New("not implemented")
 }
 
+func (g *grammarImpl) compileTables() (string, error) {
+	return "", errors.New("not implemented")
+}
+
+func (g *grammarImpl) compileColumns(schema, table string) (string, error) {
+	return "", errors.New("not implemented")
+}
+
+func (g *grammarImpl) compileIndexes(schema, table string) (string, error) {
+	return "", errors.New("not implemented")
+}
+
 func (g *grammarImpl) compileCreate(_ *Blueprint) (string, error) {
 	return "", errors.New("not implemented")
 }
@@ -43,6 +59,10 @@ func (g *grammarImpl) compileCreateIfNotExists(_ *Blueprint) (string, error) {
 
 func (g *grammarImpl) compileAdd(_ *Blueprint) (string, error) {
 	return "", errors.New("not implemented")
+}
+
+func (g *grammarImpl) compileChange(_ *Blueprint) ([]string, error) {
+	return nil, errors.New("not implemented")
 }
 
 func (g *grammarImpl) compileDrop(_ *Blueprint) (string, error) {

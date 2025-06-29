@@ -18,13 +18,50 @@ func newPgGrammar() *pgGrammar {
 }
 
 func (g *pgGrammar) compileTableExists(schema string, table string) (string, error) {
-	if schema == "" {
-		schema = "public" // Default schema for PostgreSQL
-	}
 	return fmt.Sprintf(
 		"SELECT 1 FROM information_schema.tables WHERE table_schema = %s AND table_name = %s AND table_type = 'BASE TABLE'",
 		g.quoteString(schema),
 		g.quoteString(table),
+	), nil
+}
+
+func (g *pgGrammar) compileTables() (string, error) {
+	return "select c.relname as name, n.nspname as schema, pg_total_relation_size(c.oid) as size, " +
+		"obj_description(c.oid, 'pg_class') as comment from pg_class c, pg_namespace n " +
+		"where c.relkind in ('r', 'p') and n.oid = c.relnamespace and n.nspname not in ('pg_catalog', 'information_schema') " +
+		"order by c.relname", nil
+}
+
+func (g *pgGrammar) compileColumns(schema, table string) (string, error) {
+	return fmt.Sprintf(
+		"select a.attname as name, t.typname as type_name, format_type(a.atttypid, a.atttypmod) as type, "+
+			"(select tc.collcollate from pg_catalog.pg_collation tc where tc.oid = a.attcollation) as collation, "+
+			"not a.attnotnull as nullable, "+
+			"(select pg_get_expr(adbin, adrelid) from pg_attrdef where c.oid = pg_attrdef.adrelid and pg_attrdef.adnum = a.attnum) as default, "+
+			"col_description(c.oid, a.attnum) as comment "+
+			"from pg_attribute a, pg_class c, pg_type t, pg_namespace n "+
+			"where c.relname = %s and n.nspname = %s and a.attnum > 0 and a.attrelid = c.oid and a.atttypid = t.oid and n.oid = c.relnamespace "+
+			"order by a.attnum",
+		g.quoteString(table),
+		g.quoteString(schema),
+	), nil
+}
+
+func (g *pgGrammar) compileIndexes(schema, table string) (string, error) {
+	return fmt.Sprintf(
+		"select ic.relname as name, string_agg(a.attname, ',' order by indseq.ord) as columns, "+
+			"am.amname as \"type\", i.indisunique as \"unique\", i.indisprimary as \"primary\" "+
+			"from pg_index i "+
+			"join pg_class tc on tc.oid = i.indrelid "+
+			"join pg_namespace tn on tn.oid = tc.relnamespace "+
+			"join pg_class ic on ic.oid = i.indexrelid "+
+			"join pg_am am on am.oid = ic.relam "+
+			"join lateral unnest(i.indkey) with ordinality as indseq(num, ord) on true "+
+			"left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = indseq.num "+
+			"where tc.relname = %s and tn.nspname = %s "+
+			"group by ic.relname, am.amname, i.indisunique, i.indisprimary",
+		g.quoteString(table),
+		g.quoteString(schema),
 	), nil
 }
 
@@ -57,6 +94,34 @@ func (g *pgGrammar) compileAdd(blueprint *Blueprint) (string, error) {
 		blueprint.name,
 		strings.Join(g.prefixArray("ADD COLUMN ", columns), ", "),
 	), nil
+}
+
+func (g *pgGrammar) compileChange(bp *Blueprint) ([]string, error) {
+	if len(bp.getChangedColumns()) == 0 {
+		return nil, nil
+	}
+
+	var sqls []string
+	for _, col := range bp.getChangedColumns() {
+		if col.name == "" {
+			return nil, fmt.Errorf("column name cannot be empty for change operation")
+		}
+		sql := fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s", bp.name, col.name, g.getType(col))
+		if col.defaultVal != nil {
+			sql += fmt.Sprintf(" SET DEFAULT %s", toString(col.defaultVal))
+		}
+		if col.nullable {
+			sql += " DROP NOT NULL"
+		} else {
+			sql += " SET NOT NULL"
+		}
+		if col.comment != "" {
+			sql += fmt.Sprintf(" COMMENT '%s'", col.comment)
+		}
+		sqls = append(sqls, sql)
+	}
+
+	return sqls, nil
 }
 
 func (g *pgGrammar) compileDrop(blueprint *Blueprint) (string, error) {
@@ -224,6 +289,26 @@ func (p *pgGrammar) getType(col *columnDefinition) string {
 		return fmt.Sprintf("TIMESTAMP(%d)", col.precision)
 	case columnTypeTimestampTz:
 		return fmt.Sprintf("TIMESTAMPTZ(%d)", col.precision)
+	case columnTypeGeography:
+		srid := col.srid
+		if srid == 0 {
+			srid = 4326 // Default SRID for geography types in PostgreSQL
+		}
+		return fmt.Sprintf("GEOGRAPHY(%s, %d)", col.subType, col.srid)
+	case columnTypeGeometry:
+		if col.srid > 0 {
+			return fmt.Sprintf("GEOMETRY(%s, %d)", col.subType, col.srid)
+		}
+		return fmt.Sprintf("GEOMETRY(%s)", col.subType)
+	case columnTypeEnum:
+		if len(col.allowedEnums) == 0 {
+			return "VARCHAR" // Fallback to VARCHAR if no enums are defined
+		}
+		enumValues := make([]string, len(col.allowedEnums))
+		for i, v := range col.allowedEnums {
+			enumValues[i] = fmt.Sprintf("'%s'", v)
+		}
+		return fmt.Sprintln("VARCHAR(255) CHECK (", col.name, " IN (", strings.Join(enumValues, ", "), "))")
 	default:
 		return map[columnType]string{
 			columnTypeBoolean:         "BOOLEAN",
@@ -241,6 +326,7 @@ func (p *pgGrammar) getType(col *columnDefinition) string {
 			columnTypeJSON:            "JSON",
 			columnTypeJSONB:           "JSONB",
 			columnTypeUUID:            "UUID",
+			columnTypeBinary:          "BYTEA",
 		}[col.columnType]
 	}
 }

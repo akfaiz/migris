@@ -8,7 +8,7 @@ var ErrUnknownDialect = errors.New("unknown dialect")
 type dialectType uint8
 
 const (
-	emptyDialect dialectType = iota // Represents no dialect set
+	unknown dialectType = iota // Represents no dialect set
 	postgres
 )
 
@@ -26,7 +26,7 @@ func SetDialect(d string) error {
 	if !ok {
 		return ErrUnknownDialect
 	}
-	if v == emptyDialect {
+	if v == unknown {
 		return ErrDialectNotSet
 	}
 	dialect = v
@@ -39,7 +39,7 @@ func SetDebug(d bool) {
 	debug = d
 }
 
-func newGrammar() (grammar, error) {
+func newGrammar(dialect dialectType) (grammar, error) {
 	switch dialect {
 	case postgres:
 		return newPgGrammar(), nil

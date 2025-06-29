@@ -1,4 +1,4 @@
-package schema_test
+package schema
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/ahmadfaizk/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -51,21 +50,22 @@ func toRegex(ddl string) string {
 	return escaped
 }
 
-func TestCreate(t *testing.T) {
+func TestPgBuilderCreate(t *testing.T) {
 	ctx := context.Background()
-	err := schema.SetDialect("postgres")
+
+	builder, err := newBuilder(postgres)
 	assert.NoError(t, err)
 
 	t.Run("when tx is nil, should return error", func(t *testing.T) {
-		err = schema.Create(ctx, nil, "test_table", func(table *schema.Blueprint) {})
+		err = builder.Create(ctx, nil, "test_table", func(table *Blueprint) {})
 		assert.Error(t, err, "expected error when transaction is nil")
-		assert.ErrorIs(t, err, schema.ErrTxIsNil)
+		assert.ErrorIs(t, err, ErrTxIsNil)
 	})
 
 	testCases := []struct {
 		name       string
 		table      string
-		blueprint  func(table *schema.Blueprint)
+		blueprint  func(table *Blueprint)
 		wantErr    bool
 		statements []string
 	}{
@@ -83,7 +83,7 @@ func TestCreate(t *testing.T) {
 		{
 			name:  "when all parameters are valid, should create table successfully",
 			table: "users",
-			blueprint: func(table *schema.Blueprint) {
+			blueprint: func(table *Blueprint) {
 				table.ID()
 				table.String("name", 255)
 				table.String("email", 255)
@@ -100,7 +100,7 @@ func TestCreate(t *testing.T) {
 		{
 			name:  "when have composite primary key should create it successfully",
 			table: "user_roles",
-			blueprint: func(table *schema.Blueprint) {
+			blueprint: func(table *Blueprint) {
 				table.Integer("user_id")
 				table.Integer("role_id")
 
@@ -116,7 +116,7 @@ func TestCreate(t *testing.T) {
 		{
 			name:  "when have composite unique index should create it successfully",
 			table: "orders",
-			blueprint: func(table *schema.Blueprint) {
+			blueprint: func(table *Blueprint) {
 				table.ID()
 				table.String("order_id", 255)
 				table.Integer("user_id")
@@ -134,7 +134,7 @@ func TestCreate(t *testing.T) {
 		{
 			name:  "when have custom index should create it successfully",
 			table: "orders",
-			blueprint: func(table *schema.Blueprint) {
+			blueprint: func(table *Blueprint) {
 				table.ID()
 				table.String("order_id", 255).Unique("uk_orders_order_id")
 				table.Decimal("amount", 10, 2)
@@ -155,7 +155,7 @@ func TestCreate(t *testing.T) {
 		{
 			name:  "when have foreign key should create it successfully",
 			table: "orders",
-			blueprint: func(table *schema.Blueprint) {
+			blueprint: func(table *Blueprint) {
 				table.ID()
 				table.BigInteger("user_id")
 				table.String("order_id", 255).Unique("uk_orders_order_id")
@@ -186,7 +186,7 @@ func TestCreate(t *testing.T) {
 					WillReturnResult(sqlmock.NewResult(1, 0))
 			}
 
-			err = schema.Create(ctx, tx, tc.table, tc.blueprint)
+			err = builder.Create(ctx, tx, tc.table, tc.blueprint)
 			if tc.wantErr {
 				assert.Error(t, err, "expected error for test case: "+tc.name)
 			} else {
@@ -198,26 +198,16 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-func TestCreateIfNotExists(t *testing.T) {
+func TestPgBuilderCreateIfNotExists(t *testing.T) {
 	ctx := context.Background()
 
-	err := schema.SetDialect("postgres")
-	assert.NoError(t, err, "expected no error when creating schema")
+	builder, err := newBuilder(postgres)
+	assert.NoError(t, err)
 
 	t.Run("when table name is empty, should return error", func(t *testing.T) {
-		err := schema.CreateIfNotExists(ctx, nil, "", func(table *schema.Blueprint) {})
+		err := builder.CreateIfNotExists(ctx, nil, "", func(table *Blueprint) {})
 		assert.Error(t, err, "expected error when table name is empty")
-		assert.ErrorIs(t, err, schema.ErrTableIsNotSet)
-	})
-	t.Run("when blueprint is nil, should return error", func(t *testing.T) {
-		err = schema.CreateIfNotExists(ctx, nil, "test_table", nil)
-		assert.Error(t, err, "expected error when blueprint is nil")
-		assert.ErrorIs(t, err, schema.ErrBlueprintIsNil)
-	})
-	t.Run("when tx is nil, should return error", func(t *testing.T) {
-		err = schema.CreateIfNotExists(ctx, nil, "test_table", func(table *schema.Blueprint) {})
-		assert.Error(t, err, "expected error when transaction is nil")
-		assert.ErrorIs(t, err, schema.ErrTxIsNil)
+		assert.ErrorIs(t, err, ErrTableIsNotSet)
 	})
 	t.Run("when all parameters are valid", func(t *testing.T) {
 		tx, mock := createMockTx(t)
@@ -229,7 +219,7 @@ func TestCreateIfNotExists(t *testing.T) {
 			WithoutArgs().
 			WillReturnResult(sqlmock.NewResult(1, 0))
 
-		err = schema.CreateIfNotExists(ctx, tx, "users", func(table *schema.Blueprint) {
+		err = builder.CreateIfNotExists(ctx, tx, "users", func(table *Blueprint) {
 			table.ID()
 			table.String("name")
 		})
@@ -237,21 +227,16 @@ func TestCreateIfNotExists(t *testing.T) {
 	})
 }
 
-func TestDrop(t *testing.T) {
+func TestPgBuilderDrop(t *testing.T) {
 	ctx := context.Background()
 
-	err := schema.SetDialect("postgres")
-	assert.NoError(t, err, "expected no error when setting dialect")
+	builder, err := newBuilder(postgres)
+	assert.NoError(t, err)
 
 	t.Run("when table name is empty, should return error", func(t *testing.T) {
-		err := schema.Drop(ctx, nil, "")
+		err := builder.Drop(ctx, nil, "")
 		assert.Error(t, err, "expected error when table name is empty")
-		assert.ErrorIs(t, err, schema.ErrTableIsNotSet)
-	})
-	t.Run("when tx is nil, should return error", func(t *testing.T) {
-		err = schema.Drop(ctx, nil, "test_table")
-		assert.Error(t, err, "expected error when transaction is nil")
-		assert.ErrorIs(t, err, schema.ErrTxIsNil)
+		assert.ErrorIs(t, err, ErrTableIsNotSet)
 	})
 	t.Run("when all parameters are valid", func(t *testing.T) {
 		tx, mock := createMockTx(t)
@@ -260,26 +245,26 @@ func TestDrop(t *testing.T) {
 		mock.ExpectExec(toRegex(sql)).
 			WillReturnResult(sqlmock.NewResult(1, 0))
 
-		err = schema.Drop(ctx, tx, "users")
+		err = builder.Drop(ctx, tx, "users")
 		assert.NoError(t, err, "expected no error when dropping table with valid parameters")
 	})
 }
 
-func TestDropIfExists(t *testing.T) {
+func TestPgBuilderDropIfExists(t *testing.T) {
 	ctx := context.Background()
 
-	err := schema.SetDialect("postgres")
-	assert.NoError(t, err, "expected no error when setting dialect")
+	builder, err := newBuilder(postgres)
+	assert.NoError(t, err)
 
 	t.Run("when table name is empty, should return error", func(t *testing.T) {
-		err := schema.DropIfExists(ctx, nil, "")
+		err := builder.DropIfExists(ctx, nil, "")
 		assert.Error(t, err, "expected error when table name is empty")
-		assert.ErrorIs(t, err, schema.ErrTableIsNotSet)
+		assert.ErrorIs(t, err, ErrTableIsNotSet)
 	})
 	t.Run("when tx is nil, should return error", func(t *testing.T) {
-		err = schema.DropIfExists(ctx, nil, "test_table")
+		err = builder.DropIfExists(ctx, nil, "test_table")
 		assert.Error(t, err, "expected error when transaction is nil")
-		assert.ErrorIs(t, err, schema.ErrTxIsNil)
+		assert.ErrorIs(t, err, ErrTxIsNil)
 	})
 	t.Run("when all parameters are valid", func(t *testing.T) {
 		tx, mock := createMockTx(t)
@@ -288,28 +273,211 @@ func TestDropIfExists(t *testing.T) {
 		mock.ExpectExec(toRegex(sql)).
 			WillReturnResult(sqlmock.NewResult(1, 0))
 
-		err = schema.DropIfExists(ctx, tx, "users")
+		err = builder.DropIfExists(ctx, tx, "users")
 		assert.NoError(t, err, "expected no error when dropping table with valid parameters")
 	})
 }
 
-func TestHasTable(t *testing.T) {
+func TestPgBuilderGetColumns(t *testing.T) {
 	ctx := context.Background()
 
-	err := schema.SetDialect("postgres")
-	assert.NoError(t, err, "expected no error when setting dialect")
+	builder, err := newBuilder(postgres)
+	assert.NoError(t, err)
+
+	t.Run("when tx is nil, should return error", func(t *testing.T) {
+		_, err := builder.GetColumns(ctx, nil, "users")
+		assert.Error(t, err, "expected error when transaction is nil")
+		assert.ErrorIs(t, err, ErrTxIsNil)
+	})
 
 	t.Run("when table name is empty, should return error", func(t *testing.T) {
-		exists, err := schema.HasTable(ctx, nil, "")
+		tx, _ := createMockTx(t)
+		_, err := builder.GetColumns(ctx, tx, "")
 		assert.Error(t, err, "expected error when table name is empty")
-		assert.ErrorIs(t, err, schema.ErrTableIsNotSet)
+		assert.ErrorIs(t, err, ErrTableIsNotSet)
+	})
+
+	t.Run("when all parameters are valid", func(t *testing.T) {
+		tx, mock := createMockTx(t)
+
+		sql := "select a.attname as name, t.typname as type_name, format_type(a.atttypid, a.atttypmod) as type"
+		mock.ExpectQuery(toRegex(sql)).
+			WillReturnRows(
+				sqlmock.NewRows([]string{"name", "type_name", "type", "collation", "nullable", "default", "comment"}).
+					AddRow("id", "bigint", "bigint", nil, false, nil, nil),
+			)
+
+		columns, err := builder.GetColumns(ctx, tx, "users")
+		assert.NoError(t, err, "expected no error when getting columns with valid parameters")
+		require.Len(t, columns, 1, "expected one column to be returned")
+	})
+}
+
+func TestPgBuilderGetIndexes(t *testing.T) {
+	ctx := context.Background()
+
+	builder, err := newBuilder(postgres)
+	assert.NoError(t, err)
+
+	t.Run("when tx is nil, should return error", func(t *testing.T) {
+		_, err := builder.GetIndexes(ctx, nil, "users")
+		assert.Error(t, err, "expected error when transaction is nil")
+		assert.ErrorIs(t, err, ErrTxIsNil)
+	})
+
+	t.Run("when table name is empty, should return error", func(t *testing.T) {
+		tx, _ := createMockTx(t)
+		_, err := builder.GetIndexes(ctx, tx, "")
+		assert.Error(t, err, "expected error when table name is empty")
+		assert.ErrorIs(t, err, ErrTableIsNotSet)
+	})
+
+	t.Run("when all parameters are valid", func(t *testing.T) {
+		tx, mock := createMockTx(t)
+
+		sql := "select ic.relname as name, string_agg(a.attname, ',' order by indseq.ord) as columns"
+		mock.ExpectQuery(toRegex(sql)).
+			WillReturnRows(
+				sqlmock.NewRows([]string{"name", "columns", "type", "unique", "primary"}).
+					AddRow("idx_users_name", "name", "btree", true, false),
+			)
+
+		indexes, err := builder.GetIndexes(ctx, tx, "users")
+		assert.NoError(t, err, "expected no error when getting indexes with valid parameters")
+		require.Len(t, indexes, 1, "expected one index to be returned")
+	})
+}
+
+func TestPgBuilderGetTables(t *testing.T) {
+	ctx := context.Background()
+
+	builder, err := newBuilder(postgres)
+	assert.NoError(t, err)
+
+	t.Run("when tx is nil, should return error", func(t *testing.T) {
+		_, err := builder.GetTables(ctx, nil)
+		assert.Error(t, err, "expected error when transaction is nil")
+		assert.ErrorIs(t, err, ErrTxIsNil)
+	})
+
+	t.Run("when all parameters are valid", func(t *testing.T) {
+		tx, mock := createMockTx(t)
+
+		sql := "select c.relname as name, n.nspname as schema, pg_total_relation_size(c.oid) as size, obj_description(c.oid, 'pg_class') as comment from pg_class c"
+		mock.ExpectQuery(toRegex(sql)).
+			WillReturnRows(sqlmock.NewRows([]string{"name", "schema", "size", "comment"}).AddRow("users", "public", 0, nil))
+
+		tables, err := builder.GetTables(ctx, tx)
+		assert.NoError(t, err, "expected no error when getting tables with valid parameters")
+		require.Len(t, tables, 1, "expected one table to be returned")
+		user := tables[0]
+		assert.Equal(t, "users", user.Name, "expected table name to be 'users'")
+		assert.Equal(t, "public", user.Schema, "expected table schema to be 'public'")
+		assert.Equal(t, int64(0), user.Size, "expected table size to be 0")
+		assert.False(t, user.Comment.Valid, "expected table comment to be invalid (nil)")
+	})
+}
+
+func TestPgBuilderHasColumns(t *testing.T) {
+	ctx := context.Background()
+
+	builder, err := newBuilder(postgres)
+	assert.NoError(t, err)
+
+	t.Run("when tx is nil, should return error", func(t *testing.T) {
+		exists, err := builder.HasColumns(ctx, nil, "users", "name")
+		assert.Error(t, err, "expected error when transaction is nil")
+		assert.ErrorIs(t, err, ErrTxIsNil)
+		assert.False(t, exists, "expected exists to be false when transaction is nil")
+	})
+
+	t.Run("when table name is empty, should return error", func(t *testing.T) {
+		tx, _ := createMockTx(t)
+		exists, err := builder.HasColumns(ctx, tx, "", "name")
+		assert.Error(t, err, "expected error when table name is empty")
+		assert.ErrorIs(t, err, ErrTableIsNotSet)
 		assert.False(t, exists, "expected exists to be false when table name is empty")
 	})
+
+	t.Run("when all parameters are valid", func(t *testing.T) {
+		tx, mock := createMockTx(t)
+
+		sql := "select a.attname as name, t.typname as type_name, format_type(a.atttypid, a.atttypmod) as type"
+		mock.ExpectQuery(toRegex(sql)).
+			WillReturnRows(
+				sqlmock.NewRows([]string{"name", "type_name", "type", "collation", "nullable", "default", "comment"}).
+					AddRow("id", "bigint", "bigint", nil, false, nil, nil),
+			)
+
+		exists, err := builder.HasColumns(ctx, tx, "users", "id")
+		assert.NoError(t, err, "expected no error when checking if columns exist with valid parameters")
+		assert.True(t, exists, "expected exists to be true for existing column")
+	})
+}
+
+func TestPgBuilderHasIndex(t *testing.T) {
+	ctx := context.Background()
+
+	builder, err := newBuilder(postgres)
+	assert.NoError(t, err)
+
 	t.Run("when tx is nil, should return error", func(t *testing.T) {
-		exists, err := schema.HasTable(ctx, nil, "test_table")
+		exists, err := builder.HasIndex(ctx, nil, "users", []string{"idx_users_name"})
 		assert.Error(t, err, "expected error when transaction is nil")
-		assert.ErrorIs(t, err, schema.ErrTxIsNil)
+		assert.ErrorIs(t, err, ErrTxIsNil)
 		assert.False(t, exists, "expected exists to be false when transaction is nil")
+	})
+
+	t.Run("when table name is empty, should return error", func(t *testing.T) {
+		tx, _ := createMockTx(t)
+		exists, err := builder.HasIndex(ctx, tx, "", []string{"idx_users_name"})
+		assert.Error(t, err, "expected error when table name is empty")
+		assert.ErrorIs(t, err, ErrTableIsNotSet)
+		assert.False(t, exists, "expected exists to be false when table name is empty")
+	})
+
+	t.Run("when all parameters are valid", func(t *testing.T) {
+		tx, mock := createMockTx(t)
+
+		sql := "select ic.relname as name, string_agg(a.attname, ',' order by indseq.ord) as columns"
+		mock.ExpectQuery(toRegex(sql)).
+			WillReturnRows(
+				sqlmock.NewRows([]string{"name", "columns", "type", "unique", "primary"}).
+					AddRow("idx_users_name", "name", "btree", true, false),
+			)
+
+		exists, err := builder.HasIndex(ctx, tx, "users", []string{"idx_users_name"})
+		assert.NoError(t, err, "expected no error when checking if index exists with valid parameters")
+		assert.True(t, exists, "expected exists to be true for existing index")
+	})
+
+	t.Run("when use composite index, should return true", func(t *testing.T) {
+		tx, mock := createMockTx(t)
+
+		sql := "select ic.relname as name, string_agg(a.attname, ',' order by indseq.ord) as columns"
+		mock.ExpectQuery(toRegex(sql)).
+			WillReturnRows(
+				sqlmock.NewRows([]string{"name", "columns", "type", "unique", "primary"}).
+					AddRow("idx_users_name_email", "name,email", "btree", true, false),
+			)
+
+		exists, err := builder.HasIndex(ctx, tx, "users", []string{"name", "email"})
+		assert.NoError(t, err, "expected no error when checking if composite index exists with valid parameters")
+		assert.True(t, exists, "expected exists to be true for existing composite index")
+	})
+}
+
+func TestPgBuilderHasTable(t *testing.T) {
+	ctx := context.Background()
+
+	builder, err := newBuilder(postgres)
+	assert.NoError(t, err)
+
+	t.Run("when table name is empty, should return error", func(t *testing.T) {
+		exists, err := builder.HasTable(ctx, nil, "")
+		assert.Error(t, err, "expected error when table name is empty")
+		assert.ErrorIs(t, err, ErrTableIsNotSet)
+		assert.False(t, exists, "expected exists to be false when table name is empty")
 	})
 	t.Run("when all parameters are valid", func(t *testing.T) {
 		tx, mock := createMockTx(t)
@@ -318,32 +486,32 @@ func TestHasTable(t *testing.T) {
 		mock.ExpectQuery(toRegex(sql)).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
-		exists, err := schema.HasTable(ctx, tx, "users")
+		exists, err := builder.HasTable(ctx, tx, "users")
 		assert.NoError(t, err, "expected no error when checking if table exists with valid parameters")
 		assert.True(t, exists, "expected exists to be true for existing table")
 	})
 }
 
-func TestRename(t *testing.T) {
+func TestPgBuilderRename(t *testing.T) {
 	ctx := context.Background()
 
-	err := schema.SetDialect("postgres")
-	assert.NoError(t, err, "expected no error when setting dialect")
+	builder, err := newBuilder(postgres)
+	assert.NoError(t, err)
 
 	t.Run("when old name is empty, should return error", func(t *testing.T) {
-		err := schema.Rename(ctx, nil, "", "new_name")
+		err := builder.Rename(ctx, nil, "", "new_name")
 		assert.Error(t, err, "expected error when old name is empty")
-		assert.ErrorIs(t, err, schema.ErrTableIsNotSet)
+		assert.ErrorIs(t, err, ErrTableIsNotSet)
 	})
 	t.Run("when new name is empty, should return error", func(t *testing.T) {
-		err = schema.Rename(ctx, nil, "old_name", "")
+		err = builder.Rename(ctx, nil, "old_name", "")
 		assert.Error(t, err, "expected error when new name is empty")
-		assert.ErrorIs(t, err, schema.ErrTableIsNotSet)
+		assert.ErrorIs(t, err, ErrTableIsNotSet)
 	})
 	t.Run("when tx is nil", func(t *testing.T) {
-		err = schema.Rename(ctx, nil, "old_name", "new_name")
+		err = builder.Rename(ctx, nil, "old_name", "new_name")
 		assert.Error(t, err, "expected error when transaction is nil")
-		assert.ErrorIs(t, err, schema.ErrTxIsNil)
+		assert.ErrorIs(t, err, ErrTxIsNil)
 	})
 	t.Run("when all parameters are valid", func(t *testing.T) {
 		tx, mock := createMockTx(t)
@@ -352,27 +520,27 @@ func TestRename(t *testing.T) {
 		mock.ExpectExec(toRegex(sql)).
 			WillReturnResult(sqlmock.NewResult(1, 0))
 
-		err = schema.Rename(ctx, tx, "old_name", "new_name")
+		err = builder.Rename(ctx, tx, "old_name", "new_name")
 		assert.NoError(t, err, "expected no error when renaming table with valid parameters")
 	})
 }
 
-func TestTable(t *testing.T) {
+func TestPgBuilderTable(t *testing.T) {
 	ctx := context.Background()
 
-	err := schema.SetDialect("postgres")
-	assert.NoError(t, err, "expected no error when setting dialect")
+	builder, err := newBuilder(postgres)
+	assert.NoError(t, err)
 
 	t.Run("when tx is nil, should return error", func(t *testing.T) {
-		err = schema.Table(ctx, nil, "test_table", func(table *schema.Blueprint) {})
+		err = builder.Table(ctx, nil, "test_table", func(table *Blueprint) {})
 		assert.Error(t, err, "expected error when transaction is nil")
-		assert.ErrorIs(t, err, schema.ErrTxIsNil)
+		assert.ErrorIs(t, err, ErrTxIsNil)
 	})
 
 	testCases := []struct {
 		name       string
 		table      string
-		blueprint  func(table *schema.Blueprint)
+		blueprint  func(table *Blueprint)
 		statements []string
 		wantErr    bool
 	}{
@@ -390,7 +558,7 @@ func TestTable(t *testing.T) {
 		{
 			name:  "when all parameters are valid, should execute statements",
 			table: "users",
-			blueprint: func(table *schema.Blueprint) {
+			blueprint: func(table *Blueprint) {
 				table.Integer("age")
 				table.String("name", 255)
 			},
@@ -399,7 +567,7 @@ func TestTable(t *testing.T) {
 		{
 			name:  "when have drop column, should drop it successfully",
 			table: "users",
-			blueprint: func(table *schema.Blueprint) {
+			blueprint: func(table *Blueprint) {
 				table.DropColumn("age")
 			},
 			statements: []string{"ALTER TABLE users DROP COLUMN age"},
@@ -407,7 +575,7 @@ func TestTable(t *testing.T) {
 		{
 			name:  "when have rename column, should rename it successfully",
 			table: "users",
-			blueprint: func(table *schema.Blueprint) {
+			blueprint: func(table *Blueprint) {
 				table.RenameColumn("name", "full_name")
 			},
 			statements: []string{"ALTER TABLE users RENAME COLUMN name TO full_name"},
@@ -415,7 +583,7 @@ func TestTable(t *testing.T) {
 		{
 			name:  "when have drop index, should drop it successfully",
 			table: "users",
-			blueprint: func(table *schema.Blueprint) {
+			blueprint: func(table *Blueprint) {
 				table.DropIndex("idx_users_name")
 			},
 			statements: []string{"DROP INDEX idx_users_name"},
@@ -423,7 +591,7 @@ func TestTable(t *testing.T) {
 		{
 			name:  "when have drop unique index, should drop it successfully",
 			table: "users",
-			blueprint: func(table *schema.Blueprint) {
+			blueprint: func(table *Blueprint) {
 				table.DropUnique("uk_users_email")
 			},
 			statements: []string{"DROP INDEX uk_users_email"},
@@ -431,7 +599,7 @@ func TestTable(t *testing.T) {
 		{
 			name:  "when have rename index, should rename it successfully",
 			table: "users",
-			blueprint: func(table *schema.Blueprint) {
+			blueprint: func(table *Blueprint) {
 				table.RenameIndex("idx_users_name", "idx_users_full_name")
 			},
 			statements: []string{"ALTER INDEX idx_users_name RENAME TO idx_users_full_name"},
@@ -439,7 +607,7 @@ func TestTable(t *testing.T) {
 		{
 			name:  "when have drop primary key, should drop it successfully",
 			table: "users",
-			blueprint: func(table *schema.Blueprint) {
+			blueprint: func(table *Blueprint) {
 				table.DropPrimary("users_pkey")
 			},
 			statements: []string{"ALTER TABLE users DROP CONSTRAINT users_pkey"},
@@ -447,7 +615,7 @@ func TestTable(t *testing.T) {
 		{
 			name:  "when have drop foreign key, should drop it successfully",
 			table: "orders",
-			blueprint: func(table *schema.Blueprint) {
+			blueprint: func(table *Blueprint) {
 				table.DropForeign("fk_orders_users")
 			},
 			statements: []string{"ALTER TABLE orders DROP CONSTRAINT fk_orders_users"},
@@ -462,7 +630,7 @@ func TestTable(t *testing.T) {
 					WillReturnResult(sqlmock.NewResult(1, 0))
 			}
 
-			err := schema.Table(ctx, tx, tc.table, tc.blueprint)
+			err := builder.Table(ctx, tx, tc.table, tc.blueprint)
 			if tc.wantErr {
 				assert.Error(t, err, "expected error for test case: "+tc.name)
 			} else {

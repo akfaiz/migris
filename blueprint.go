@@ -23,9 +23,13 @@ const (
 	columnTypeTimestamp
 	columnTypeTimestampTz
 	columnTypeYear
+	columnTypeBinary
 	columnTypeJSON
 	columnTypeJSONB
+	columnTypeGeography
+	columnTypeGeometry
 	columnTypeUUID
+	columnTypeEnum
 )
 
 type indexType int
@@ -246,6 +250,16 @@ func (b *Blueprint) Year(name string) ColumnDefinition {
 	return col
 }
 
+// Binary creates a new binary column definition in the blueprint.
+func (b *Blueprint) Binary(name string) ColumnDefinition {
+	col := &columnDefinition{
+		name:       name,
+		columnType: columnTypeBinary,
+	}
+	b.columns = append(b.columns, col)
+	return col
+}
+
 // JSON creates a new JSON column definition in the blueprint.
 func (b *Blueprint) JSON(name string) ColumnDefinition {
 	col := &columnDefinition{
@@ -271,6 +285,51 @@ func (b *Blueprint) UUID(name string) ColumnDefinition {
 	col := &columnDefinition{
 		name:       name,
 		columnType: columnTypeUUID,
+	}
+	b.columns = append(b.columns, col)
+	return col
+}
+
+// Geography creates a new geography column definition in the blueprint.
+// The subType parameter is optional and can be used to specify the type of geography (e.g., "Point", "LineString", "Polygon").
+// The srid parameter is optional and specifies the Spatial Reference Identifier (SRID) for the geography type.
+func (b *Blueprint) Geography(name string, subType string, srid int) ColumnDefinition {
+	col := &columnDefinition{
+		name:       name,
+		columnType: columnTypeGeography,
+		subType:    subType,
+		srid:       srid,
+	}
+	b.columns = append(b.columns, col)
+	return col
+}
+
+// Geometry creates a new geometry column definition in the blueprint.
+// The subType parameter is optional and can be used to specify the type of geometry (e.g., "Point", "LineString", "Polygon").
+// The srid parameter is optional and specifies the Spatial Reference Identifier (SRID) for the geometry type.
+func (b *Blueprint) Geometry(name string, subType string, srid int) ColumnDefinition {
+	col := &columnDefinition{
+		name:       name,
+		columnType: columnTypeGeometry,
+		subType:    subType,
+		srid:       srid,
+	}
+	b.columns = append(b.columns, col)
+	return col
+}
+
+// Enum creates a new enum column definition in the blueprint.
+// The allowedEnums parameter is a slice of strings that defines the allowed values for the enum column.
+//
+// Example:
+//
+//	table.Enum("status", []string{"active", "inactive", "pending"})
+//	table.Enum("role", []string{"admin", "user", "guest"}).Comment("User role in the system")
+func (b *Blueprint) Enum(name string, allowedEnums []string) ColumnDefinition {
+	col := &columnDefinition{
+		name:         name,
+		columnType:   columnTypeEnum,
+		allowedEnums: allowedEnums,
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -405,15 +464,15 @@ func (b *Blueprint) getAddeddColumns() []*columnDefinition {
 	return addedColumns
 }
 
-// func (b *Blueprint) getChangedColumns() []*columnDefinition {
-// 	var changedColumns []*columnDefinition
-// 	for _, col := range b.columns {
-// 		if col.changed {
-// 			changedColumns = append(changedColumns, col)
-// 		}
-// 	}
-// 	return changedColumns
-// }
+func (b *Blueprint) getChangedColumns() []*columnDefinition {
+	var changedColumns []*columnDefinition
+	for _, col := range b.columns {
+		if col.changed {
+			changedColumns = append(changedColumns, col)
+		}
+	}
+	return changedColumns
+}
 
 func (b *Blueprint) create() {
 	b.addCommand("create")
@@ -457,9 +516,9 @@ func (b *Blueprint) addImpliedCommands() {
 	if len(b.getAddeddColumns()) > 0 && !b.creating() {
 		b.commands = append([]string{"add"}, b.commands...)
 	}
-	// if len(b.getChangedColumns()) > 0 && !b.creating() {
-	// 	b.commands = append([]string{"rename"}, b.commands...)
-	// }
+	if len(b.getChangedColumns()) > 0 && !b.creating() {
+		b.commands = append([]string{"change"}, b.commands...)
+	}
 }
 
 func (b *Blueprint) toSql(grammar grammar) ([]string, error) {
@@ -529,6 +588,12 @@ func (b *Blueprint) toSql(grammar grammar) ([]string, error) {
 					statements = append(statements, sql)
 				}
 			}
+		case "change":
+			sqls, err := grammar.compileChange(b)
+			if err != nil {
+				return nil, err
+			}
+			statements = append(statements, sqls...)
 		case "dropColumn":
 			sql, err := grammar.compileDropColumn(b)
 			if err != nil {
@@ -618,6 +683,10 @@ type columnDefinition struct {
 	precision       int
 	scale           int
 	changed         bool
+	allowedEnums    []string // for enum type columns
+	subType         string   // for geography and geometry types
+	srid            int      // for geography and geometry types
+
 }
 
 func (c *columnDefinition) Comment(comment string) ColumnDefinition {

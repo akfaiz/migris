@@ -62,6 +62,20 @@ func queryRowContext(ctx context.Context, tx *sql.Tx, query string, args ...any)
 	return row
 }
 
+func queryContext(ctx context.Context, tx *sql.Tx, query string, args ...any) (*sql.Rows, error) {
+	if debug {
+		log.Printf("Executing Query: %s with args: %v\n", query, args)
+	}
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		if debug {
+			log.Printf("Error executing Query: %s\nError: %v\n", query, err)
+		}
+		return nil, err
+	}
+	return rows, nil
+}
+
 func toString(value any) string {
 	reflectType := reflect.TypeOf(value)
 	if reflectType == nil {
