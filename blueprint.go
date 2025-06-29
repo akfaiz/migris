@@ -1,5 +1,7 @@
 package schema
 
+import "slices"
+
 type columnType uint8
 
 const (
@@ -36,6 +38,7 @@ const (
 
 // Blueprint represents a schema blueprint for creating or altering a database table.
 type Blueprint struct {
+	commands        []string // commands to be executed
 	name            string
 	newName         string
 	columns         []*columnDefinition
@@ -53,7 +56,6 @@ type Blueprint struct {
 // Boolean creates a new boolean column definition in the blueprint.
 func (b *Blueprint) Boolean(name string) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeBoolean,
 	}
@@ -62,26 +64,22 @@ func (b *Blueprint) Boolean(name string) ColumnDefinition {
 }
 
 // Char creates a new char column definition in the blueprint.
-// The length parameter is optional and defaults to 1 if not provided.
 func (b *Blueprint) Char(name string, length ...int) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeChar,
-		length:     optionalInt(1, length...),
+		length:     optionalInt(0, length...),
 	}
 	b.columns = append(b.columns, col)
 	return col
 }
 
 // String creates a new string column definition in the blueprint.
-// The length parameter is optional and defaults to 255 if not provided.
 func (b *Blueprint) String(name string, length ...int) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeString,
-		length:     optionalInt(255, length...),
+		length:     optionalInt(0, length...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -90,7 +88,6 @@ func (b *Blueprint) String(name string, length ...int) ColumnDefinition {
 // Text creates a new text column definition in the blueprint.
 func (b *Blueprint) Text(name string) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeText,
 	}
@@ -101,7 +98,6 @@ func (b *Blueprint) Text(name string) ColumnDefinition {
 // BigIncrements creates a new big increments column definition in the blueprint.
 func (b *Blueprint) BigIncrements(name string) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeBigIncrements,
 	}
@@ -112,7 +108,6 @@ func (b *Blueprint) BigIncrements(name string) ColumnDefinition {
 // BigInteger creates a new big integer column definition in the blueprint.
 func (b *Blueprint) BigInteger(name string) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeBigInteger,
 	}
@@ -123,7 +118,6 @@ func (b *Blueprint) BigInteger(name string) ColumnDefinition {
 // Decimal creates a new decimal column definition in the blueprint.
 func (b *Blueprint) Decimal(name string, precision, scale int) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeDecimal,
 		precision:  precision,
@@ -136,7 +130,6 @@ func (b *Blueprint) Decimal(name string, precision, scale int) ColumnDefinition 
 // Double creates a new double column definition in the blueprint.
 func (b *Blueprint) Double(name string) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeDouble,
 	}
@@ -147,7 +140,6 @@ func (b *Blueprint) Double(name string) ColumnDefinition {
 // Float creates a new float column definition in the blueprint.
 func (b *Blueprint) Float(name string) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeFloat,
 	}
@@ -163,7 +155,6 @@ func (b *Blueprint) ID() ColumnDefinition {
 // Increments creates a new increments column definition in the blueprint.
 func (b *Blueprint) Increments(name string) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeIncrements,
 	}
@@ -174,7 +165,6 @@ func (b *Blueprint) Increments(name string) ColumnDefinition {
 // Integer creates a new integer column definition in the blueprint.
 func (b *Blueprint) Integer(name string) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeInteger,
 	}
@@ -185,7 +175,6 @@ func (b *Blueprint) Integer(name string) ColumnDefinition {
 // SmallIncrements creates a new small increments column definition in the blueprint.
 func (b *Blueprint) SmallIncrements(name string) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeSmallIncrements,
 	}
@@ -196,7 +185,6 @@ func (b *Blueprint) SmallIncrements(name string) ColumnDefinition {
 // SmallInteger creates a new small integer column definition in the blueprint.
 func (b *Blueprint) SmallInteger(name string) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeSmallInteger,
 	}
@@ -207,7 +195,6 @@ func (b *Blueprint) SmallInteger(name string) ColumnDefinition {
 // Date creates a new date column definition in the blueprint.
 func (b *Blueprint) Date(name string) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeDate,
 	}
@@ -218,7 +205,6 @@ func (b *Blueprint) Date(name string) ColumnDefinition {
 // Time creates a new time column definition in the blueprint.
 func (b *Blueprint) Time(name string) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeTime,
 	}
@@ -230,7 +216,6 @@ func (b *Blueprint) Time(name string) ColumnDefinition {
 // The precision parameter is optional and defaults to 0 if not provided.
 func (b *Blueprint) Timestamp(name string, precission ...int) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeTimestamp,
 		precision:  optionalInt(0, precission...),
@@ -243,7 +228,6 @@ func (b *Blueprint) Timestamp(name string, precission ...int) ColumnDefinition {
 // The precision parameter is optional and defaults to 0 if not provided.
 func (b *Blueprint) TimestampTz(name string, precission ...int) ColumnDefinition {
 	col := &columnDefinition{
-		tableName:  b.name,
 		name:       name,
 		columnType: columnTypeTimestampTz,
 		precision:  optionalInt(0, precission...),
@@ -301,7 +285,6 @@ func (b *Blueprint) UUID(name string) ColumnDefinition {
 //	table.Index("email").Algorithm("btree") // creates a btree index
 func (b *Blueprint) Index(column string, otherColumns ...string) IndexDefinition {
 	index := &indexDefinition{
-		tableName: b.name,
 		indexType: indexTypeIndex,
 		columns:   append([]string{column}, otherColumns...),
 	}
@@ -319,7 +302,6 @@ func (b *Blueprint) Index(column string, otherColumns ...string) IndexDefinition
 func (b *Blueprint) Unique(column string, otherColumns ...string) {
 	index := &indexDefinition{
 		indexType: indexTypeUnique,
-		tableName: b.name,
 		columns:   append([]string{column}, otherColumns...),
 	}
 	b.indexes = append(b.indexes, index)
@@ -334,7 +316,6 @@ func (b *Blueprint) Unique(column string, otherColumns ...string) {
 func (b *Blueprint) Primary(column string, otherColumns ...string) {
 	index := &indexDefinition{
 		indexType: indexTypePrimary,
-		tableName: b.name,
 		columns:   append([]string{column}, otherColumns...),
 	}
 	b.indexes = append(b.indexes, index)
@@ -362,6 +343,7 @@ func (b *Blueprint) Foreign(column string) ForeignKeyDefinition {
 //	table.DropColumn("old_column", "another_old_column") // drops multiple columns
 func (b *Blueprint) DropColumn(column string, otherColumns ...string) {
 	b.dropColumns = append(b.dropColumns, append([]string{column}, otherColumns...)...)
+	b.addCommand("dropColumn")
 }
 
 // RenameColumn changes the name of the table in the blueprint.
@@ -374,26 +356,31 @@ func (b *Blueprint) RenameColumn(oldColumn string, newColumn string) {
 		b.renameColumns = make(map[string]string)
 	}
 	b.renameColumns[oldColumn] = newColumn
+	b.addCommand("renameColumn")
 }
 
 // DropIndex adds an index to be dropped from the table.
 func (b *Blueprint) DropIndex(indexName string) {
 	b.dropIndexes = append(b.dropIndexes, indexName)
+	b.addCommand("dropIndex")
 }
 
 // DropForeign adds a foreign key to be dropped from the table.
 func (b *Blueprint) DropForeign(foreignKeyName string) {
 	b.dropForeignKeys = append(b.dropForeignKeys, foreignKeyName)
+	b.addCommand("dropForeign")
 }
 
 // DropPrimary adds a primary key to be dropped from the table.
 func (b *Blueprint) DropPrimary(primaryKeyName string) {
 	b.dropPrimaryKeys = append(b.dropPrimaryKeys, primaryKeyName)
+	b.addCommand("dropPrimary")
 }
 
 // DropUnique adds a unique key to be dropped from the table.
 func (b *Blueprint) DropUnique(uniqueKeyName string) {
 	b.dropUniqueKeys = append(b.dropUniqueKeys, uniqueKeyName)
+	b.addCommand("dropUnique")
 }
 
 // RenameIndex changes the name of an index in the blueprint.
@@ -405,6 +392,7 @@ func (b *Blueprint) RenameIndex(oldIndexName string, newIndexName string) {
 		b.renameIndexes = make(map[string]string)
 	}
 	b.renameIndexes[oldIndexName] = newIndexName
+	b.addCommand("renameIndex")
 }
 
 func (b *Blueprint) getAddeddColumns() []*columnDefinition {
@@ -417,8 +405,205 @@ func (b *Blueprint) getAddeddColumns() []*columnDefinition {
 	return addedColumns
 }
 
+// func (b *Blueprint) getChangedColumns() []*columnDefinition {
+// 	var changedColumns []*columnDefinition
+// 	for _, col := range b.columns {
+// 		if col.changed {
+// 			changedColumns = append(changedColumns, col)
+// 		}
+// 	}
+// 	return changedColumns
+// }
+
+func (b *Blueprint) create() {
+	b.addCommand("create")
+}
+
+func (b *Blueprint) creating() bool {
+	for _, command := range b.commands {
+		if command == "create" || command == "createIfNotExists" {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *Blueprint) createIfNotExists() {
+	b.addCommand("createIfNotExists")
+}
+
+func (b *Blueprint) drop() {
+	b.addCommand("drop")
+}
+
+func (b *Blueprint) dropIfExists() {
+	b.addCommand("dropIfNotExists")
+}
+
+func (b *Blueprint) rename() {
+	b.addCommand("rename")
+}
+
+func (b *Blueprint) addCommand(command string) {
+	if command == "" {
+		return
+	}
+	if !slices.Contains(b.commands, command) {
+		b.commands = append(b.commands, command)
+	}
+}
+
+func (b *Blueprint) addImpliedCommands() {
+	if len(b.getAddeddColumns()) > 0 && !b.creating() {
+		b.commands = append([]string{"add"}, b.commands...)
+	}
+	// if len(b.getChangedColumns()) > 0 && !b.creating() {
+	// 	b.commands = append([]string{"rename"}, b.commands...)
+	// }
+}
+
+func (b *Blueprint) toSql(grammar grammar) ([]string, error) {
+	b.addImpliedCommands()
+
+	var statements []string
+
+	commandMap := map[string]func(*Blueprint) (string, error){
+		"create":            grammar.compileCreate,
+		"createIfNotExists": grammar.compileCreateIfNotExists,
+		"add":               grammar.compileAdd,
+		"drop":              grammar.compileDrop,
+		"dropIfNotExists":   grammar.compileDropIfExists,
+		"rename":            grammar.compileRename,
+	}
+	for _, command := range b.commands {
+		if compileFunc, exists := commandMap[command]; exists {
+			sql, err := compileFunc(b)
+			if err != nil {
+				return nil, err
+			}
+			if sql != "" {
+				statements = append(statements, sql)
+			}
+		}
+		switch command {
+		case "create", "createIfNotExists", "add":
+			for _, col := range b.getAddeddColumns() {
+				if col.unique && col.uniqueIndexName != "" {
+					sql, err := grammar.compileIndexSql(b, &indexDefinition{
+						name:      col.uniqueIndexName,
+						indexType: indexTypeUnique,
+						columns:   []string{col.name},
+					})
+					if err != nil {
+						return nil, err
+					}
+					statements = append(statements, sql)
+				}
+				if col.index {
+					sql, err := grammar.compileIndexSql(b, &indexDefinition{
+						name:      col.indexName,
+						indexType: indexTypeIndex,
+						columns:   []string{col.name},
+					})
+					if err != nil {
+						return nil, err
+					}
+					statements = append(statements, sql)
+				}
+			}
+
+			for _, index := range b.indexes {
+				sql, err := grammar.compileIndexSql(b, index)
+				if err != nil {
+					return nil, err
+				}
+				statements = append(statements, sql)
+			}
+
+			for _, foreignKey := range b.foreignKeys {
+				sql, err := grammar.compileForeignKeySql(b, foreignKey)
+				if err != nil {
+					return nil, err
+				}
+				if sql != "" {
+					statements = append(statements, sql)
+				}
+			}
+		case "dropColumn":
+			sql, err := grammar.compileDropColumn(b)
+			if err != nil {
+				return nil, err
+			}
+			if sql != "" {
+				statements = append(statements, sql)
+			}
+		case "renameColumn":
+			for oldName, newName := range b.renameColumns {
+				sql, err := grammar.compileRenameColumn(b, oldName, newName)
+				if err != nil {
+					return nil, err
+				}
+				if sql != "" {
+					statements = append(statements, sql)
+				}
+			}
+		case "dropIndex":
+			for _, indexName := range b.dropIndexes {
+				sql, err := grammar.compileDropIndex(indexName)
+				if err != nil {
+					return nil, err
+				}
+				if sql != "" {
+					statements = append(statements, sql)
+				}
+			}
+		case "dropUnique":
+			for _, uniqueKeyName := range b.dropUniqueKeys {
+				sql, err := grammar.compileDropUnique(uniqueKeyName)
+				if err != nil {
+					return nil, err
+				}
+				if sql != "" {
+					statements = append(statements, sql)
+				}
+			}
+		case "dropPrimary":
+			for _, primaryKeyName := range b.dropPrimaryKeys {
+				sql, err := grammar.compileDropPrimaryKey(b, primaryKeyName)
+				if err != nil {
+					return nil, err
+				}
+				if sql != "" {
+					statements = append(statements, sql)
+				}
+			}
+		case "renameIndex":
+			for oldName, newName := range b.renameIndexes {
+				sql, err := grammar.compileRenameIndex(b, oldName, newName)
+				if err != nil {
+					return nil, err
+				}
+				if sql != "" {
+					statements = append(statements, sql)
+				}
+			}
+		case "dropForeign":
+			for _, foreignKeyName := range b.dropForeignKeys {
+				sql, err := grammar.compileDropForeignKey(b, foreignKeyName)
+				if err != nil {
+					return nil, err
+				}
+				if sql != "" {
+					statements = append(statements, sql)
+				}
+			}
+		}
+	}
+
+	return statements, nil
+}
+
 type columnDefinition struct {
-	tableName       string
 	name            string
 	columnType      columnType
 	comment         string
@@ -468,7 +653,7 @@ func (c *columnDefinition) Unique(indexName ...string) ColumnDefinition {
 }
 
 type indexDefinition struct {
-	tableName  string
+	name       string
 	indexType  indexType
 	algorithmn string
 	columns    []string
@@ -476,6 +661,11 @@ type indexDefinition struct {
 
 func (id *indexDefinition) Algorithm(algorithm string) IndexDefinition {
 	id.algorithmn = algorithm
+	return id
+}
+
+func (id *indexDefinition) Name(name string) IndexDefinition {
+	id.name = name
 	return id
 }
 

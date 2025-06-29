@@ -22,7 +22,10 @@ jobs:
         go-version: '1.23'
 
     - name: Test
-      run: go test -v ./...
+      run: make test
+    
+    - name: Coverage check
+      run: make coverage-check
 
     - name: Linting
       uses: golangci/golangci-lint-action@v4

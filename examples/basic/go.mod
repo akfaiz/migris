@@ -3,7 +3,7 @@ module github.com/ahmadfaizk/schema/examples/basic
 go 1.23.0
 
 require (
-	github.com/ahmadfaizk/schema v0.0.0-20250628084548-72dd3231ab0a
+	github.com/ahmadfaizk/schema v0.1.0
 	github.com/lib/pq v1.10.9
 	github.com/pressly/goose/v3 v3.24.3
 )

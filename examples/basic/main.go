@@ -25,7 +25,7 @@ func main() {
 
 	goose.SetDialect("postgres")
 	schema.SetDialect("postgres")
-	// schema.SetDebug(true)
+	schema.SetDebug(true)
 
 	cfg := dbConfig{
 		Host:     "localhost",

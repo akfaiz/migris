@@ -1,11 +1,9 @@
 package schema
 
 import (
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPgGrammar_CompileCreate(t *testing.T) {
@@ -14,7 +12,7 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 	tests := []struct {
 		name      string
 		blueprint *Blueprint
-		want      []string
+		want      string
 		wantErr   bool
 	}{
 		{
@@ -29,7 +27,7 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 				bp.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
 				return bp
 			}(),
-			want: []string{"CREATE TABLE users (id BIGSERIAL NOT NULL PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL UNIQUE, password VARCHAR(255) NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL)"},
+			want: "CREATE TABLE users (id BIGSERIAL NOT NULL PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL UNIQUE, password VARCHAR NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL)",
 		},
 		{
 			name: "Create table with foreign key",
@@ -42,38 +40,13 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 				bp.Foreign("user_id").References("id").On("users").OnDelete("CASCADE").OnUpdate("CASCADE")
 				return bp
 			}(),
-			want: []string{
-				"CREATE TABLE posts (id BIGSERIAL NOT NULL PRIMARY KEY, user_id INTEGER NOT NULL, title VARCHAR(255) NOT NULL, content TEXT NULL)",
-				"ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE",
-			},
+			want: "CREATE TABLE posts (id BIGSERIAL NOT NULL PRIMARY KEY, user_id INTEGER NOT NULL, title VARCHAR(255) NOT NULL, content TEXT NULL)",
 		},
 		{
 			name: "Create table with column name is empty",
 			blueprint: func() *Blueprint {
 				bp := &Blueprint{name: "empty_column_table"}
 				bp.String("", 255) // Intentionally empty column name
-				return bp
-			}(),
-			wantErr: true,
-		},
-		{
-			name: "Create table with index name is empty",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.ID()
-				bp.String("name", 255)
-				bp.Index("")
-				return bp
-			}(),
-			wantErr: true,
-		},
-		{
-			name: "Create table with invalid foreign key",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "post"}
-				bp.ID()
-				bp.Integer("user_id")
-				bp.Foreign("user_id")
 				return bp
 			}(),
 			wantErr: true,
@@ -89,10 +62,7 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 			}
 
 			assert.NoError(t, err)
-			require.Len(t, got, len(tt.want), "Expected %d SQL statements, got %d", len(tt.want), len(got))
-			for i, sql := range got {
-				assert.Equal(t, tt.want[i], sql, "SQL statement mismatch at index %d", i)
-			}
+			assert.Equal(t, tt.want, got, "SQL statement mismatch for %s", tt.name)
 		})
 	}
 }
@@ -103,7 +73,7 @@ func TestPgGrammar_CompileCreateIfNotExists(t *testing.T) {
 	tests := []struct {
 		name      string
 		blueprint *Blueprint
-		want      []string
+		want      string
 		wantErr   bool
 	}{
 		{
@@ -118,7 +88,7 @@ func TestPgGrammar_CompileCreateIfNotExists(t *testing.T) {
 				bp.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
 				return bp
 			}(),
-			want:    []string{"CREATE TABLE IF NOT EXISTS users (id BIGSERIAL NOT NULL PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL UNIQUE, password VARCHAR(255) NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL)"},
+			want:    "CREATE TABLE IF NOT EXISTS users (id BIGSERIAL NOT NULL PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL UNIQUE, password VARCHAR NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL)",
 			wantErr: false,
 		},
 	}
@@ -132,92 +102,7 @@ func TestPgGrammar_CompileCreateIfNotExists(t *testing.T) {
 			}
 
 			assert.NoError(t, err)
-			require.Len(t, got, len(tt.want), "Expected %d SQL statements, got %d", len(tt.want), len(got))
-			for i, sql := range got {
-				assert.Equal(t, tt.want[i], sql, "SQL statement mismatch at index %d", i)
-			}
-		})
-	}
-}
-
-func TestPgGrammar_CompileAlter(t *testing.T) {
-	grammar := newPgGrammar()
-
-	tests := []struct {
-		name      string
-		blueprint *Blueprint
-		want      []string
-		wantErr   bool
-	}{
-		{
-			name: "Add column to table",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.String("address", 255)
-				return bp
-			}(),
-			want:    []string{"ALTER TABLE users ADD COLUMN address VARCHAR(255) NOT NULL"},
-			wantErr: false,
-		},
-		{
-			name: "Add index to column",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.Unique("email")
-				bp.Primary("id")
-				bp.Index("created_at").Algorithm("BTREE")
-				return bp
-			}(),
-			want: []string{
-				"CREATE UNIQUE INDEX uk_users_email ON users (email)",
-				"ALTER TABLE users ADD CONSTRAINT pk_users PRIMARY KEY (id)",
-				"CREATE INDEX idx_users_created_at ON users (created_at) USING BTREE",
-			},
-		},
-		{
-			name: "Drop column from table",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.DropColumn("address")
-				return bp
-			}(),
-			want:    []string{"ALTER TABLE users DROP COLUMN address"},
-			wantErr: false,
-		},
-		{
-			name: "Drop foreign key",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "posts"}
-				bp.DropForeign("fk_posts_users")
-				return bp
-			}(),
-			want: []string{"ALTER TABLE posts DROP CONSTRAINT IF EXISTS fk_posts_users"},
-		},
-		{
-			name: "Drop primary key",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.DropPrimary("pk_users")
-				return bp
-			}(),
-			want:    []string{"ALTER TABLE users DROP CONSTRAINT IF EXISTS pk_users"},
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := grammar.compileAlter(tt.blueprint)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-
-			assert.NoError(t, err)
-			require.Len(t, got, len(tt.want), "Expected %d SQL statements, got %d", len(tt.want), len(got))
-			for i, sql := range got {
-				assert.Equal(t, tt.want[i], sql, "SQL statement mismatch at index %d", i)
-			}
+			assert.Equal(t, tt.want, got, "SQL statement mismatch for %s", tt.name)
 		})
 	}
 }
@@ -458,13 +343,13 @@ func TestPgGrammar_GetType(t *testing.T) {
 		},
 		{
 			name: "Char type",
-			col:  &columnDefinition{columnType: columnTypeChar, length: 2},
-			want: "CHAR(2)",
+			col:  &columnDefinition{columnType: columnTypeChar},
+			want: "CHAR",
 		},
 		{
 			name: "String type with length",
-			col:  &columnDefinition{columnType: columnTypeString, length: 100},
-			want: "VARCHAR(100)",
+			col:  &columnDefinition{columnType: columnTypeString, length: 255},
+			want: "VARCHAR(255)",
 		},
 		{
 			name: "Decimal type with precision and scale",
@@ -501,141 +386,50 @@ func TestPgGrammar_GetType(t *testing.T) {
 	}
 }
 
-func TestPgGrammar_GetIndexSqls(t *testing.T) {
+func TestPgGrammar_CompileDropColumn(t *testing.T) {
 	grammar := newPgGrammar()
 
 	tests := []struct {
 		name      string
 		blueprint *Blueprint
-		want      []string
-		wantErr   bool
-	}{
-		{
-			name: "Column with unique index and name",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.String("email").Unique("unique_email_idx")
-				return bp
-			}(),
-			want: []string{"CREATE UNIQUE INDEX unique_email_idx ON users(email)"},
-		},
-		{
-			name: "Column with regular index",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.Timestamp("created_at").Index()
-				return bp
-			}(),
-			want: []string{"CREATE INDEX idx_users_created_at ON users(created_at)"},
-		},
-		{
-			name: "Column with named index",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.Timestamp("last_login").Index("last_login_index")
-				return bp
-			}(),
-			want: []string{"CREATE INDEX last_login_index ON users(last_login)"},
-		},
-		{
-			name: "Primary key index",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.Primary("id")
-				return bp
-			}(),
-			want: []string{"ALTER TABLE users ADD CONSTRAINT pk_users PRIMARY KEY (id)"},
-		},
-		{
-			name: "Index with empty column",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.Index("")
-				return bp
-			}(),
-			wantErr: true,
-		},
-		{
-			name: "Index with algorithm",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.Index("email").Algorithm("HASH")
-				return bp
-			}(),
-			want: []string{"CREATE INDEX idx_users_email ON users (email) USING HASH"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := grammar.getIndexSqls(tt.blueprint)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-
-			assert.NoError(t, err)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestPgGrammar_GetDropColumnSqls(t *testing.T) {
-	grammar := newPgGrammar()
-
-	tests := []struct {
-		name      string
-		blueprint *Blueprint
-		want      []string
+		want      string
 		wantErr   bool
 	}{
 		{
 			name: "Drop single column",
 			blueprint: func() *Blueprint {
 				bp := &Blueprint{name: "users"}
-				bp.DropColumn("email")
+				bp.dropColumns = []string{"email"}
 				return bp
 			}(),
-			want:    []string{"ALTER TABLE users DROP COLUMN email"},
+			want:    "ALTER TABLE users DROP COLUMN email",
 			wantErr: false,
 		},
 		{
 			name: "Drop multiple columns",
 			blueprint: func() *Blueprint {
 				bp := &Blueprint{name: "users"}
-				bp.DropColumn("email", "phone", "address")
+				bp.dropColumns = []string{"email", "phone", "address"}
 				return bp
 			}(),
-			want: []string{
-				"ALTER TABLE users DROP COLUMN email",
-				"ALTER TABLE users DROP COLUMN phone",
-				"ALTER TABLE users DROP COLUMN address",
-			},
+			want:    "ALTER TABLE users DROP COLUMN email, DROP COLUMN phone, DROP COLUMN address",
 			wantErr: false,
 		},
 		{
-			name: "Empty column name",
+			name: "No columns to drop",
 			blueprint: func() *Blueprint {
 				bp := &Blueprint{name: "users"}
-				bp.DropColumn("")
+				bp.dropColumns = []string{}
 				return bp
 			}(),
-			wantErr: true,
-		},
-		{
-			name: "Mixed valid and empty column names",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.DropColumn("email", "")
-				return bp
-			}(),
-			wantErr: true,
+			want:    "",
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := grammar.getDropColumnSqls(tt.blueprint)
+			got, err := grammar.compileDropColumn(tt.blueprint)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -647,398 +441,491 @@ func TestPgGrammar_GetDropColumnSqls(t *testing.T) {
 	}
 }
 
-func TestPgGrammar_GetRenameColumnSqls(t *testing.T) {
+func TestPgGrammar_CompileRenameColumn(t *testing.T) {
 	grammar := newPgGrammar()
 
 	tests := []struct {
 		name      string
 		blueprint *Blueprint
-		want      []string
+		oldName   string
+		newName   string
+		want      string
 		wantErr   bool
 	}{
 		{
-			name: "Rename single column",
+			name: "Rename column",
 			blueprint: func() *Blueprint {
 				bp := &Blueprint{name: "users"}
-				bp.RenameColumn("email", "email_address")
 				return bp
 			}(),
-			want:    []string{"ALTER TABLE users RENAME COLUMN email TO email_address"},
+			oldName: "email",
+			newName: "user_email",
+			want:    "ALTER TABLE users RENAME COLUMN email TO user_email",
 			wantErr: false,
 		},
 		{
-			name: "Rename multiple columns",
+			name: "Empty old name",
 			blueprint: func() *Blueprint {
 				bp := &Blueprint{name: "users"}
-				bp.RenameColumn("email", "email_address")
-				bp.RenameColumn("name", "full_name")
 				return bp
 			}(),
-			want: []string{
-				"ALTER TABLE users RENAME COLUMN email TO email_address",
-				"ALTER TABLE users RENAME COLUMN name TO full_name",
-			},
-			wantErr: false,
-		},
-		{
-			name: "Empty old column name",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.RenameColumn("", "email_address")
-				return bp
-			}(),
+			oldName: "",
+			newName: "user_email",
 			wantErr: true,
 		},
 		{
-			name: "Empty new column name",
+			name: "Empty new name",
 			blueprint: func() *Blueprint {
 				bp := &Blueprint{name: "users"}
-				bp.RenameColumn("email", "")
 				return bp
 			}(),
+			oldName: "email",
+			newName: "",
 			wantErr: true,
 		},
 		{
-			name: "Both column names empty",
+			name: "Both names empty",
 			blueprint: func() *Blueprint {
 				bp := &Blueprint{name: "users"}
-				bp.RenameColumn("", "")
 				return bp
 			}(),
-			wantErr: true,
-		},
-		{
-			name: "Mixed valid and invalid column names",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.RenameColumn("email", "email_address")
-				bp.RenameColumn("name", "")
-				return bp
-			}(),
+			oldName: "",
+			newName: "",
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := grammar.getRenameColumnSqls(tt.blueprint)
+			got, err := grammar.compileRenameColumn(tt.blueprint, tt.oldName, tt.newName)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 
 			assert.NoError(t, err)
-			// Since map iteration order is not guaranteed, we need to check that all
-			// expected SQL statements are present regardless of order
-			require.Len(t, got, len(tt.want), "Expected %d SQL statements, got %d", len(tt.want), len(got))
-
-			// Sort both slices for comparison
-			sort.Strings(got)
-			sort.Strings(tt.want)
 			assert.Equal(t, tt.want, got)
 		})
 	}
 }
 
-func TestPgGrammar_GetDropIndexSqls(t *testing.T) {
+func TestPgGrammar_CompileIndexSql(t *testing.T) {
 	grammar := newPgGrammar()
 
 	tests := []struct {
 		name      string
 		blueprint *Blueprint
-		want      []string
+		index     *indexDefinition
+		want      string
 		wantErr   bool
 	}{
 		{
-			name: "Drop single index",
+			name: "Primary key index",
 			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.DropIndex("idx_users_email")
-				return bp
+				return &Blueprint{name: "users"}
 			}(),
-			want:    []string{"DROP INDEX IF EXISTS idx_users_email"},
-			wantErr: false,
-		},
-		{
-			name: "Drop multiple indexes",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.DropIndex("idx_users_email")
-				bp.DropIndex("idx_users_created_at")
-				return bp
-			}(),
-			want: []string{
-				"DROP INDEX IF EXISTS idx_users_email",
-				"DROP INDEX IF EXISTS idx_users_created_at",
+			index: &indexDefinition{
+				indexType: indexTypePrimary,
+				columns:   []string{"id"},
+				name:      "users_pkey",
 			},
+			want:    "ALTER TABLE users ADD CONSTRAINT users_pkey PRIMARY KEY (id)",
 			wantErr: false,
 		},
 		{
-			name: "Drop unique indexes",
+			name: "Unique index",
 			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.DropUnique("uk_users_email")
-				return bp
+				return &Blueprint{name: "users"}
 			}(),
-			want: []string{
-				"DROP INDEX IF EXISTS uk_users_email",
+			index: &indexDefinition{
+				indexType: indexTypeUnique,
+				columns:   []string{"email"},
+				name:      "users_email_unique",
 			},
+			want:    "CREATE UNIQUE INDEX users_email_unique ON users(email)",
 			wantErr: false,
 		},
 		{
-			name: "Drop both regular and unique indexes",
+			name: "Regular index",
 			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.DropIndex("idx_users_created_at")
-				bp.DropUnique("uk_users_email")
-				return bp
+				return &Blueprint{name: "users"}
 			}(),
-			want: []string{
-				"DROP INDEX IF EXISTS idx_users_created_at",
-				"DROP INDEX IF EXISTS uk_users_email",
+			index: &indexDefinition{
+				indexType: indexTypeIndex,
+				columns:   []string{"name"},
+				name:      "users_name_index",
 			},
+			want:    "CREATE INDEX users_name_index ON users(name)",
 			wantErr: false,
 		},
 		{
-			name: "Empty index name",
+			name: "Index with algorithm",
 			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.DropIndex("")
-				return bp
+				return &Blueprint{name: "users"}
 			}(),
-			wantErr: true,
+			index: &indexDefinition{
+				indexType:  indexTypeIndex,
+				columns:    []string{"name", "email"},
+				name:       "users_name_email_index",
+				algorithmn: "hash",
+			},
+			want:    "CREATE INDEX users_name_email_index ON users(name, email) USING hash",
+			wantErr: false,
 		},
 		{
-			name: "Empty unique index name",
+			name: "Composite index",
 			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.DropUnique("")
-				return bp
+				return &Blueprint{name: "users"}
 			}(),
+			index: &indexDefinition{
+				indexType: indexTypeIndex,
+				columns:   []string{"first_name", "last_name"},
+				name:      "users_name_index",
+			},
+			want:    "CREATE INDEX users_name_index ON users(first_name, last_name)",
+			wantErr: false,
+		},
+		{
+			name: "Index with empty column",
+			blueprint: func() *Blueprint {
+				return &Blueprint{name: "users"}
+			}(),
+			index: &indexDefinition{
+				indexType: indexTypeIndex,
+				columns:   []string{"name", ""},
+				name:      "users_name_index",
+			},
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := grammar.getDropIndexSqls(tt.blueprint)
+			got, err := grammar.compileIndexSql(tt.blueprint, tt.index)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 
 			assert.NoError(t, err)
-			require.Len(t, got, len(tt.want), "Expected %d SQL statements, got %d", len(tt.want), len(got))
-
-			// Sort both slices for comparison as the order of indexes might not be guaranteed
-			sort.Strings(got)
-			sort.Strings(tt.want)
 			assert.Equal(t, tt.want, got)
 		})
 	}
 }
 
-func TestPgGrammar_GetRenameIndexSqls(t *testing.T) {
+func TestPgGrammar_CompileDropIndex(t *testing.T) {
+	grammar := newPgGrammar()
+
+	tests := []struct {
+		name      string
+		indexName string
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:      "Drop index with valid name",
+			indexName: "users_email_index",
+			want:      "DROP INDEX users_email_index",
+			wantErr:   false,
+		},
+		{
+			name:      "Drop index with complex name",
+			indexName: "idx_users_email_name",
+			want:      "DROP INDEX idx_users_email_name",
+			wantErr:   false,
+		},
+		{
+			name:      "Empty index name",
+			indexName: "",
+			want:      "",
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := grammar.compileDropIndex(tt.indexName)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Empty(t, got)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestPgGrammar_CompileRenameIndex(t *testing.T) {
 	grammar := newPgGrammar()
 
 	tests := []struct {
 		name      string
 		blueprint *Blueprint
-		want      []string
+		oldName   string
+		newName   string
+		want      string
 		wantErr   bool
 	}{
 		{
-			name: "Rename single index",
+			name: "Rename index with valid names",
 			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.RenameIndex("idx_users_email", "idx_users_email_address")
-				return bp
+				return &Blueprint{name: "users"}
 			}(),
-			want:    []string{"ALTER INDEX idx_users_email RENAME TO idx_users_email_address"},
+			oldName: "users_email_index",
+			newName: "users_email_unique",
+			want:    "ALTER INDEX users_email_index RENAME TO users_email_unique",
 			wantErr: false,
 		},
 		{
-			name: "Rename multiple indexes",
+			name: "Rename index with complex names",
 			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.RenameIndex("idx_users_email", "idx_users_email_address")
-				bp.RenameIndex("idx_users_name", "idx_users_full_name")
-				return bp
+				return &Blueprint{name: "users"}
 			}(),
-			want: []string{
-				"ALTER INDEX idx_users_email RENAME TO idx_users_email_address",
-				"ALTER INDEX idx_users_name RENAME TO idx_users_full_name",
-			},
+			oldName: "idx_users_email_name",
+			newName: "idx_users_email_name_unique",
+			want:    "ALTER INDEX idx_users_email_name RENAME TO idx_users_email_name_unique",
 			wantErr: false,
 		},
 		{
-			name: "Empty old index name",
+			name: "Empty old name",
 			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.RenameIndex("", "idx_users_email_address")
-				return bp
+				return &Blueprint{name: "users"}
 			}(),
+			oldName: "",
+			newName: "users_email_unique",
 			wantErr: true,
 		},
 		{
-			name: "Empty new index name",
+			name: "Empty new name",
 			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.RenameIndex("idx_users_email", "")
-				return bp
+				return &Blueprint{name: "users"}
 			}(),
+			oldName: "users_email_index",
+			newName: "",
 			wantErr: true,
 		},
 		{
-			name: "Both index names empty",
+			name: "Both names empty",
 			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.RenameIndex("", "")
-				return bp
+				return &Blueprint{name: "users"}
 			}(),
+			oldName: "",
+			newName: "",
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := grammar.getRenameIndexSqls(tt.blueprint)
+			got, err := grammar.compileRenameIndex(tt.blueprint, tt.oldName, tt.newName)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 
 			assert.NoError(t, err)
-			// Since map iteration order is not guaranteed, we need to check that all
-			// expected SQL statements are present regardless of order
-			require.Len(t, got, len(tt.want), "Expected %d SQL statements, got %d", len(tt.want), len(got))
-
-			// Sort both slices for comparison
-			sort.Strings(got)
-			sort.Strings(tt.want)
 			assert.Equal(t, tt.want, got)
 		})
 	}
 }
 
-func TestPgGrammar_GetDropForeignKeySqls(t *testing.T) {
+func TestPgGrammar_CompileDropPrimaryKey(t *testing.T) {
 	grammar := newPgGrammar()
 
 	tests := []struct {
 		name      string
 		blueprint *Blueprint
-		want      []string
+		indexName string
+		want      string
 		wantErr   bool
 	}{
 		{
-			name: "Drop single foreign key",
+			name: "Drop primary key with specified name",
 			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "posts"}
-				bp.DropForeign("fk_posts_users")
-				return bp
+				return &Blueprint{name: "users"}
 			}(),
-			want:    []string{"ALTER TABLE posts DROP CONSTRAINT IF EXISTS fk_posts_users"},
+			indexName: "users_pkey",
+			want:      "ALTER TABLE users DROP CONSTRAINT users_pkey",
+			wantErr:   false,
+		},
+		{
+			name: "Drop primary key with empty index name (should use default naming)",
+			blueprint: func() *Blueprint {
+				return &Blueprint{name: "posts"}
+			}(),
+			indexName: "",
+			want:      "ALTER TABLE posts DROP CONSTRAINT pk_posts",
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := grammar.compileDropPrimaryKey(tt.blueprint, tt.indexName)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestPgGrammar_CompileForeignKeySql(t *testing.T) {
+	grammar := newPgGrammar()
+
+	tests := []struct {
+		name       string
+		blueprint  *Blueprint
+		foreignKey *foreignKeyDefinition
+		want       string
+		wantErr    bool
+	}{
+		{
+			name: "Basic foreign key",
+			blueprint: func() *Blueprint {
+				return &Blueprint{name: "posts"}
+			}(),
+			foreignKey: &foreignKeyDefinition{
+				column:     "user_id",
+				on:         "users",
+				references: "id",
+			},
+			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id)",
 			wantErr: false,
 		},
 		{
-			name: "Drop multiple foreign keys",
+			name: "Foreign key with onDelete CASCADE",
 			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "comments"}
-				bp.DropForeign("fk_comments_posts")
-				bp.DropForeign("fk_comments_users")
-				return bp
+				return &Blueprint{name: "comments"}
 			}(),
-			want: []string{
-				"ALTER TABLE comments DROP CONSTRAINT IF EXISTS fk_comments_posts",
-				"ALTER TABLE comments DROP CONSTRAINT IF EXISTS fk_comments_users",
+			foreignKey: &foreignKeyDefinition{
+				column:     "post_id",
+				on:         "posts",
+				references: "id",
+				onDelete:   "CASCADE",
 			},
+			want:    "ALTER TABLE comments ADD CONSTRAINT fk_comments_posts FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE",
 			wantErr: false,
+		},
+		{
+			name: "Foreign key with onUpdate CASCADE",
+			blueprint: func() *Blueprint {
+				return &Blueprint{name: "order_items"}
+			}(),
+			foreignKey: &foreignKeyDefinition{
+				column:     "order_id",
+				on:         "orders",
+				references: "id",
+				onUpdate:   "CASCADE",
+			},
+			want:    "ALTER TABLE order_items ADD CONSTRAINT fk_order_items_orders FOREIGN KEY (order_id) REFERENCES orders(id) ON UPDATE CASCADE",
+			wantErr: false,
+		},
+		{
+			name: "Foreign key with empty column",
+			blueprint: func() *Blueprint {
+				return &Blueprint{name: "users"}
+			}(),
+			foreignKey: &foreignKeyDefinition{
+				column:     "",
+				on:         "roles",
+				references: "id",
+			},
+			wantErr: true,
+		},
+		{
+			name: "Foreign key with empty on",
+			blueprint: func() *Blueprint {
+				return &Blueprint{name: "users"}
+			}(),
+			foreignKey: &foreignKeyDefinition{
+				column:     "role_id",
+				on:         "",
+				references: "id",
+			},
+			wantErr: true,
+		},
+		{
+			name: "Foreign key with empty references",
+			blueprint: func() *Blueprint {
+				return &Blueprint{name: "users"}
+			}(),
+			foreignKey: &foreignKeyDefinition{
+				column:     "role_id",
+				on:         "roles",
+				references: "",
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := grammar.compileForeignKeySql(tt.blueprint, tt.foreignKey)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestPgGrammar_CompileDropForeignKey(t *testing.T) {
+	grammar := newPgGrammar()
+
+	tests := []struct {
+		name           string
+		blueprint      *Blueprint
+		foreignKeyName string
+		want           string
+		wantErr        bool
+	}{
+		{
+			name: "Drop foreign key with valid name",
+			blueprint: func() *Blueprint {
+				return &Blueprint{name: "posts"}
+			}(),
+			foreignKeyName: "fk_posts_users",
+			want:           "ALTER TABLE posts DROP CONSTRAINT fk_posts_users",
+			wantErr:        false,
+		},
+		{
+			name: "Drop foreign key with complex name",
+			blueprint: func() *Blueprint {
+				return &Blueprint{name: "order_items"}
+			}(),
+			foreignKeyName: "fk_order_items_products_cascade",
+			want:           "ALTER TABLE order_items DROP CONSTRAINT fk_order_items_products_cascade",
+			wantErr:        false,
 		},
 		{
 			name: "Empty foreign key name",
 			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "posts"}
-				bp.DropForeign("")
-				bp.dropForeignKeys = []string{""}
-				return bp
+				return &Blueprint{name: "users"}
 			}(),
-			wantErr: true,
-		},
-		{
-			name: "Mixed valid and invalid foreign key names",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "orders"}
-				bp.DropForeign("fk_orders_customers")
-				bp.DropForeign("")
-				return bp
-			}(),
-			wantErr: true,
+			foreignKeyName: "",
+			want:           "",
+			wantErr:        true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := grammar.getDropForeignKeySqls(tt.blueprint)
+			got, err := grammar.compileDropForeignKey(tt.blueprint, tt.foreignKeyName)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 
 			assert.NoError(t, err)
-			require.Len(t, got, len(tt.want), "Expected %d SQL statements, got %d", len(tt.want), len(got))
-
-			// Sort both slices for comparison as order might not be guaranteed
-			sort.Strings(got)
-			sort.Strings(tt.want)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestPgGrammar_GetDropPrimaryKeySqls(t *testing.T) {
-	grammar := newPgGrammar()
-
-	tests := []struct {
-		name      string
-		blueprint *Blueprint
-		want      []string
-		wantErr   bool
-	}{
-		{
-			name: "Drop single primary key",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.DropPrimary("pk_users")
-				return bp
-			}(),
-			want:    []string{"ALTER TABLE users DROP CONSTRAINT IF EXISTS pk_users"},
-			wantErr: false,
-		},
-		{
-			name: "Empty primary key name",
-			blueprint: func() *Blueprint {
-				bp := &Blueprint{name: "users"}
-				bp.DropPrimary("")
-				return bp
-			}(),
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := grammar.getDropPrimaryKeySqls(tt.blueprint)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-
-			assert.NoError(t, err)
-			require.Len(t, got, len(tt.want), "Expected %d SQL statements, got %d", len(tt.want), len(got))
-
-			// Sort both slices for comparison as order might not be guaranteed
-			sort.Strings(got)
-			sort.Strings(tt.want)
 			assert.Equal(t, tt.want, got)
 		})
 	}

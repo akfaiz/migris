@@ -51,18 +51,6 @@ func CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string, blueprint f
 	return builder.CreateIfNotExists(ctx, tx, name, blueprint)
 }
 
-// Table modifies an existing table with the given name and blueprint.
-// The blueprint function is used to define the modifications to the table.
-// It returns an error if the table modification fails.
-func Table(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
-	builder, err := newBuilder()
-	if err != nil {
-		return err
-	}
-
-	return builder.Table(ctx, tx, name, blueprint)
-}
-
 // Drop removes the table with the given name.
 // It returns an error if the table removal fails.
 //
@@ -93,10 +81,26 @@ func DropIfExists(ctx context.Context, tx *sql.Tx, name string) error {
 	return builder.DropIfExists(ctx, tx, name)
 }
 
+// HasTable checks if a table with the given name exists in the database.
+// It returns true if the table exists, false otherwise.
+// It returns an error if the check fails.
+//
+// Example:
+//
+//	exists, err := schema.HasTable(ctx, tx, "users")
+func HasTable(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
+	builder, err := newBuilder()
+	if err != nil {
+		return false, err
+	}
+
+	return builder.HasTable(ctx, tx, name)
+}
+
 // Rename changes the name of the table from name to newName.
 // It returns an error if the renaming fails.
 //
-// Example usage:
+// Example:
 //
 //	err := schema.Rename(ctx, tx, "users", "people")
 func Rename(ctx context.Context, tx *sql.Tx, name string, newName string) error {
@@ -106,4 +110,24 @@ func Rename(ctx context.Context, tx *sql.Tx, name string, newName string) error 
 	}
 
 	return builder.Rename(ctx, tx, name, newName)
+}
+
+// Table modifies an existing table with the given name and blueprint.
+// The blueprint function is used to define the modifications to the table.
+// It returns an error if the table modification fails.
+//
+// Example:
+//
+//	err := schema.Table(ctx, tx, "users", func(table *schema.Blueprint) {
+//	    table.Column("name").String().Nullable(false)
+//	    table.DropColumn("password")
+//	    table.RenameColumn("email", "contact_email")
+//	})
+func Table(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
+	builder, err := newBuilder()
+	if err != nil {
+		return err
+	}
+
+	return builder.Table(ctx, tx, name, blueprint)
 }

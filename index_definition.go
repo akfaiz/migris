@@ -4,4 +4,6 @@ package schema
 type IndexDefinition interface {
 	// Algorithm sets the algorithm for the index.
 	Algorithm(algorithm string) IndexDefinition
+	// Name sets the name of the index.
+	Name(name string) IndexDefinition
 }
