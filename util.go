@@ -49,26 +49,31 @@ func execContext(ctx context.Context, tx *sql.Tx, sqls ...string) error {
 	return nil
 }
 
-type arr[T any] []T
-
-func (a *arr[T]) append(values ...T) {
-	for _, value := range values {
-		*a = append(*a, value)
+func queryRowContext(ctx context.Context, tx *sql.Tx, query string, args ...any) *sql.Row {
+	if debug {
+		log.Printf("Executing Query: %s with args: %v\n", query, args)
 	}
+	row := tx.QueryRowContext(ctx, query, args...)
+	if row.Err() != nil {
+		if debug {
+			log.Printf("Error executing Query: %s\nError: %v\n", query, row.Err())
+		}
+	}
+	return row
 }
 
-func (a *arr[T]) toSlice() []T {
-	return *a
-}
-
-func (a *arr[T]) appendIfNotError(values []T, err error) error {
+func queryContext(ctx context.Context, tx *sql.Tx, query string, args ...any) (*sql.Rows, error) {
+	if debug {
+		log.Printf("Executing Query: %s with args: %v\n", query, args)
+	}
+	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
-		return err
+		if debug {
+			log.Printf("Error executing Query: %s\nError: %v\n", query, err)
+		}
+		return nil, err
 	}
-	for _, value := range values {
-		*a = append(*a, value)
-	}
-	return nil
+	return rows, nil
 }
 
 func toString(value any) string {
