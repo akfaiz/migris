@@ -290,10 +290,6 @@ func (p *pgGrammar) getType(col *columnDefinition) string {
 	case columnTypeTimestampTz:
 		return fmt.Sprintf("TIMESTAMPTZ(%d)", col.precision)
 	case columnTypeGeography:
-		srid := col.srid
-		if srid == 0 {
-			srid = 4326 // Default SRID for geography types in PostgreSQL
-		}
 		return fmt.Sprintf("GEOGRAPHY(%s, %d)", col.subType, col.srid)
 	case columnTypeGeometry:
 		if col.srid > 0 {

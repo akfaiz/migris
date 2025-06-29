@@ -293,12 +293,12 @@ func (b *Blueprint) UUID(name string) ColumnDefinition {
 // Geography creates a new geography column definition in the blueprint.
 // The subType parameter is optional and can be used to specify the type of geography (e.g., "Point", "LineString", "Polygon").
 // The srid parameter is optional and specifies the Spatial Reference Identifier (SRID) for the geography type.
-func (b *Blueprint) Geography(name string, subType string, srid int) ColumnDefinition {
+func (b *Blueprint) Geography(name string, subType string, srid ...int) ColumnDefinition {
 	col := &columnDefinition{
 		name:       name,
 		columnType: columnTypeGeography,
 		subType:    subType,
-		srid:       srid,
+		srid:       optionalInt(4326, srid...),
 	}
 	b.columns = append(b.columns, col)
 	return col
