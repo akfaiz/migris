@@ -2,6 +2,8 @@ package schema
 
 // ColumnDefinition defines the interface for defining a column in a database table.
 type ColumnDefinition interface {
+	// Change changes the column definition.
+	Change() ColumnDefinition
 	// Comment adds a comment to the column definition.
 	Comment(comment string) ColumnDefinition
 	// Default sets a default value for the column.

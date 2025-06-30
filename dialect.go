@@ -5,31 +5,23 @@ import "errors"
 var ErrDialectNotSet = errors.New("dialect not set")
 var ErrUnknownDialect = errors.New("unknown dialect")
 
-type dialectType uint8
-
-const (
-	unknown dialectType = iota // Represents no dialect set
-	postgres
-)
-
-var dialect dialectType
+var dialect string
 var debug bool = false
 
-var supportedDialects = map[string]dialectType{
-	"postgres": postgres,
-	"pgx":      postgres,
+var supportedDialects = map[string]bool{
+	"postgres": true,
+	"pgx":      true,
+	"mysql":    true,
+	"mariadb":  true,
 }
 
 // SetDialect sets the current dialect for the schema package.
 func SetDialect(d string) error {
-	v, ok := supportedDialects[d]
+	_, ok := supportedDialects[d]
 	if !ok {
 		return ErrUnknownDialect
 	}
-	if v == unknown {
-		return ErrDialectNotSet
-	}
-	dialect = v
+	dialect = d
 
 	return nil
 }
@@ -37,13 +29,4 @@ func SetDialect(d string) error {
 // SetDebug enables or disables debug mode for the schema package.
 func SetDebug(d bool) {
 	debug = d
-}
-
-func newGrammar(dialect dialectType) (grammar, error) {
-	switch dialect {
-	case postgres:
-		return newPgGrammar(), nil
-	default:
-		return nil, ErrDialectNotSet
-	}
 }

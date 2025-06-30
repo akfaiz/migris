@@ -1,6 +1,6 @@
 COVERAGE_FILE := coverage.out
 COVERAGE_HTML := coverage.html
-MIN_COVERAGE  := 65
+MIN_COVERAGE  := 70
 
 # Go source files (excluding vendor)
 GO_FILES := $(shell find . -type f -name '*.go' -not -path "./vendor/*")
@@ -9,7 +9,7 @@ GO_FILES := $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 .PHONY: test
 test:
 	@echo "Running tests..."
-	@go test -coverprofile=$(COVERAGE_FILE) ./...
+	@go test -v -coverprofile=$(COVERAGE_FILE) ./...
 
 # Format code
 .PHONY: fmt
@@ -21,7 +21,7 @@ fmt:
 .PHONY: lint
 lint:
 	@echo "Linting code..."
-	@go vet ./...
+	@golangci-lint run --timeout 5m
 
 .PHONY: coverage
 coverage:

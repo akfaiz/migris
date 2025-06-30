@@ -9,9 +9,6 @@ const (
 	columnTypeChar
 	columnTypeString
 	columnTypeText
-	columnTypeIncrements
-	columnTypeBigIncrements
-	columnTypeSmallIncrements
 	columnTypeInteger
 	columnTypeBigInteger
 	columnTypeSmallInteger
@@ -45,6 +42,9 @@ type Blueprint struct {
 	commands        []string // commands to be executed
 	name            string
 	newName         string
+	charset         string
+	collation       string
+	engine          string
 	columns         []*columnDefinition
 	indexes         []*indexDefinition
 	foreignKeys     []*foreignKeyDefinition
@@ -55,6 +55,21 @@ type Blueprint struct {
 	dropPrimaryKeys []string          // primary keys to be dropped
 	dropUniqueKeys  []string          // unique keys to be dropped
 	renameIndexes   map[string]string // old index name to new index name
+}
+
+// Charset sets the character set for the table in the blueprint.
+func (b *Blueprint) Charset(charset string) {
+	b.charset = charset
+}
+
+// Collation sets the collation for the table in the blueprint.
+func (b *Blueprint) Collation(collation string) {
+	b.collation = collation
+}
+
+// Engine sets the storage engine for the table in the blueprint.
+func (b *Blueprint) Engine(engine string) {
+	b.engine = engine
 }
 
 // Boolean creates a new boolean column definition in the blueprint.
@@ -101,19 +116,15 @@ func (b *Blueprint) Text(name string) ColumnDefinition {
 
 // BigIncrements creates a new big increments column definition in the blueprint.
 func (b *Blueprint) BigIncrements(name string) ColumnDefinition {
-	col := &columnDefinition{
-		name:       name,
-		columnType: columnTypeBigIncrements,
-	}
-	b.columns = append(b.columns, col)
-	return col
+	return b.UnsignedBigInteger(name, true)
 }
 
 // BigInteger creates a new big integer column definition in the blueprint.
-func (b *Blueprint) BigInteger(name string) ColumnDefinition {
+func (b *Blueprint) BigInteger(name string, autoIncrement ...bool) ColumnDefinition {
 	col := &columnDefinition{
-		name:       name,
-		columnType: columnTypeBigInteger,
+		name:          name,
+		columnType:    columnTypeBigInteger,
+		autoIncrement: optionalBool(false, autoIncrement...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -151,26 +162,23 @@ func (b *Blueprint) Float(name string) ColumnDefinition {
 	return col
 }
 
-// ID creates a new big increments column definition with the name "id" in the blueprint.
-func (b *Blueprint) ID() ColumnDefinition {
-	return b.BigIncrements("id").Primary()
+// ID creates a new big increments column definition in the blueprint with the name "id" or a custom name.
+// If a name is provided, it will be used as the column name; otherwise, "id" will be used.
+func (b *Blueprint) ID(name ...string) ColumnDefinition {
+	return b.BigIncrements(optionalString("id", name...)).Primary()
 }
 
 // Increments creates a new increments column definition in the blueprint.
 func (b *Blueprint) Increments(name string) ColumnDefinition {
-	col := &columnDefinition{
-		name:       name,
-		columnType: columnTypeIncrements,
-	}
-	b.columns = append(b.columns, col)
-	return col
+	return b.UnsignedInteger(name, true)
 }
 
 // Integer creates a new integer column definition in the blueprint.
-func (b *Blueprint) Integer(name string) ColumnDefinition {
+func (b *Blueprint) Integer(name string, autoIncrement ...bool) ColumnDefinition {
 	col := &columnDefinition{
-		name:       name,
-		columnType: columnTypeInteger,
+		name:          name,
+		columnType:    columnTypeInteger,
+		autoIncrement: optionalBool(false, autoIncrement...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -178,19 +186,48 @@ func (b *Blueprint) Integer(name string) ColumnDefinition {
 
 // SmallIncrements creates a new small increments column definition in the blueprint.
 func (b *Blueprint) SmallIncrements(name string) ColumnDefinition {
+	return b.UnsignedSmallInteger(name, true)
+}
+
+// SmallInteger creates a new small integer column definition in the blueprint.
+func (b *Blueprint) SmallInteger(name string, autoIncrement ...bool) ColumnDefinition {
 	col := &columnDefinition{
-		name:       name,
-		columnType: columnTypeSmallIncrements,
+		name:          name,
+		columnType:    columnTypeSmallInteger,
+		autoIncrement: optionalBool(false, autoIncrement...),
 	}
 	b.columns = append(b.columns, col)
 	return col
 }
 
-// SmallInteger creates a new small integer column definition in the blueprint.
-func (b *Blueprint) SmallInteger(name string) ColumnDefinition {
+func (b *Blueprint) UnsignedBigInteger(name string, autoIncrement ...bool) ColumnDefinition {
 	col := &columnDefinition{
-		name:       name,
-		columnType: columnTypeSmallInteger,
+		name:          name,
+		columnType:    columnTypeBigInteger,
+		autoIncrement: optionalBool(false, autoIncrement...),
+		unsigned:      true,
+	}
+	b.columns = append(b.columns, col)
+	return col
+}
+
+func (b *Blueprint) UnsignedInteger(name string, autoIncrement ...bool) ColumnDefinition {
+	col := &columnDefinition{
+		name:          name,
+		columnType:    columnTypeInteger,
+		autoIncrement: optionalBool(false, autoIncrement...),
+		unsigned:      true,
+	}
+	b.columns = append(b.columns, col)
+	return col
+}
+
+func (b *Blueprint) UnsignedSmallInteger(name string, autoIncrement ...bool) ColumnDefinition {
+	col := &columnDefinition{
+		name:          name,
+		columnType:    columnTypeSmallInteger,
+		autoIncrement: optionalBool(false, autoIncrement...),
+		unsigned:      true,
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -358,12 +395,14 @@ func (b *Blueprint) Index(column string, otherColumns ...string) IndexDefinition
 //
 //	table.Unique("email")
 //	table.Unique("email", "username") // creates a composite unique index
-func (b *Blueprint) Unique(column string, otherColumns ...string) {
+func (b *Blueprint) Unique(column string, otherColumns ...string) IndexDefinition {
 	index := &indexDefinition{
 		indexType: indexTypeUnique,
 		columns:   append([]string{column}, otherColumns...),
 	}
 	b.indexes = append(b.indexes, index)
+
+	return index
 }
 
 // Primary creates a new primary key index definition in the blueprint.
@@ -675,6 +714,8 @@ type columnDefinition struct {
 	defaultVal      any
 	nullable        bool
 	primary         bool
+	autoIncrement   bool
+	unsigned        bool
 	index           bool
 	indexName       string
 	unique          bool
@@ -718,6 +759,11 @@ func (c *columnDefinition) Primary() ColumnDefinition {
 func (c *columnDefinition) Unique(indexName ...string) ColumnDefinition {
 	c.unique = true
 	c.uniqueIndexName = optionalString("", indexName...)
+	return c
+}
+
+func (c *columnDefinition) Change() ColumnDefinition {
+	c.changed = true
 	return c
 }
 

@@ -8,7 +8,7 @@ import (
 )
 
 type pgGrammar struct {
-	grammarImpl
+	baseGrammar
 }
 
 var _ grammar = (*pgGrammar)(nil)
@@ -108,7 +108,7 @@ func (g *pgGrammar) compileChange(bp *Blueprint) ([]string, error) {
 		}
 		sql := fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s", bp.name, col.name, g.getType(col))
 		if col.defaultVal != nil {
-			sql += fmt.Sprintf(" SET DEFAULT %s", toString(col.defaultVal))
+			sql += fmt.Sprintf(" SET DEFAULT %s", g.getDefaultValue(col))
 		}
 		if col.nullable {
 			sql += " DROP NOT NULL"
@@ -167,13 +167,18 @@ func (p *pgGrammar) compileIndexSql(blueprint *Blueprint, index *indexDefinition
 		sql := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, columns)
 		return sql, nil
 	case indexTypeUnique:
-		sql := fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s(%s)", indexName, blueprint.name, columns)
-		return sql, nil
-	case indexTypeIndex:
-		sql := fmt.Sprintf("CREATE INDEX %s ON %s(%s)", indexName, blueprint.name, columns)
+		sql := fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s", indexName, blueprint.name)
 		if index.algorithmn != "" {
 			sql += fmt.Sprintf(" USING %s", index.algorithmn)
 		}
+		sql += fmt.Sprintf(" (%s)", columns)
+		return sql, nil
+	case indexTypeIndex:
+		sql := fmt.Sprintf("CREATE INDEX %s ON %s", indexName, blueprint.name)
+		if index.algorithmn != "" {
+			sql += fmt.Sprintf(" USING %s", index.algorithmn)
+		}
+		sql += fmt.Sprintf(" (%s)", columns)
 		return sql, nil
 	default:
 		return "", errors.New("unknown index type")
@@ -247,7 +252,7 @@ func (p *pgGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 		}
 		sql := col.name + " " + p.getType(col)
 		if col.defaultVal != nil {
-			sql += fmt.Sprintf(" DEFAULT %s", toString(col.defaultVal))
+			sql += fmt.Sprintf(" DEFAULT %s", p.getDefaultValue(col))
 		}
 		if col.nullable {
 			sql += " NULL"
@@ -283,6 +288,21 @@ func (p *pgGrammar) getType(col *columnDefinition) string {
 		return "VARCHAR"
 	case columnTypeDecimal:
 		return fmt.Sprintf("DECIMAL(%d, %d)", col.precision, col.scale)
+	case columnTypeBigInteger:
+		if col.autoIncrement {
+			return "BIGSERIAL"
+		}
+		return "BIGINT"
+	case columnTypeInteger:
+		if col.autoIncrement {
+			return "SERIAL"
+		}
+		return "INTEGER"
+	case columnTypeSmallInteger:
+		if col.autoIncrement {
+			return "SMALLSERIAL"
+		}
+		return "SMALLINT"
 	case columnTypeTime:
 		return fmt.Sprintf("TIME(%d)", col.precision)
 	case columnTypeTimestamp:
@@ -298,31 +318,25 @@ func (p *pgGrammar) getType(col *columnDefinition) string {
 		return fmt.Sprintf("GEOMETRY(%s)", col.subType)
 	case columnTypeEnum:
 		if len(col.allowedEnums) == 0 {
-			return "VARCHAR" // Fallback to VARCHAR if no enums are defined
+			return "VARCHAR(255)" // Fallback to VARCHAR if no enums are defined
 		}
 		enumValues := make([]string, len(col.allowedEnums))
 		for i, v := range col.allowedEnums {
 			enumValues[i] = fmt.Sprintf("'%s'", v)
 		}
-		return fmt.Sprintln("VARCHAR(255) CHECK (", col.name, " IN (", strings.Join(enumValues, ", "), "))")
+		return "VARCHAR(255) CHECK (" + col.name + " IN (" + strings.Join(enumValues, ", ") + "))"
 	default:
 		return map[columnType]string{
-			columnTypeBoolean:         "BOOLEAN",
-			columnTypeText:            "TEXT",
-			columnTypeBigInteger:      "BIGINT",
-			columnTypeInteger:         "INTEGER",
-			columnTypeSmallInteger:    "SMALLINT",
-			columnTypeBigIncrements:   "BIGSERIAL",
-			columnTypeIncrements:      "SERIAL",
-			columnTypeSmallIncrements: "SMALLSERIAL",
-			columnTypeDouble:          "DOUBLE PRECISION",
-			columnTypeFloat:           "REAL",
-			columnTypeDate:            "DATE",
-			columnTypeYear:            "INTEGER", // PostgreSQL does not have a YEAR type, using INTEGER instead
-			columnTypeJSON:            "JSON",
-			columnTypeJSONB:           "JSONB",
-			columnTypeUUID:            "UUID",
-			columnTypeBinary:          "BYTEA",
+			columnTypeBoolean: "BOOLEAN",
+			columnTypeText:    "TEXT",
+			columnTypeDouble:  "DOUBLE PRECISION",
+			columnTypeFloat:   "REAL",
+			columnTypeDate:    "DATE",
+			columnTypeYear:    "INTEGER", // PostgreSQL does not have a YEAR type, using INTEGER instead
+			columnTypeJSON:    "JSON",
+			columnTypeJSONB:   "JSONB",
+			columnTypeUUID:    "UUID",
+			columnTypeBinary:  "BYTEA",
 		}[col.columnType]
 	}
 }
