@@ -98,14 +98,18 @@ func (g *mysqlGrammar) compileCreateIfNotExists(blueprint *Blueprint) (string, e
 }
 
 func (g *mysqlGrammar) compileAdd(blueprint *Blueprint) (string, error) {
+	if len(blueprint.getAddeddColumns()) == 0 {
+		return "", nil
+	}
+
 	columns, err := g.getColumns(blueprint)
 	if err != nil {
 		return "", err
 	}
-	if len(columns) == 0 {
-		return "", fmt.Errorf("no columns to add")
-	}
-	return fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s", blueprint.name, strings.Join(columns, ", ")), nil
+	return fmt.Sprintf("ALTER TABLE %s %s",
+		blueprint.name,
+		strings.Join(g.prefixArray("ADD COLUMN ", columns), ", "),
+	), nil
 }
 
 func (g *mysqlGrammar) compileChange(bp *Blueprint) ([]string, error) {
@@ -118,18 +122,30 @@ func (g *mysqlGrammar) compileChange(bp *Blueprint) ([]string, error) {
 		if col.name == "" {
 			return nil, fmt.Errorf("column name cannot be empty for change operation")
 		}
-		sql := fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s", bp.name, col.name, g.getType(col))
-		if col.defaultVal != nil {
-			sql += fmt.Sprintf(" SET DEFAULT %s", g.getDefaultValue(col))
+		sql := fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s %s", bp.name, col.name, g.getType(col))
+
+		if col.hasCommand("nullable") {
+			if col.nullable {
+				sql += " NULL"
+			} else {
+				sql += " NOT NULL"
+			}
 		}
-		if col.nullable {
-			sql += " DROP NOT NULL"
-		} else {
-			sql += " SET NOT NULL"
+		if col.hasCommand("default") {
+			if col.defaultVal != nil {
+				sql += fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col))
+			} else {
+				sql += " DEFAULT NULL"
+			}
 		}
-		if col.comment != "" {
-			sql += fmt.Sprintf(" COMMENT '%s'", col.comment)
+		if col.hasCommand("comment") {
+			if col.comment != "" {
+				sql += fmt.Sprintf(" COMMENT '%s'", col.comment)
+			} else {
+				sql += " COMMENT ''"
+			}
 		}
+
 		sqls = append(sqls, sql)
 	}
 

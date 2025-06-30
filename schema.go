@@ -196,7 +196,8 @@ func HasColumns(ctx context.Context, tx *sql.Tx, tableName string, columnNames [
 // Example:
 //
 //	exists, err := schema.HasIndex(ctx, tx, "users", []string{"uk_users_email"}) // Checks if the index with name "uk_users_email" exists in the "users" table.
-//	exists, err := schema.HasIndex(ctx, tx, "users", []string{"email", "name"}) // Checks if an index exists on the "email" and "name" columns in the "users" table.
+//
+//	exists, err := schema.HasIndex(ctx, tx, "users", []string{"email", "name"}) // Checks if a composite index exists on the "email" and "name" columns in the "users" table.
 func HasIndex(ctx context.Context, tx *sql.Tx, tableName string, indexes []string) (bool, error) {
 	builder, err := NewBuilder(dialect)
 	if err != nil {

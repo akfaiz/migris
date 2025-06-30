@@ -163,6 +163,7 @@ func (b *Blueprint) Float(name string) ColumnDefinition {
 }
 
 // ID creates a new big increments column definition in the blueprint with the name "id" or a custom name.
+//
 // If a name is provided, it will be used as the column name; otherwise, "id" will be used.
 func (b *Blueprint) ID(name ...string) ColumnDefinition {
 	return b.BigIncrements(optionalString("id", name...)).Primary()
@@ -200,6 +201,7 @@ func (b *Blueprint) SmallInteger(name string, autoIncrement ...bool) ColumnDefin
 	return col
 }
 
+// UnsignedBigInteger creates a new unsigned big integer column definition in the blueprint.
 func (b *Blueprint) UnsignedBigInteger(name string, autoIncrement ...bool) ColumnDefinition {
 	col := &columnDefinition{
 		name:          name,
@@ -211,6 +213,7 @@ func (b *Blueprint) UnsignedBigInteger(name string, autoIncrement ...bool) Colum
 	return col
 }
 
+// UnsignedInteger creates a new unsigned integer column definition in the blueprint.
 func (b *Blueprint) UnsignedInteger(name string, autoIncrement ...bool) ColumnDefinition {
 	col := &columnDefinition{
 		name:          name,
@@ -222,6 +225,7 @@ func (b *Blueprint) UnsignedInteger(name string, autoIncrement ...bool) ColumnDe
 	return col
 }
 
+// UnsignedSmallInteger creates a new unsigned small integer column definition in the blueprint.
 func (b *Blueprint) UnsignedSmallInteger(name string, autoIncrement ...bool) ColumnDefinition {
 	col := &columnDefinition{
 		name:          name,
@@ -710,6 +714,7 @@ func (b *Blueprint) toSql(grammar grammar) ([]string, error) {
 type columnDefinition struct {
 	name            string
 	columnType      columnType
+	commands        []string
 	comment         string
 	defaultVal      any
 	nullable        bool
@@ -727,42 +732,62 @@ type columnDefinition struct {
 	allowedEnums    []string // for enum type columns
 	subType         string   // for geography and geometry types
 	srid            int      // for geography and geometry types
+}
 
+func (c *columnDefinition) addCommand(command string) {
+	if command == "" {
+		return
+	}
+	if !slices.Contains(c.commands, command) {
+		c.commands = append(c.commands, command)
+	}
+}
+
+func (c *columnDefinition) hasCommand(command string) bool {
+	return slices.Contains(c.commands, command)
 }
 
 func (c *columnDefinition) Comment(comment string) ColumnDefinition {
+	c.addCommand("comment")
 	c.comment = comment
 	return c
 }
 
 func (c *columnDefinition) Default(value any) ColumnDefinition {
+	c.addCommand("default")
 	c.defaultVal = value
+
 	return c
 }
 
 func (c *columnDefinition) Index(indexName ...string) ColumnDefinition {
+	c.addCommand("index")
 	c.index = true
 	c.indexName = optionalString("", indexName...)
 	return c
 }
 
 func (c *columnDefinition) Nullable(value ...bool) ColumnDefinition {
+	c.addCommand("nullable")
 	c.nullable = optionalBool(true, value...)
 	return c
 }
 
 func (c *columnDefinition) Primary() ColumnDefinition {
+	c.addCommand("primary")
 	c.primary = true
 	return c
 }
 
 func (c *columnDefinition) Unique(indexName ...string) ColumnDefinition {
+	c.addCommand("unique")
 	c.unique = true
 	c.uniqueIndexName = optionalString("", indexName...)
 	return c
 }
 
 func (c *columnDefinition) Change() ColumnDefinition {
+	c.addCommand("change")
 	c.changed = true
 	return c
 }

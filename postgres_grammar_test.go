@@ -962,7 +962,7 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 			blueprint: func(bp *Blueprint) {
 				bp.String("email", 500).Nullable().Change()
 			},
-			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500) DROP NOT NULL"},
+			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email DROP NOT NULL"},
 		},
 		{
 			name:      "Change column with default value",
@@ -970,7 +970,7 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 			blueprint: func(bp *Blueprint) {
 				bp.String("email", 500).Default("user@mail.com").Change()
 			},
-			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500) SET DEFAULT 'user@mail.com' SET NOT NULL"},
+			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email SET DEFAULT 'user@mail.com'"},
 		},
 		{
 			name:      "Change multiple columns",
@@ -980,8 +980,8 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 				bp.String("name", 255).Default("Anonymous").Change()
 			},
 			want: []string{
-				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500) DROP NOT NULL",
-				"ALTER TABLE users ALTER COLUMN name TYPE VARCHAR(255) SET DEFAULT 'Anonymous' SET NOT NULL",
+				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email DROP NOT NULL",
+				"ALTER TABLE users ALTER COLUMN name TYPE VARCHAR(255), ALTER COLUMN name SET DEFAULT 'Anonymous'",
 			},
 		},
 		{
@@ -990,7 +990,10 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 			blueprint: func(bp *Blueprint) {
 				bp.String("email", 500).Comment("User email address").Change()
 			},
-			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500) SET NOT NULL COMMENT 'User email address'"},
+			want: []string{
+				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500)",
+				"COMMENT ON COLUMN users.email IS 'User email address'",
+			},
 		},
 	}
 
