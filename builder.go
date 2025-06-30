@@ -7,27 +7,37 @@ import (
 	"strings"
 )
 
-var ErrTableIsNotSet = errors.New("table name is not set")
-var ErrBlueprintIsNil = errors.New("blueprint function is nil")
-var ErrTxIsNil = errors.New("transaction is nil")
-
-type builder interface {
+// Builder is an interface that defines methods for creating, dropping, and managing database tables.
+type Builder interface {
+	// Create creates a new table with the given name and applies the provided blueprint.
 	Create(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error
+	// CreateIfNotExists creates a new table with the given name and applies the provided blueprint if it does not already exist.
 	CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error
+	// Drop removes the table with the given name.
 	Drop(ctx context.Context, tx *sql.Tx, name string) error
+	// DropIfExists removes the table with the given name if it exists.
 	DropIfExists(ctx context.Context, tx *sql.Tx, name string) error
+	// GetColumns retrieves the columns of the specified table.
 	GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, error)
+	// GetIndexes retrieves the indexes of the specified table.
 	GetIndexes(ctx context.Context, tx *sql.Tx, tableName string) ([]*Index, error)
+	// GetTables retrieves all tables in the database.
 	GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo, error)
+	// HasColumn checks if the specified table has the given column.
 	HasColumn(ctx context.Context, tx *sql.Tx, tableName string, columnName string) (bool, error)
+	// HasColumns checks if the specified table has all the given columns.
 	HasColumns(ctx context.Context, tx *sql.Tx, tableName string, columnNames []string) (bool, error)
+	// HasIndex checks if the specified table has the given index.
 	HasIndex(ctx context.Context, tx *sql.Tx, tableName string, indexes []string) (bool, error)
+	// HasTable checks if a table with the given name exists.
 	HasTable(ctx context.Context, tx *sql.Tx, name string) (bool, error)
+	// Rename renames a table from oldName to newName.
 	Rename(ctx context.Context, tx *sql.Tx, oldName string, newName string) error
+	// Table applies the provided blueprint to the specified table.
 	Table(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error
 }
 
-func newBuilder(dialect string) (builder, error) {
+func NewBuilder(dialect string) (Builder, error) {
 	switch dialect {
 	case "postgres", "pgx":
 		return newPostgresBuilder(), nil
@@ -44,18 +54,18 @@ type baseBuilder struct {
 }
 
 func (b *baseBuilder) validateTxAndName(tx *sql.Tx, name string) error {
-	if isEmptyString(name) {
-		return ErrTableIsNotSet
+	if name == "" {
+		return errors.New("table name is empty")
 	}
 	if tx == nil {
-		return ErrTxIsNil
+		return errors.New("transaction is nil")
 	}
 	return nil
 }
 
 func (b *baseBuilder) validateCreateAndAlter(tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
-	if isEmptyString(name) {
-		return ErrTableIsNotSet
+	if name == "" {
+		return errors.New("table name is empty")
 	}
 	if b.dialect == "postgres" || b.dialect == "pgx" {
 		names := strings.Split(name, ".")
@@ -63,19 +73,16 @@ func (b *baseBuilder) validateCreateAndAlter(tx *sql.Tx, name string, blueprint 
 			return errors.New("invalid table name: " + name + ", it should be in the format 'schema.table' or just 'table'")
 		}
 		if len(names) == 2 {
-			if isEmptyString(names[0]) {
-				return errors.New("schema name is empty in table name: " + name)
-			}
-			if isEmptyString(names[1]) {
-				return errors.New("table name is empty in table name: " + name)
+			if names[0] == "" || names[1] == "" {
+				return errors.New("invalid table name: " + name + ", schema and table name cannot be empty")
 			}
 		}
 	}
 	if blueprint == nil {
-		return ErrBlueprintIsNil
+		return errors.New("blueprint function is nil")
 	}
 	if tx == nil {
-		return ErrTxIsNil
+		return errors.New("transaction is nil")
 	}
 	return nil
 }
@@ -145,11 +152,11 @@ func (b *baseBuilder) DropIfExists(ctx context.Context, tx *sql.Tx, name string)
 }
 
 func (b *baseBuilder) Rename(ctx context.Context, tx *sql.Tx, oldName string, newName string) error {
-	if isEmptyString(oldName) || isEmptyString(newName) {
-		return ErrTableIsNotSet
+	if oldName == "" || newName == "" {
+		return errors.New("old or new table name is empty")
 	}
 	if tx == nil {
-		return ErrTxIsNil
+		return errors.New("transaction is nil")
 	}
 	bp := &Blueprint{name: oldName, newName: newName}
 	bp.rename()

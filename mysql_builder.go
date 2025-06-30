@@ -12,7 +12,7 @@ type mysqlBuilder struct {
 	gramamr *mysqlGrammar
 }
 
-func newMysqlBuilder() builder {
+func newMysqlBuilder() Builder {
 	return &mysqlBuilder{
 		baseBuilder: baseBuilder{
 			dialect: "mysql",
@@ -24,7 +24,7 @@ func newMysqlBuilder() builder {
 
 func (b *mysqlBuilder) getCurrentDatabase(ctx context.Context, tx *sql.Tx) (string, error) {
 	if tx == nil {
-		return "", ErrTxIsNil
+		return "", errors.New("transaction is nil")
 	}
 
 	query := "SELECT DATABASE()"
@@ -81,7 +81,7 @@ func (b *mysqlBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName str
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var columns []*Column
 	for rows.Next() {
@@ -122,7 +122,7 @@ func (b *mysqlBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName str
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var indexes []*Index
 	for rows.Next() {
@@ -138,10 +138,6 @@ func (b *mysqlBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName str
 }
 
 func (b *mysqlBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo, error) {
-	if tx == nil {
-		return nil, ErrTxIsNil
-	}
-
 	database, err := b.getCurrentDatabase(ctx, tx)
 	if err != nil {
 		return nil, err
@@ -155,7 +151,7 @@ func (b *mysqlBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo,
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var tables []*TableInfo
 	for rows.Next() {

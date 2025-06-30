@@ -6,10 +6,6 @@ import (
 	"log"
 )
 
-func isEmptyString(s string) bool {
-	return len(s) == 0
-}
-
 func optionalInt(defaultValue int, values ...int) int {
 	if len(values) > 0 {
 		return values[0]

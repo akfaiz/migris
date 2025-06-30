@@ -1,10 +1,11 @@
-package schema
+package schema_test
 
 import (
 	"context"
 	"database/sql"
 	"testing"
 
+	"github.com/ahmadfaizk/schema"
 	_ "github.com/go-sql-driver/mysql" // MySQL driver
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
@@ -47,7 +48,7 @@ func (s *mysqlBuilderSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.db = db
-	SetDebug(true)
+	schema.SetDebug(true)
 }
 
 func (s *mysqlBuilderSuite) TearDownSuite() {
@@ -56,32 +57,29 @@ func (s *mysqlBuilderSuite) TearDownSuite() {
 }
 
 func (s *mysqlBuilderSuite) TestCreate() {
-	builder := newMysqlBuilder()
+	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
-		err := builder.Create(s.ctx, nil, "test_table", func(table *Blueprint) {
+		err := builder.Create(s.ctx, nil, "test_table", func(table *schema.Blueprint) {
 			table.String("name")
 		})
 		s.Error(err)
-		s.ErrorIs(err, ErrTxIsNil)
 	})
 	s.Run("when table name is empty, should return error", func() {
-		err := builder.Create(s.ctx, tx, "", func(table *Blueprint) {
+		err := builder.Create(s.ctx, tx, "", func(table *schema.Blueprint) {
 			table.String("name")
 		})
 		s.Error(err)
-		s.ErrorIs(err, ErrTableIsNotSet)
 	})
 	s.Run("when blueprint is nil, should return error", func() {
 		err := builder.Create(s.ctx, tx, "test_table", nil)
 		s.Error(err)
-		s.ErrorIs(err, ErrBlueprintIsNil)
 	})
 	s.Run("when all parameters are valid, should create table successfully", func() {
-		err = builder.Create(context.Background(), tx, "users", func(table *Blueprint) {
+		err = builder.Create(context.Background(), tx, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -92,7 +90,7 @@ func (s *mysqlBuilderSuite) TestCreate() {
 		s.NoError(err, "expected no error when creating table with valid parameters")
 	})
 	s.Run("when have composite primary key should create it successfully", func() {
-		err = builder.Create(context.Background(), tx, "user_roles", func(table *Blueprint) {
+		err = builder.Create(context.Background(), tx, "user_roles", func(table *schema.Blueprint) {
 			table.Integer("user_id")
 			table.Integer("role_id")
 
@@ -101,7 +99,7 @@ func (s *mysqlBuilderSuite) TestCreate() {
 		s.NoError(err, "expected no error when creating table with composite primary key")
 	})
 	s.Run("when have foreign key should create it successfully", func() {
-		err = builder.Create(context.Background(), tx, "orders", func(table *Blueprint) {
+		err = builder.Create(context.Background(), tx, "orders", func(table *schema.Blueprint) {
 			table.ID()
 			table.UnsignedBigInteger("user_id")
 			table.String("order_id", 255).Unique()
@@ -113,7 +111,7 @@ func (s *mysqlBuilderSuite) TestCreate() {
 		s.NoError(err, "expected no error when creating table with foreign key")
 	})
 	s.Run("when have custom index should create it successfully", func() {
-		err = builder.Create(context.Background(), tx, "orders_2", func(table *Blueprint) {
+		err = builder.Create(context.Background(), tx, "orders_2", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("order_id", 255).Unique("uk_orders_2_order_id")
 			table.Decimal("amount", 10, 2)
@@ -124,7 +122,7 @@ func (s *mysqlBuilderSuite) TestCreate() {
 		s.NoError(err, "expected no error when creating table with custom index")
 	})
 	s.Run("when table already exists, should return error", func() {
-		err = builder.Create(context.Background(), tx, "users", func(table *Blueprint) {
+		err = builder.Create(context.Background(), tx, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -134,32 +132,29 @@ func (s *mysqlBuilderSuite) TestCreate() {
 }
 
 func (s *mysqlBuilderSuite) TestCreateIfNotExists() {
-	builder := newMysqlBuilder()
+	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
-		err := builder.CreateIfNotExists(s.ctx, nil, "test_table", func(table *Blueprint) {
+		err := builder.CreateIfNotExists(s.ctx, nil, "test_table", func(table *schema.Blueprint) {
 			table.String("name")
 		})
 		s.Error(err)
-		s.ErrorIs(err, ErrTxIsNil)
 	})
 	s.Run("when table name is empty, should return error", func() {
-		err := builder.CreateIfNotExists(s.ctx, tx, "", func(table *Blueprint) {
+		err := builder.CreateIfNotExists(s.ctx, tx, "", func(table *schema.Blueprint) {
 			table.String("name")
 		})
 		s.Error(err)
-		s.ErrorIs(err, ErrTableIsNotSet)
 	})
 	s.Run("when blueprint is nil, should return error", func() {
 		err := builder.CreateIfNotExists(s.ctx, tx, "test_table", nil)
 		s.Error(err)
-		s.ErrorIs(err, ErrBlueprintIsNil)
 	})
 	s.Run("when all parameters are valid, should create table successfully", func() {
-		err = builder.CreateIfNotExists(context.Background(), tx, "users_if_not_exists", func(table *Blueprint) {
+		err = builder.CreateIfNotExists(context.Background(), tx, "users_if_not_exists", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -170,7 +165,7 @@ func (s *mysqlBuilderSuite) TestCreateIfNotExists() {
 		s.NoError(err, "expected no error when creating table with valid parameters")
 	})
 	s.Run("when table already exists, should not return error", func() {
-		err = builder.CreateIfNotExists(context.Background(), tx, "users_if_not_exists", func(table *Blueprint) {
+		err = builder.CreateIfNotExists(context.Background(), tx, "users_if_not_exists", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -180,23 +175,21 @@ func (s *mysqlBuilderSuite) TestCreateIfNotExists() {
 }
 
 func (s *mysqlBuilderSuite) TestDrop() {
-	builder := newMysqlBuilder()
+	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
 		err := builder.Drop(s.ctx, nil, "test_table")
 		s.Error(err)
-		s.ErrorIs(err, ErrTxIsNil)
 	})
 	s.Run("when table name is empty, should return error", func() {
 		err := builder.Drop(s.ctx, tx, "")
 		s.Error(err)
-		s.ErrorIs(err, ErrTableIsNotSet)
 	})
 	s.Run("when all parameters are valid, should drop table successfully", func() {
-		err = builder.Create(context.Background(), tx, "users_drop", func(table *Blueprint) {
+		err = builder.Create(context.Background(), tx, "users_drop", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -215,23 +208,21 @@ func (s *mysqlBuilderSuite) TestDrop() {
 }
 
 func (s *mysqlBuilderSuite) TestDropIfExists() {
-	builder := newMysqlBuilder()
+	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
 		err := builder.DropIfExists(s.ctx, nil, "test_table")
 		s.Error(err)
-		s.ErrorIs(err, ErrTxIsNil)
 	})
 	s.Run("when table name is empty, should return error", func() {
 		err := builder.DropIfExists(s.ctx, tx, "")
 		s.Error(err)
-		s.ErrorIs(err, ErrTableIsNotSet)
 	})
 	s.Run("when all parameters are valid, should drop table successfully", func() {
-		err = builder.Create(context.Background(), tx, "users_drop_if_exists", func(table *Blueprint) {
+		err = builder.Create(context.Background(), tx, "users_drop_if_exists", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -250,15 +241,14 @@ func (s *mysqlBuilderSuite) TestDropIfExists() {
 }
 
 func (s *mysqlBuilderSuite) TestRename() {
-	builder := newMysqlBuilder()
+	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
 		err := builder.Rename(s.ctx, nil, "old_table", "new_table")
 		s.Error(err)
-		s.ErrorIs(err, ErrTxIsNil)
 	})
 	s.Run("when old table name is empty, should return error", func() {
 		err := builder.Rename(s.ctx, tx, "", "new_table")
@@ -269,7 +259,7 @@ func (s *mysqlBuilderSuite) TestRename() {
 		s.Error(err)
 	})
 	s.Run("when all parameters are valid, should rename table successfully", func() {
-		err = builder.Create(context.Background(), tx, "old_table", func(table *Blueprint) {
+		err = builder.Create(context.Background(), tx, "old_table", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 		})
@@ -280,32 +270,29 @@ func (s *mysqlBuilderSuite) TestRename() {
 }
 
 func (s *mysqlBuilderSuite) TestTable() {
-	builder := newMysqlBuilder()
+	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
-		err := builder.Table(s.ctx, nil, "test_table", func(table *Blueprint) {
+		err := builder.Table(s.ctx, nil, "test_table", func(table *schema.Blueprint) {
 			table.String("name")
 		})
 		s.Error(err)
-		s.ErrorIs(err, ErrTxIsNil)
 	})
 	s.Run("when table name is empty, should return error", func() {
-		err := builder.Table(s.ctx, tx, "", func(table *Blueprint) {
+		err := builder.Table(s.ctx, tx, "", func(table *schema.Blueprint) {
 			table.String("name")
 		})
 		s.Error(err)
-		s.ErrorIs(err, ErrTableIsNotSet)
 	})
 	s.Run("when blueprint is nil, should return error", func() {
 		err := builder.Table(s.ctx, tx, "test_table", nil)
 		s.Error(err)
-		s.ErrorIs(err, ErrBlueprintIsNil)
 	})
 	s.Run("when all parameters are valid, should alter table successfully", func() {
-		err = builder.Create(context.Background(), tx, "users_alter", func(table *Blueprint) {
+		err = builder.Create(context.Background(), tx, "users_alter", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -314,7 +301,7 @@ func (s *mysqlBuilderSuite) TestTable() {
 			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
 		})
 		s.NoError(err, "expected no error when creating table before altering it")
-		err = builder.Table(context.Background(), tx, "users_alter", func(table *Blueprint) {
+		err = builder.Table(context.Background(), tx, "users_alter", func(table *schema.Blueprint) {
 			table.String("address", 255).Nullable()
 			table.DropColumn("password")
 		})
@@ -323,21 +310,19 @@ func (s *mysqlBuilderSuite) TestTable() {
 }
 
 func (s *mysqlBuilderSuite) TestGetColumns() {
-	builder := newMysqlBuilder()
+	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
 		columns, err := builder.GetColumns(s.ctx, nil, "test_table")
 		s.Error(err)
-		s.ErrorIs(err, ErrTxIsNil)
 		s.Nil(columns)
 	})
 	s.Run("when table name is empty, should return error", func() {
 		columns, err := builder.GetColumns(s.ctx, tx, "")
 		s.Error(err)
-		s.ErrorIs(err, ErrTableIsNotSet)
 		s.Nil(columns)
 	})
 	s.Run("when table does not exist, should return empty slice", func() {
@@ -346,7 +331,7 @@ func (s *mysqlBuilderSuite) TestGetColumns() {
 		s.Empty(columns)
 	})
 	s.Run("when table exists, should return columns successfully", func() {
-		err = builder.Create(context.Background(), tx, "users_get_columns", func(table *Blueprint) {
+		err = builder.Create(context.Background(), tx, "users_get_columns", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -364,23 +349,21 @@ func (s *mysqlBuilderSuite) TestGetColumns() {
 }
 
 func (s *mysqlBuilderSuite) TestGetIndexes() {
-	builder := newMysqlBuilder()
+	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
 		_, err := builder.GetIndexes(s.ctx, nil, "users_indexes")
 		s.Error(err, "expected error when transaction is nil")
-		s.ErrorIs(err, ErrTxIsNil)
 	})
 	s.Run("when table name is empty, should return error", func() {
 		_, err := builder.GetIndexes(s.ctx, tx, "")
 		s.Error(err, "expected error when table name is empty")
-		s.ErrorIs(err, ErrTableIsNotSet)
 	})
 	s.Run("when all parameters are valid", func() {
-		err = builder.Create(s.ctx, tx, "users_indexes", func(table *Blueprint) {
+		err = builder.Create(s.ctx, tx, "users_indexes", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -405,19 +388,18 @@ func (s *mysqlBuilderSuite) TestGetIndexes() {
 }
 
 func (s *mysqlBuilderSuite) TestGetTables() {
-	builder := newMysqlBuilder()
+	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
 		tables, err := builder.GetTables(s.ctx, nil)
 		s.Error(err, "expected error when transaction is nil")
-		s.ErrorIs(err, ErrTxIsNil)
 		s.Nil(tables)
 	})
 	s.Run("when all parameters are valid", func() {
-		err = builder.Create(context.Background(), tx, "users_get_tables", func(table *Blueprint) {
+		err = builder.Create(context.Background(), tx, "users_get_tables", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -442,21 +424,19 @@ func (s *mysqlBuilderSuite) TestGetTables() {
 }
 
 func (s *mysqlBuilderSuite) TestHasColumn() {
-	builder := newMysqlBuilder()
+	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
 		exists, err := builder.HasColumn(s.ctx, nil, "users_has_column", "name")
 		s.Error(err, "expected error when transaction is nil")
-		s.ErrorIs(err, ErrTxIsNil)
 		s.False(exists)
 	})
 	s.Run("when table name is empty, should return error", func() {
 		exists, err := builder.HasColumn(s.ctx, tx, "", "name")
 		s.Error(err, "expected error when table name is empty")
-		s.ErrorIs(err, ErrTableIsNotSet)
 		s.False(exists)
 	})
 	s.Run("when column name is empty, should return error", func() {
@@ -465,7 +445,7 @@ func (s *mysqlBuilderSuite) TestHasColumn() {
 		s.False(exists)
 	})
 	s.Run("when all parameters are valid", func() {
-		err = builder.Create(context.Background(), tx, "users_has_column", func(table *Blueprint) {
+		err = builder.Create(context.Background(), tx, "users_has_column", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -486,21 +466,19 @@ func (s *mysqlBuilderSuite) TestHasColumn() {
 }
 
 func (s *mysqlBuilderSuite) TestHasColumns() {
-	builder := newMysqlBuilder()
+	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
 		exists, err := builder.HasColumns(s.ctx, nil, "users_has_columns", []string{"name"})
 		s.Error(err, "expected error when transaction is nil")
-		s.ErrorIs(err, ErrTxIsNil)
 		s.False(exists)
 	})
 	s.Run("when table name is empty, should return error", func() {
 		exists, err := builder.HasColumns(s.ctx, tx, "", []string{"name"})
 		s.Error(err, "expected error when table name is empty")
-		s.ErrorIs(err, ErrTableIsNotSet)
 		s.False(exists)
 	})
 	s.Run("when column names are empty, should return error", func() {
@@ -509,7 +487,7 @@ func (s *mysqlBuilderSuite) TestHasColumns() {
 		s.False(exists)
 	})
 	s.Run("when all parameters are valid", func() {
-		err = builder.Create(context.Background(), tx, "users_has_columns", func(table *Blueprint) {
+		err = builder.Create(context.Background(), tx, "users_has_columns", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -530,25 +508,23 @@ func (s *mysqlBuilderSuite) TestHasColumns() {
 }
 
 func (s *mysqlBuilderSuite) TestHasIndex() {
-	builder := newMysqlBuilder()
+	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
 		exists, err := builder.HasIndex(s.ctx, nil, "orders_3", []string{"idx_users_name"})
 		s.Error(err, "expected error when transaction is nil")
-		s.ErrorIs(err, ErrTxIsNil)
 		s.False(exists, "expected exists to be false when transaction is nil")
 	})
 	s.Run("when table name is empty, should return error", func() {
 		exists, err := builder.HasIndex(s.ctx, tx, "", []string{"idx_users_name"})
 		s.Error(err, "expected error when table name is empty")
-		s.ErrorIs(err, ErrTableIsNotSet)
 		s.False(exists, "expected exists to be false when table name is empty")
 	})
 	s.Run("when all parameters are valid", func() {
-		err = builder.Create(s.ctx, tx, "orders_3", func(table *Blueprint) {
+		err = builder.Create(s.ctx, tx, "orders_3", func(table *schema.Blueprint) {
 			table.ID()
 			table.Integer("company_id")
 			table.Integer("user_id")
@@ -576,25 +552,23 @@ func (s *mysqlBuilderSuite) TestHasIndex() {
 }
 
 func (s *mysqlBuilderSuite) TestHasTable() {
-	builder := newMysqlBuilder()
+	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
 		exists, err := builder.HasTable(s.ctx, nil, "users_has_table")
 		s.Error(err, "expected error when transaction is nil")
-		s.ErrorIs(err, ErrTxIsNil)
 		s.False(exists, "expected exists to be false when transaction is nil")
 	})
 	s.Run("when table name is empty, should return error", func() {
 		exists, err := builder.HasTable(s.ctx, tx, "")
 		s.Error(err, "expected error when table name is empty")
-		s.ErrorIs(err, ErrTableIsNotSet)
 		s.False(exists, "expected exists to be false when table name is empty")
 	})
 	s.Run("when all parameters are valid", func() {
-		err = builder.Create(s.ctx, tx, "users_has_table", func(table *Blueprint) {
+		err = builder.Create(s.ctx, tx, "users_has_table", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()

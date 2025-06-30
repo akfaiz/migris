@@ -12,7 +12,7 @@ type postgresBuilder struct {
 	grammar *pgGrammar
 }
 
-func newPostgresBuilder() builder {
+func newPostgresBuilder() Builder {
 	grammar := newPgGrammar()
 
 	return &postgresBuilder{
@@ -47,7 +47,7 @@ func (b *postgresBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var columns []*Column
 	for rows.Next() {
@@ -80,7 +80,7 @@ func (b *postgresBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var indexes []*Index
 	for rows.Next() {
@@ -98,7 +98,7 @@ func (b *postgresBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName 
 
 func (b *postgresBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo, error) {
 	if tx == nil {
-		return nil, ErrTxIsNil
+		return nil, errors.New("transaction is nil")
 	}
 
 	query, err := b.grammar.compileTables()
@@ -110,7 +110,7 @@ func (b *postgresBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableIn
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var tables []*TableInfo
 	for rows.Next() {
@@ -147,7 +147,7 @@ func (b *postgresBuilder) HasColumns(ctx context.Context, tx *sql.Tx, tableName 
 		existingColumnMap[col.Name] = true
 	}
 	for _, colName := range columnNames {
-		if isEmptyString(colName) {
+		if colName == "" {
 			return false, errors.New("column name is empty")
 		}
 		if _, exists := existingColumnMap[colName]; !exists {
