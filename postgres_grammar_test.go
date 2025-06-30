@@ -376,6 +376,21 @@ func TestPgGrammar_GetType(t *testing.T) {
 			col:  &columnDefinition{columnType: columnTypeJSON},
 			want: "JSON",
 		},
+		{
+			name: "Geography type",
+			col:  &columnDefinition{columnType: columnTypeGeography, subType: "POINT", srid: 4326},
+			want: "GEOGRAPHY(POINT, 4326)",
+		},
+		{
+			name: "Geometry type",
+			col:  &columnDefinition{columnType: columnTypeGeometry, subType: "LINESTRING", srid: 4326},
+			want: "GEOMETRY(LINESTRING, 4326)",
+		},
+		{
+			name: "Enum type",
+			col:  &columnDefinition{columnType: columnTypeEnum, name: "status", allowedEnums: []string{"active", "inactive"}},
+			want: "VARCHAR(255) CHECK (status IN ('active', 'inactive'))",
+		},
 	}
 
 	for _, tt := range tests {
@@ -542,7 +557,7 @@ func TestPgGrammar_CompileIndexSql(t *testing.T) {
 				columns:   []string{"email"},
 				name:      "users_email_unique",
 			},
-			want:    "CREATE UNIQUE INDEX users_email_unique ON users(email)",
+			want:    "CREATE UNIQUE INDEX users_email_unique ON users (email)",
 			wantErr: false,
 		},
 		{
@@ -555,7 +570,7 @@ func TestPgGrammar_CompileIndexSql(t *testing.T) {
 				columns:   []string{"name"},
 				name:      "users_name_index",
 			},
-			want:    "CREATE INDEX users_name_index ON users(name)",
+			want:    "CREATE INDEX users_name_index ON users (name)",
 			wantErr: false,
 		},
 		{
@@ -569,7 +584,7 @@ func TestPgGrammar_CompileIndexSql(t *testing.T) {
 				name:       "users_name_email_index",
 				algorithmn: "hash",
 			},
-			want:    "CREATE INDEX users_name_email_index ON users(name, email) USING hash",
+			want:    "CREATE INDEX users_name_email_index ON users USING hash (name, email)",
 			wantErr: false,
 		},
 		{
@@ -582,7 +597,7 @@ func TestPgGrammar_CompileIndexSql(t *testing.T) {
 				columns:   []string{"first_name", "last_name"},
 				name:      "users_name_index",
 			},
-			want:    "CREATE INDEX users_name_index ON users(first_name, last_name)",
+			want:    "CREATE INDEX users_name_index ON users (first_name, last_name)",
 			wantErr: false,
 		},
 		{
@@ -920,6 +935,70 @@ func TestPgGrammar_CompileDropForeignKey(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := grammar.compileDropForeignKey(tt.blueprint, tt.foreignKeyName)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestPgGrammar_CompileChange(t *testing.T) {
+	grammar := newPgGrammar()
+
+	tests := []struct {
+		name      string
+		blueprint func(blueprint *Blueprint)
+		tableName string
+		want      []string
+		wantErr   bool
+	}{
+		{
+			name:      "Change single column type",
+			tableName: "users",
+			blueprint: func(bp *Blueprint) {
+				bp.String("email", 500).Nullable().Change()
+			},
+			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500) DROP NOT NULL"},
+		},
+		{
+			name:      "Change column with default value",
+			tableName: "users",
+			blueprint: func(bp *Blueprint) {
+				bp.String("email", 500).Default("user@mail.com").Change()
+			},
+			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500) SET DEFAULT 'user@mail.com' SET NOT NULL"},
+		},
+		{
+			name:      "Change multiple columns",
+			tableName: "users",
+			blueprint: func(bp *Blueprint) {
+				bp.String("email", 500).Nullable().Change()
+				bp.String("name", 255).Default("Anonymous").Change()
+			},
+			want: []string{
+				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500) DROP NOT NULL",
+				"ALTER TABLE users ALTER COLUMN name TYPE VARCHAR(255) SET DEFAULT 'Anonymous' SET NOT NULL",
+			},
+		},
+		{
+			name:      "Add comment to column",
+			tableName: "users",
+			blueprint: func(bp *Blueprint) {
+				bp.String("email", 500).Comment("User email address").Change()
+			},
+			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500) SET NOT NULL COMMENT 'User email address'"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &Blueprint{name: tt.tableName}
+			tt.blueprint(bp)
+			got, err := grammar.compileChange(bp)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return

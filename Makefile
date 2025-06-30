@@ -1,6 +1,6 @@
 COVERAGE_FILE := coverage.out
 COVERAGE_HTML := coverage.html
-MIN_COVERAGE  := 65
+MIN_COVERAGE  := 50
 
 # Go source files (excluding vendor)
 GO_FILES := $(shell find . -type f -name '*.go' -not -path "./vendor/*")

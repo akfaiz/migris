@@ -10,6 +10,7 @@ type dialectType uint8
 const (
 	unknown dialectType = iota // Represents no dialect set
 	postgres
+	mysql
 )
 
 var dialect dialectType
@@ -18,6 +19,7 @@ var debug bool = false
 var supportedDialects = map[string]dialectType{
 	"postgres": postgres,
 	"pgx":      postgres,
+	"mysql":    mysql,
 }
 
 // SetDialect sets the current dialect for the schema package.
@@ -37,13 +39,4 @@ func SetDialect(d string) error {
 // SetDebug enables or disables debug mode for the schema package.
 func SetDebug(d bool) {
 	debug = d
-}
-
-func newGrammar(dialect dialectType) (grammar, error) {
-	switch dialect {
-	case postgres:
-		return newPgGrammar(), nil
-	default:
-		return nil, ErrDialectNotSet
-	}
 }

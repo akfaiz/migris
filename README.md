@@ -11,11 +11,12 @@ Inspired by Laravel's schema builder, Schema simplifies defining and evolving da
 - 🧱 Supports `CREATE TABLE`, columns, primary keys, unique constraints, default values, and nullable fields
 - 🔄 Works seamlessly with Goose and other transaction-based migration tools
 - 🧩 Clean, fluent API for easy schema design
+- 📦 Supports multiple databases (PostgreSQL, MySQL)
 
 ## Supported Databases
 
 - PostgreSQL
-- MySQL (TODO)
+- MySQL
 - MariaDB (TODO)
 - SQLite (TODO)
 
@@ -58,6 +59,10 @@ func downCreateUsersTable(ctx context.Context, tx *sql.Tx) error {
 }
 
 ```
+For more examples, check out the [examples](examples/basic) directory.
 
 ## Documentation
 For detailed documentation, please refer to the [GoDoc](https://pkg.go.dev/github.com/ahmadfaizk/schema) page.
+
+## License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

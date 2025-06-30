@@ -45,6 +45,9 @@ type Blueprint struct {
 	commands        []string // commands to be executed
 	name            string
 	newName         string
+	charset         string
+	collation       string
+	engine          string
 	columns         []*columnDefinition
 	indexes         []*indexDefinition
 	foreignKeys     []*foreignKeyDefinition
@@ -55,6 +58,21 @@ type Blueprint struct {
 	dropPrimaryKeys []string          // primary keys to be dropped
 	dropUniqueKeys  []string          // unique keys to be dropped
 	renameIndexes   map[string]string // old index name to new index name
+}
+
+// Charset sets the character set for the table in the blueprint.
+func (b *Blueprint) Charset(charset string) {
+	b.charset = charset
+}
+
+// Collation sets the collation for the table in the blueprint.
+func (b *Blueprint) Collation(collation string) {
+	b.collation = collation
+}
+
+// Engine sets the storage engine for the table in the blueprint.
+func (b *Blueprint) Engine(engine string) {
+	b.engine = engine
 }
 
 // Boolean creates a new boolean column definition in the blueprint.
@@ -358,12 +376,14 @@ func (b *Blueprint) Index(column string, otherColumns ...string) IndexDefinition
 //
 //	table.Unique("email")
 //	table.Unique("email", "username") // creates a composite unique index
-func (b *Blueprint) Unique(column string, otherColumns ...string) {
+func (b *Blueprint) Unique(column string, otherColumns ...string) IndexDefinition {
 	index := &indexDefinition{
 		indexType: indexTypeUnique,
 		columns:   append([]string{column}, otherColumns...),
 	}
 	b.indexes = append(b.indexes, index)
+
+	return index
 }
 
 // Primary creates a new primary key index definition in the blueprint.
@@ -718,6 +738,11 @@ func (c *columnDefinition) Primary() ColumnDefinition {
 func (c *columnDefinition) Unique(indexName ...string) ColumnDefinition {
 	c.unique = true
 	c.uniqueIndexName = optionalString("", indexName...)
+	return c
+}
+
+func (c *columnDefinition) Change() ColumnDefinition {
+	c.changed = true
 	return c
 }
 

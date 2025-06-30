@@ -11,20 +11,39 @@ var ErrTableIsNotSet = errors.New("table name is not set")
 var ErrBlueprintIsNil = errors.New("blueprint function is nil")
 var ErrTxIsNil = errors.New("transaction is nil")
 
-type builder struct {
+type builder interface {
+	Create(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error
+	CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error
+	Drop(ctx context.Context, tx *sql.Tx, name string) error
+	DropIfExists(ctx context.Context, tx *sql.Tx, name string) error
+	GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, error)
+	GetIndexes(ctx context.Context, tx *sql.Tx, tableName string) ([]*Index, error)
+	GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo, error)
+	HasColumn(ctx context.Context, tx *sql.Tx, tableName string, columnName string) (bool, error)
+	HasColumns(ctx context.Context, tx *sql.Tx, tableName string, columnNames []string) (bool, error)
+	HasIndex(ctx context.Context, tx *sql.Tx, tableName string, indexes []string) (bool, error)
+	HasTable(ctx context.Context, tx *sql.Tx, name string) (bool, error)
+	Rename(ctx context.Context, tx *sql.Tx, oldName string, newName string) error
+	Table(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error
+}
+
+func newBuilder(dialect dialectType) (builder, error) {
+	switch dialect {
+	case postgres:
+		return newPostgresBuilder(), nil
+	case mysql:
+		return newMysqlBuilder(), nil
+	default:
+		return nil, ErrDialectNotSet
+	}
+}
+
+type baseBuilder struct {
 	dialect dialectType
 	grammar grammar
 }
 
-func newBuilder(dialect dialectType) (*builder, error) {
-	grammar, err := newGrammar(dialect)
-	if err != nil {
-		return nil, err
-	}
-	return &builder{grammar: grammar, dialect: dialect}, nil
-}
-
-func (b *builder) validateTxAndName(tx *sql.Tx, name string) error {
+func (b *baseBuilder) validateTxAndName(tx *sql.Tx, name string) error {
 	if isEmptyString(name) {
 		return ErrTableIsNotSet
 	}
@@ -34,7 +53,7 @@ func (b *builder) validateTxAndName(tx *sql.Tx, name string) error {
 	return nil
 }
 
-func (b *builder) validateCreateAndAlter(tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
+func (b *baseBuilder) validateCreateAndAlter(tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
 	if isEmptyString(name) {
 		return ErrTableIsNotSet
 	}
@@ -61,18 +80,7 @@ func (b *builder) validateCreateAndAlter(tx *sql.Tx, name string, blueprint func
 	return nil
 }
 
-func (b *builder) parseSchemaAndTable(name string) (string, string) {
-	if b.dialect == postgres {
-		names := strings.Split(name, ".")
-		if len(names) == 2 {
-			return names[0], names[1]
-		}
-		return "", names[0]
-	}
-	return "", name
-}
-
-func (b *builder) Create(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
+func (b *baseBuilder) Create(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
 	if err := b.validateCreateAndAlter(tx, name, blueprint); err != nil {
 		return err
 	}
@@ -89,7 +97,7 @@ func (b *builder) Create(ctx context.Context, tx *sql.Tx, name string, blueprint
 	return execContext(ctx, tx, sqls...)
 }
 
-func (b *builder) CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
+func (b *baseBuilder) CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
 	if err := b.validateCreateAndAlter(tx, name, blueprint); err != nil {
 		return err
 	}
@@ -106,7 +114,7 @@ func (b *builder) CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string
 	return execContext(ctx, tx, sqls...)
 }
 
-func (b *builder) Drop(ctx context.Context, tx *sql.Tx, name string) error {
+func (b *baseBuilder) Drop(ctx context.Context, tx *sql.Tx, name string) error {
 	if err := b.validateTxAndName(tx, name); err != nil {
 		return err
 	}
@@ -121,7 +129,7 @@ func (b *builder) Drop(ctx context.Context, tx *sql.Tx, name string) error {
 	return execContext(ctx, tx, sqls...)
 }
 
-func (b *builder) DropIfExists(ctx context.Context, tx *sql.Tx, name string) error {
+func (b *baseBuilder) DropIfExists(ctx context.Context, tx *sql.Tx, name string) error {
 	if err := b.validateTxAndName(tx, name); err != nil {
 		return err
 	}
@@ -136,196 +144,7 @@ func (b *builder) DropIfExists(ctx context.Context, tx *sql.Tx, name string) err
 	return execContext(ctx, tx, sqls...)
 }
 
-func (b *builder) GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, error) {
-	if err := b.validateTxAndName(tx, tableName); err != nil {
-		return nil, err
-	}
-
-	schema, name := b.parseSchemaAndTable(tableName)
-	if schema == "" {
-		schema = "public" // Default schema for PostgreSQL
-	}
-	query, err := b.grammar.compileColumns(schema, name)
-	if err != nil {
-		return nil, err
-	}
-
-	rows, err := queryContext(ctx, tx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var columns []*Column
-	for rows.Next() {
-		var col Column
-		if err := rows.Scan(
-			&col.Name, &col.TypeName, &col.TypeFull, &col.Collation,
-			&col.Nullable, &col.DefaultVal, &col.Comment,
-		); err != nil {
-			return nil, err
-		}
-		columns = append(columns, &col)
-	}
-
-	return columns, nil
-}
-
-func (b *builder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName string) ([]*Index, error) {
-	if err := b.validateTxAndName(tx, tableName); err != nil {
-		return nil, err
-	}
-	schema, name := b.parseSchemaAndTable(tableName)
-	if schema == "" {
-		schema = "public" // Default schema for PostgreSQL
-	}
-	query, err := b.grammar.compileIndexes(schema, name)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := queryContext(ctx, tx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var indexes []*Index
-	for rows.Next() {
-		var index Index
-		var columnsStr string
-		if err := rows.Scan(&index.Name, &columnsStr, &index.Type, &index.Unique, &index.Primary); err != nil {
-			return nil, err
-		}
-		index.Columns = strings.Split(columnsStr, ",")
-		indexes = append(indexes, &index)
-	}
-
-	return indexes, nil
-}
-
-func (b *builder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo, error) {
-	if tx == nil {
-		return nil, ErrTxIsNil
-	}
-
-	query, err := b.grammar.compileTables()
-	if err != nil {
-		return nil, err
-	}
-
-	rows, err := queryContext(ctx, tx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var tables []*TableInfo
-	for rows.Next() {
-		var table TableInfo
-		if err := rows.Scan(&table.Name, &table.Schema, &table.Size, &table.Comment); err != nil {
-			return nil, err
-		}
-		tables = append(tables, &table)
-	}
-
-	return tables, nil
-}
-
-func (b *builder) HasColumns(ctx context.Context, tx *sql.Tx, tableName string, columnNames ...string) (bool, error) {
-	existingColumns, err := b.GetColumns(ctx, tx, tableName)
-	if err != nil {
-		return false, err
-	}
-	if len(existingColumns) == 0 {
-		return false, nil // No columns found, so the specified columns cannot exist
-	}
-	if len(columnNames) == 0 {
-		return true, nil // No specific columns to check, so we assume they exist
-	}
-	existingColumnMap := make(map[string]bool)
-	for _, col := range existingColumns {
-		existingColumnMap[col.Name] = true
-	}
-	for _, colName := range columnNames {
-		if isEmptyString(colName) {
-			return false, errors.New("column name is empty")
-		}
-		if _, exists := existingColumnMap[colName]; !exists {
-			return false, nil // If any specified column does not exist, return false
-		}
-	}
-	return true, nil // All specified columns exist
-}
-
-func (b *builder) HasIndex(ctx context.Context, tx *sql.Tx, tableName string, indexes []string) (bool, error) {
-	if err := b.validateTxAndName(tx, tableName); err != nil {
-		return false, err
-	}
-
-	existingIndexes, err := b.GetIndexes(ctx, tx, tableName)
-	if err != nil {
-		return false, err
-	}
-	if len(existingIndexes) == 0 {
-		return false, nil // No indexes found, so the specified indexes cannot exist
-	}
-	if len(indexes) == 0 {
-		return true, nil // No specific indexes to check, so we assume they exist
-	}
-	if len(indexes) == 1 {
-		for _, idx := range existingIndexes {
-			if idx.Name == indexes[0] {
-				return true, nil // If any specified index exists, return true
-			}
-		}
-	}
-	indexColumns := make(map[string]bool)
-	for _, idx := range indexes {
-		indexColumns[idx] = true // Create a map of specified indexes for quick lookup
-	}
-
-	for _, index := range existingIndexes {
-		found := true
-		for _, indexCol := range index.Columns {
-			if _, exists := indexColumns[indexCol]; !exists {
-				found = false // If any column in the index does not match the specified indexes, set found to false
-				break
-			}
-		}
-		// If all columns in the index match the specified indexes, we found a match
-		if found {
-			return true, nil
-		}
-	}
-
-	return false, nil // If no specified index exists, return false
-}
-
-func (b *builder) HasTable(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
-	if err := b.validateTxAndName(tx, name); err != nil {
-		return false, err
-	}
-
-	schema, name := b.parseSchemaAndTable(name)
-	if schema == "" {
-		schema = "public" // Default schema for PostgreSQL
-	}
-	query, err := b.grammar.compileTableExists(schema, name)
-	if err != nil {
-		return false, err
-	}
-
-	var exists bool
-	if err := queryRowContext(ctx, tx, query).Scan(&exists); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil // Table does not exist
-		}
-		return false, err // Other error
-	}
-	return exists, nil
-}
-
-func (b *builder) Rename(ctx context.Context, tx *sql.Tx, oldName string, newName string) error {
+func (b *baseBuilder) Rename(ctx context.Context, tx *sql.Tx, oldName string, newName string) error {
 	if isEmptyString(oldName) || isEmptyString(newName) {
 		return ErrTableIsNotSet
 	}
@@ -342,7 +161,7 @@ func (b *builder) Rename(ctx context.Context, tx *sql.Tx, oldName string, newNam
 	return execContext(ctx, tx, sqls...)
 }
 
-func (b *builder) Table(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
+func (b *baseBuilder) Table(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
 	if err := b.validateCreateAndAlter(tx, name, blueprint); err != nil {
 		return err
 	}

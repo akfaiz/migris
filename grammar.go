@@ -1,16 +1,12 @@
 package schema
 
 import (
-	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
 type grammar interface {
-	compileTableExists(schema string, table string) (string, error)
-	compileTables() (string, error)
-	compileColumns(schema, table string) (string, error)
-	compileIndexes(schema, table string) (string, error)
 	compileCreate(bp *Blueprint) (string, error)
 	compileCreateIfNotExists(bp *Blueprint) (string, error)
 	compileAdd(bp *Blueprint) (string, error)
@@ -29,95 +25,13 @@ type grammar interface {
 	compileDropForeignKey(blueprint *Blueprint, foreignKeyName string) (string, error)
 }
 
-type grammarImpl struct{}
+type baseGrammar struct{}
 
-var _ grammar = (*grammarImpl)(nil)
-
-func (g *grammarImpl) compileTableExists(schema string, table string) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileTables() (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileColumns(schema, table string) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileIndexes(schema, table string) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileCreate(_ *Blueprint) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileCreateIfNotExists(_ *Blueprint) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileAdd(_ *Blueprint) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileChange(_ *Blueprint) ([]string, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileDrop(_ *Blueprint) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileDropIfExists(_ *Blueprint) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileRename(_ *Blueprint) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileDropColumn(_ *Blueprint) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileRenameColumn(_ *Blueprint, oldName, newName string) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileIndexSql(_ *Blueprint, index *indexDefinition) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileDropIndex(indexName string) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileDropUnique(indexName string) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileRenameIndex(blueprint *Blueprint, oldName, newName string) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileDropPrimaryKey(blueprint *Blueprint, indexName string) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileForeignKeySql(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) compileDropForeignKey(blueprint *Blueprint, foreignKeyName string) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (g *grammarImpl) quoteString(s string) string {
+func (g *baseGrammar) quoteString(s string) string {
 	return "'" + s + "'"
 }
 
-func (p *grammarImpl) prefixArray(prefix string, items []string) []string {
+func (g *baseGrammar) prefixArray(prefix string, items []string) []string {
 	if len(items) == 0 {
 		return nil
 	}
@@ -128,7 +42,31 @@ func (p *grammarImpl) prefixArray(prefix string, items []string) []string {
 	return prefixed
 }
 
-func (p *grammarImpl) createIndexName(blueprint *Blueprint, index *indexDefinition) string {
+func (g *baseGrammar) getDefaultValue(col *columnDefinition) string {
+	if col.defaultVal == nil {
+		return "NULL"
+	}
+	useQuote := slices.Contains([]columnType{columnTypeString, columnTypeChar, columnTypeEnum}, col.columnType)
+
+	switch v := col.defaultVal.(type) {
+	case string:
+		if useQuote {
+			return g.quoteString(v)
+		}
+		return v
+	case int, int64, float64:
+		return fmt.Sprintf("%v", v)
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	default:
+		return fmt.Sprintf("'%v'", v) // Fallback for other types
+	}
+}
+
+func (g *baseGrammar) createIndexName(blueprint *Blueprint, index *indexDefinition) string {
 	switch index.indexType {
 	case indexTypePrimary:
 		return fmt.Sprintf("pk_%s", blueprint.name)
@@ -141,6 +79,6 @@ func (p *grammarImpl) createIndexName(blueprint *Blueprint, index *indexDefiniti
 	}
 }
 
-func (p *grammarImpl) createForeginKeyName(blueprint *Blueprint, foreignKey *foreignKeyDefinition) string {
+func (g *baseGrammar) createForeginKeyName(blueprint *Blueprint, foreignKey *foreignKeyDefinition) string {
 	return fmt.Sprintf("fk_%s_%s", blueprint.name, foreignKey.on)
 }

@@ -13,7 +13,8 @@ func TestSetDialect(t *testing.T) {
 	}{
 		{"postgres", false},
 		{"pgx", false},
-		{"mysql", true},
+		{"mysql", false},
+		{"mariadb", true},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.dialect, func(t *testing.T) {

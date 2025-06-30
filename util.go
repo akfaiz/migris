@@ -3,10 +3,7 @@ package schema
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
-	"reflect"
-	"strconv"
 )
 
 func isEmptyString(s string) bool {
@@ -74,60 +71,4 @@ func queryContext(ctx context.Context, tx *sql.Tx, query string, args ...any) (*
 		return nil, err
 	}
 	return rows, nil
-}
-
-func toString(value any) string {
-	reflectType := reflect.TypeOf(value)
-	if reflectType == nil {
-		return ""
-	}
-	switch reflectType.Kind() {
-	case reflect.String:
-		if str, ok := value.(string); ok {
-			return str
-		}
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if intValue, ok := value.(int); ok {
-			return strconv.Itoa(intValue)
-		}
-	case reflect.Float32, reflect.Float64:
-		if floatValue, ok := value.(float64); ok {
-			return strconv.FormatFloat(floatValue, 'f', -1, 64)
-		}
-	case reflect.Bool:
-		if boolValue, ok := value.(bool); ok {
-			if boolValue {
-				return "true"
-			}
-			return "false"
-		}
-	case reflect.Map:
-		if mapValue, ok := value.(map[string]any); ok {
-			result := "{"
-			for k, v := range mapValue {
-				result += k + ":" + toString(v) + ","
-			}
-			if len(result) > 1 {
-				result = result[:len(result)-1] // Remove trailing comma
-			}
-			result += "}"
-			return result
-		}
-	case reflect.Slice, reflect.Array:
-		if sliceValue, ok := value.([]any); ok {
-			result := "["
-			for _, v := range sliceValue {
-				result += toString(v) + ","
-			}
-			if len(result) > 1 {
-				result = result[:len(result)-1] // Remove trailing comma
-			}
-			result += "]"
-			return result
-		}
-	default:
-		return fmt.Sprintf("%v", value) // Fallback for other types
-	}
-
-	return fmt.Sprintf("%v", value) // Fallback for unsupported types
 }

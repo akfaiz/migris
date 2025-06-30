@@ -14,6 +14,7 @@ type Column struct {
 	Nullable   bool           // Nullable indicates whether the column can contain NULL values.
 	DefaultVal sql.NullString // DefaultVal is the default value for the column, if any.
 	Comment    sql.NullString // Comment is an optional comment for the column.
+	Extra      sql.NullString // Extra contains additional information about the column (e.g., "auto_increment").
 }
 
 // Index represents a database index with its properties.
@@ -28,10 +29,12 @@ type Index struct {
 // TableInfo represents information about a database table.
 // It includes the table name, schema, size, and an optional comment.
 type TableInfo struct {
-	Name    string         // Name is the name of the table.
-	Schema  string         // Schema is the schema where the table resides.
-	Size    int64          // Size is the size of the table in bytes.
-	Comment sql.NullString // Comment is an optional comment for the table.
+	Name      string         // Name is the name of the table.
+	Schema    string         // Schema is the schema where the table resides.
+	Size      int64          // Size is the size of the table in bytes.
+	Comment   sql.NullString // Comment is an optional comment for the table.
+	Engine    sql.NullString // Engine is the storage engine used for the table (e.g., "InnoDB", "MyISAM").
+	Collation sql.NullString // Collation is the collation used for the table (e.g., "utf8mb4_general_ci").
 }
 
 // Create creates a new table with the given name and blueprint.
@@ -167,7 +170,7 @@ func HasColumn(ctx context.Context, tx *sql.Tx, tableName string, columnName str
 		return false, err
 	}
 
-	return builder.HasColumns(ctx, tx, tableName, columnName)
+	return builder.HasColumn(ctx, tx, tableName, columnName)
 }
 
 // HasColumns checks if the specified columns exist in the given table.
@@ -184,7 +187,7 @@ func HasColumns(ctx context.Context, tx *sql.Tx, tableName string, columnNames [
 		return false, err
 	}
 
-	return builder.HasColumns(ctx, tx, tableName, columnNames...)
+	return builder.HasColumns(ctx, tx, tableName, columnNames)
 }
 
 // HasIndex checks if an index with the given name exists in the specified table.
