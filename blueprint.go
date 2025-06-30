@@ -259,11 +259,11 @@ func (b *Blueprint) Time(name string) ColumnDefinition {
 
 // Timestamp creates a new timestamp column definition in the blueprint.
 // The precision parameter is optional and defaults to 0 if not provided.
-func (b *Blueprint) Timestamp(name string, precission ...int) ColumnDefinition {
+func (b *Blueprint) Timestamp(name string, precision ...int) ColumnDefinition {
 	col := &columnDefinition{
 		name:       name,
 		columnType: columnTypeTimestamp,
-		precision:  optionalInt(0, precission...),
+		precision:  optionalInt(0, precision...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -271,11 +271,11 @@ func (b *Blueprint) Timestamp(name string, precission ...int) ColumnDefinition {
 
 // TimestampTz creates a new timestamp with time zone column definition in the blueprint.
 // The precision parameter is optional and defaults to 0 if not provided.
-func (b *Blueprint) TimestampTz(name string, precission ...int) ColumnDefinition {
+func (b *Blueprint) TimestampTz(name string, precision ...int) ColumnDefinition {
 	col := &columnDefinition{
 		name:       name,
 		columnType: columnTypeTimestampTz,
-		precision:  optionalInt(0, precission...),
+		precision:  optionalInt(0, precision...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -497,7 +497,7 @@ func (b *Blueprint) RenameIndex(oldIndexName string, newIndexName string) {
 	b.addCommand("renameIndex")
 }
 
-func (b *Blueprint) getAddeddColumns() []*columnDefinition {
+func (b *Blueprint) getAddedColumns() []*columnDefinition {
 	var addedColumns []*columnDefinition
 	for _, col := range b.columns {
 		if !col.changed {
@@ -556,7 +556,7 @@ func (b *Blueprint) addCommand(command string) {
 }
 
 func (b *Blueprint) addImpliedCommands() {
-	if len(b.getAddeddColumns()) > 0 && !b.creating() {
+	if len(b.getAddedColumns()) > 0 && !b.creating() {
 		b.commands = append([]string{"add"}, b.commands...)
 	}
 	if len(b.getChangedColumns()) > 0 && !b.creating() {
@@ -589,7 +589,7 @@ func (b *Blueprint) toSql(grammar grammar) ([]string, error) {
 		}
 		switch command {
 		case "create", "createIfNotExists", "add":
-			for _, col := range b.getAddeddColumns() {
+			for _, col := range b.getAddedColumns() {
 				if col.unique && col.uniqueIndexName != "" {
 					sql, err := grammar.compileIndexSql(b, &indexDefinition{
 						name:      col.uniqueIndexName,
@@ -632,11 +632,11 @@ func (b *Blueprint) toSql(grammar grammar) ([]string, error) {
 				}
 			}
 		case "change":
-			sqls, err := grammar.compileChange(b)
+			changedStatements, err := grammar.compileChange(b)
 			if err != nil {
 				return nil, err
 			}
-			statements = append(statements, sqls...)
+			statements = append(statements, changedStatements...)
 		case "dropColumn":
 			sql, err := grammar.compileDropColumn(b)
 			if err != nil {
@@ -793,14 +793,14 @@ func (c *columnDefinition) Change() ColumnDefinition {
 }
 
 type indexDefinition struct {
-	name       string
-	indexType  indexType
-	algorithmn string
-	columns    []string
+	name      string
+	indexType indexType
+	algorithm string
+	columns   []string
 }
 
 func (id *indexDefinition) Algorithm(algorithm string) IndexDefinition {
-	id.algorithmn = algorithm
+	id.algorithm = algorithm
 	return id
 }
 

@@ -98,7 +98,7 @@ func (g *mysqlGrammar) compileCreateIfNotExists(blueprint *Blueprint) (string, e
 }
 
 func (g *mysqlGrammar) compileAdd(blueprint *Blueprint) (string, error) {
-	if len(blueprint.getAddeddColumns()) == 0 {
+	if len(blueprint.getAddedColumns()) == 0 {
 		return "", nil
 	}
 
@@ -247,14 +247,14 @@ func (g *mysqlGrammar) compileIndexSql(blueprint *Blueprint, index *indexDefinit
 		return sql, nil
 	case indexTypeUnique:
 		sql := fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (%s)", indexName, blueprint.name, columns)
-		if index.algorithmn != "" {
-			sql += fmt.Sprintf(" USING %s", index.algorithmn)
+		if index.algorithm != "" {
+			sql += fmt.Sprintf(" USING %s", index.algorithm)
 		}
 		return sql, nil
 	case indexTypeIndex:
 		sql := fmt.Sprintf("CREATE INDEX %s ON %s (%s)", indexName, blueprint.name, columns)
-		if index.algorithmn != "" {
-			sql += fmt.Sprintf(" USING %s", index.algorithmn)
+		if index.algorithm != "" {
+			sql += fmt.Sprintf(" USING %s", index.algorithm)
 		}
 		return sql, nil
 	default:
@@ -277,7 +277,7 @@ func (g *mysqlGrammar) compileForeignKeySql(blueprint *Blueprint, foreignKey *fo
 
 	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(%s)%s%s",
 		blueprint.name,
-		g.createForeginKeyName(blueprint, foreignKey),
+		g.createForeignKeyName(blueprint, foreignKey),
 		foreignKey.column,
 		foreignKey.on,
 		foreignKey.references,
@@ -288,7 +288,7 @@ func (g *mysqlGrammar) compileForeignKeySql(blueprint *Blueprint, foreignKey *fo
 
 func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 	var columns []string
-	for _, col := range blueprint.getAddeddColumns() {
+	for _, col := range blueprint.getAddedColumns() {
 		if col.name == "" {
 			return nil, fmt.Errorf("column name cannot be empty")
 		}

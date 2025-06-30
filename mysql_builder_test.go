@@ -49,7 +49,7 @@ func (s *mysqlBuilderSuite) TearDownSuite() {
 	_ = s.db.Close()
 }
 
-func (s *mysqlBuilderSuite) AfterTest(suiteName, testName string) {
+func (s *mysqlBuilderSuite) AfterTest(_, _ string) {
 	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
@@ -210,7 +210,7 @@ func (s *mysqlBuilderSuite) TestDrop() {
 		err = builder.Drop(context.Background(), tx, "users")
 		s.NoError(err, "expected no error when dropping table with valid parameters")
 	})
-	s.Run("when table does not exist, shoul return error", func() {
+	s.Run("when table does not exist, should return error", func() {
 		err = builder.Drop(context.Background(), tx, "non_existent_table")
 		s.Error(err, "expected error when dropping a table that does not exist")
 	})

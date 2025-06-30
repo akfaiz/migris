@@ -82,7 +82,7 @@ func (g *pgGrammar) compileCreateIfNotExists(blueprint *Blueprint) (string, erro
 }
 
 func (g *pgGrammar) compileAdd(blueprint *Blueprint) (string, error) {
-	if len(blueprint.getAddeddColumns()) == 0 {
+	if len(blueprint.getAddedColumns()) == 0 {
 		return "", nil
 	}
 
@@ -159,20 +159,20 @@ func (g *pgGrammar) compileDropColumn(blueprint *Blueprint) (string, error) {
 	return fmt.Sprintf("ALTER TABLE %s %s", blueprint.name, strings.Join(columns, ", ")), nil
 }
 
-func (p *pgGrammar) compileRenameColumn(blueprint *Blueprint, oldName, newName string) (string, error) {
+func (g *pgGrammar) compileRenameColumn(blueprint *Blueprint, oldName, newName string) (string, error) {
 	if oldName == "" || newName == "" {
 		return "", fmt.Errorf("table name, old column name, and new column name cannot be empty for rename operation")
 	}
 	return fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", blueprint.name, oldName, newName), nil
 }
 
-func (p *pgGrammar) compileIndexSql(blueprint *Blueprint, index *indexDefinition) (string, error) {
+func (g *pgGrammar) compileIndexSql(blueprint *Blueprint, index *indexDefinition) (string, error) {
 	if slices.Contains(index.columns, "") {
 		return "", fmt.Errorf("index column cannot be empty")
 	}
 	indexName := index.name
 	if indexName == "" {
-		indexName = p.createIndexName(blueprint, index)
+		indexName = g.createIndexName(blueprint, index)
 	}
 	columns := strings.Join(index.columns, ", ")
 
@@ -182,15 +182,15 @@ func (p *pgGrammar) compileIndexSql(blueprint *Blueprint, index *indexDefinition
 		return sql, nil
 	case indexTypeUnique:
 		sql := fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s", indexName, blueprint.name)
-		if index.algorithmn != "" {
-			sql += fmt.Sprintf(" USING %s", index.algorithmn)
+		if index.algorithm != "" {
+			sql += fmt.Sprintf(" USING %s", index.algorithm)
 		}
 		sql += fmt.Sprintf(" (%s)", columns)
 		return sql, nil
 	case indexTypeIndex:
 		sql := fmt.Sprintf("CREATE INDEX %s ON %s", indexName, blueprint.name)
-		if index.algorithmn != "" {
-			sql += fmt.Sprintf(" USING %s", index.algorithmn)
+		if index.algorithm != "" {
+			sql += fmt.Sprintf(" USING %s", index.algorithm)
 		}
 		sql += fmt.Sprintf(" (%s)", columns)
 		return sql, nil
@@ -213,21 +213,21 @@ func (g *pgGrammar) compileDropUnique(indexName string) (string, error) {
 	return fmt.Sprintf("DROP INDEX %s", indexName), nil
 }
 
-func (p *pgGrammar) compileRenameIndex(blueprint *Blueprint, oldName, newName string) (string, error) {
+func (g *pgGrammar) compileRenameIndex(_ *Blueprint, oldName, newName string) (string, error) {
 	if oldName == "" || newName == "" {
 		return "", fmt.Errorf("index names for rename operation cannot be empty: oldName=%s, newName=%s", oldName, newName)
 	}
 	return fmt.Sprintf("ALTER INDEX %s RENAME TO %s", oldName, newName), nil
 }
 
-func (p *pgGrammar) compileDropPrimaryKey(blueprint *Blueprint, indexName string) (string, error) {
+func (g *pgGrammar) compileDropPrimaryKey(blueprint *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
-		indexName = p.createIndexName(blueprint, &indexDefinition{indexType: indexTypePrimary})
+		indexName = g.createIndexName(blueprint, &indexDefinition{indexType: indexTypePrimary})
 	}
 	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", blueprint.name, indexName), nil
 }
 
-func (p *pgGrammar) compileForeignKeySql(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error) {
+func (g *pgGrammar) compileForeignKeySql(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error) {
 	if foreignKey.column == "" || foreignKey.on == "" || foreignKey.references == "" {
 		return "", fmt.Errorf("foreign key definition is incomplete: column, on, and references must be set")
 	}
@@ -242,7 +242,7 @@ func (p *pgGrammar) compileForeignKeySql(blueprint *Blueprint, foreignKey *forei
 
 	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(%s)%s%s",
 		blueprint.name,
-		p.createForeginKeyName(blueprint, foreignKey),
+		g.createForeignKeyName(blueprint, foreignKey),
 		foreignKey.column,
 		foreignKey.on,
 		foreignKey.references,
@@ -251,22 +251,22 @@ func (p *pgGrammar) compileForeignKeySql(blueprint *Blueprint, foreignKey *forei
 	), nil
 }
 
-func (p *pgGrammar) compileDropForeignKey(blueprint *Blueprint, foreignKeyName string) (string, error) {
+func (g *pgGrammar) compileDropForeignKey(blueprint *Blueprint, foreignKeyName string) (string, error) {
 	if foreignKeyName == "" {
 		return "", fmt.Errorf("foreign key name cannot be empty for drop operation")
 	}
 	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", blueprint.name, foreignKeyName), nil
 }
 
-func (p *pgGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
+func (g *pgGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 	var columns []string
-	for _, col := range blueprint.getAddeddColumns() {
+	for _, col := range blueprint.getAddedColumns() {
 		if col.name == "" {
 			return nil, fmt.Errorf("column name cannot be empty")
 		}
-		sql := col.name + " " + p.getType(col)
+		sql := col.name + " " + g.getType(col)
 		if col.defaultVal != nil {
-			sql += fmt.Sprintf(" DEFAULT %s", p.getDefaultValue(col))
+			sql += fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col))
 		}
 		if col.nullable {
 			sql += " NULL"
@@ -288,7 +288,7 @@ func (p *pgGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 	return columns, nil
 }
 
-func (p *pgGrammar) getType(col *columnDefinition) string {
+func (g *pgGrammar) getType(col *columnDefinition) string {
 	switch col.columnType {
 	case columnTypeChar:
 		if col.length > 0 {

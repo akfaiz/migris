@@ -79,6 +79,6 @@ func (g *baseGrammar) createIndexName(blueprint *Blueprint, index *indexDefiniti
 	}
 }
 
-func (g *baseGrammar) createForeginKeyName(blueprint *Blueprint, foreignKey *foreignKeyDefinition) string {
+func (g *baseGrammar) createForeignKeyName(blueprint *Blueprint, foreignKey *foreignKeyDefinition) string {
 	return fmt.Sprintf("fk_%s_%s", blueprint.name, foreignKey.on)
 }

@@ -27,14 +27,14 @@ func optionalBool(defaultValue bool, values ...bool) bool {
 	return defaultValue
 }
 
-func execContext(ctx context.Context, tx *sql.Tx, sqls ...string) error {
-	for _, sql := range sqls {
+func execContext(ctx context.Context, tx *sql.Tx, queries ...string) error {
+	for _, query := range queries {
 		if debug {
-			log.Printf("Executing SQL: %s\n", sql)
+			log.Printf("Executing SQL: %s\n", query)
 		}
-		if _, err := tx.ExecContext(ctx, sql); err != nil {
+		if _, err := tx.ExecContext(ctx, query); err != nil {
 			if debug {
-				log.Printf("Error executing SQL: %s\nError: %v\n", sql, err)
+				log.Printf("Error executing SQL: %s\nError: %v\n", query, err)
 			}
 			return err
 		}

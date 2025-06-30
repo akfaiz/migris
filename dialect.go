@@ -6,7 +6,7 @@ var ErrDialectNotSet = errors.New("dialect not set")
 var ErrUnknownDialect = errors.New("unknown dialect")
 
 var dialect string
-var debug bool = false
+var debug = false
 
 var supportedDialects = map[string]bool{
 	"postgres": true,

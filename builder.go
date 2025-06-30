@@ -96,12 +96,12 @@ func (b *baseBuilder) Create(ctx context.Context, tx *sql.Tx, name string, bluep
 	bp.create()
 	blueprint(bp)
 
-	sqls, err := bp.toSql(b.grammar)
+	statements, err := bp.toSql(b.grammar)
 	if err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, sqls...)
+	return execContext(ctx, tx, statements...)
 }
 
 func (b *baseBuilder) CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
@@ -113,12 +113,12 @@ func (b *baseBuilder) CreateIfNotExists(ctx context.Context, tx *sql.Tx, name st
 	bp.createIfNotExists()
 	blueprint(bp)
 
-	sqls, err := bp.toSql(b.grammar)
+	statements, err := bp.toSql(b.grammar)
 	if err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, sqls...)
+	return execContext(ctx, tx, statements...)
 }
 
 func (b *baseBuilder) Drop(ctx context.Context, tx *sql.Tx, name string) error {
@@ -128,12 +128,12 @@ func (b *baseBuilder) Drop(ctx context.Context, tx *sql.Tx, name string) error {
 
 	bp := &Blueprint{name: name}
 	bp.drop()
-	sqls, err := bp.toSql(b.grammar)
+	statements, err := bp.toSql(b.grammar)
 	if err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, sqls...)
+	return execContext(ctx, tx, statements...)
 }
 
 func (b *baseBuilder) DropIfExists(ctx context.Context, tx *sql.Tx, name string) error {
@@ -143,12 +143,12 @@ func (b *baseBuilder) DropIfExists(ctx context.Context, tx *sql.Tx, name string)
 
 	bp := &Blueprint{name: name}
 	bp.dropIfExists()
-	sqls, err := bp.toSql(b.grammar)
+	statements, err := bp.toSql(b.grammar)
 	if err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, sqls...)
+	return execContext(ctx, tx, statements...)
 }
 
 func (b *baseBuilder) Rename(ctx context.Context, tx *sql.Tx, oldName string, newName string) error {
@@ -160,12 +160,12 @@ func (b *baseBuilder) Rename(ctx context.Context, tx *sql.Tx, oldName string, ne
 	}
 	bp := &Blueprint{name: oldName, newName: newName}
 	bp.rename()
-	sqls, err := bp.toSql(b.grammar)
+	statements, err := bp.toSql(b.grammar)
 	if err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, sqls...)
+	return execContext(ctx, tx, statements...)
 }
 
 func (b *baseBuilder) Table(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
@@ -176,10 +176,10 @@ func (b *baseBuilder) Table(ctx context.Context, tx *sql.Tx, name string, bluepr
 	bp := &Blueprint{name: name}
 	blueprint(bp)
 
-	sqls, err := bp.toSql(b.grammar)
+	statements, err := bp.toSql(b.grammar)
 	if err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, sqls...)
+	return execContext(ctx, tx, statements...)
 }

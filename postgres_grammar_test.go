@@ -579,10 +579,10 @@ func TestPgGrammar_CompileIndexSql(t *testing.T) {
 				return &Blueprint{name: "users"}
 			}(),
 			index: &indexDefinition{
-				indexType:  indexTypeIndex,
-				columns:    []string{"name", "email"},
-				name:       "users_name_email_index",
-				algorithmn: "hash",
+				indexType: indexTypeIndex,
+				columns:   []string{"name", "email"},
+				name:      "users_name_email_index",
+				algorithm: "hash",
 			},
 			want:    "CREATE INDEX users_name_email_index ON users USING hash (name, email)",
 			wantErr: false,
