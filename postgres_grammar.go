@@ -106,19 +106,33 @@ func (g *pgGrammar) compileChange(bp *Blueprint) ([]string, error) {
 		if col.name == "" {
 			return nil, fmt.Errorf("column name cannot be empty for change operation")
 		}
-		sql := fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s", bp.name, col.name, g.getType(col))
-		if col.defaultVal != nil {
-			sql += fmt.Sprintf(" SET DEFAULT %s", g.getDefaultValue(col))
+		var statements []string
+
+		statements = append(statements, fmt.Sprintf("ALTER COLUMN %s TYPE %s", col.name, g.getType(col)))
+		if col.hasCommand("default") {
+			if col.defaultVal != nil {
+				statements = append(statements, fmt.Sprintf("ALTER COLUMN %s SET DEFAULT %s", col.name, g.getDefaultValue(col)))
+			} else {
+				statements = append(statements, fmt.Sprintf("ALTER COLUMN %s DROP DEFAULT", col.name))
+			}
 		}
-		if col.nullable {
-			sql += " DROP NOT NULL"
-		} else {
-			sql += " SET NOT NULL"
+		if col.hasCommand("nullable") {
+			if col.nullable {
+				statements = append(statements, fmt.Sprintf("ALTER COLUMN %s DROP NOT NULL", col.name))
+			} else {
+				statements = append(statements, fmt.Sprintf("ALTER COLUMN %s SET NOT NULL", col.name))
+			}
 		}
-		if col.comment != "" {
-			sql += fmt.Sprintf(" COMMENT '%s'", col.comment)
-		}
+		sql := "ALTER TABLE " + bp.name + " " + strings.Join(statements, ", ")
 		sqls = append(sqls, sql)
+
+		if col.hasCommand("comment") {
+			if col.comment != "" {
+				sqls = append(sqls, fmt.Sprintf("COMMENT ON COLUMN %s.%s IS '%s'", bp.name, col.name, col.comment))
+			} else {
+				sqls = append(sqls, fmt.Sprintf("COMMENT ON COLUMN %s.%s IS NULL", bp.name, col.name))
+			}
+		}
 	}
 
 	return sqls, nil

@@ -308,6 +308,7 @@ func (s *postgresBuilderSuite) TestTable() {
 			table.String("phone", 20).Nullable().Unique("uk_users_phone")
 			table.DropColumn("password")
 			table.RenameColumn("name", "full_name")
+			table.String("email", 255).Nullable().Change()
 			table.Index("phone").Name("idx_users_phone").Algorithm("BTREE")
 		})
 		s.NoError(err, "expected no error when creating table with valid parameters")
