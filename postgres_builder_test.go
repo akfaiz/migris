@@ -3,12 +3,13 @@ package schema_test
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/ahmadfaizk/schema"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/suite"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
 func TestPostgresBuilderSuite(t *testing.T) {
@@ -17,32 +18,39 @@ func TestPostgresBuilderSuite(t *testing.T) {
 
 type postgresBuilderSuite struct {
 	suite.Suite
-	ctx       context.Context
-	container *postgres.PostgresContainer
-	db        *sql.DB
+	ctx context.Context
+	db  *sql.DB
+}
+
+type dbConfig struct {
+	Database string
+	Username string
+	Password string
+}
+
+func getStringFromEnv(envVar string, defaultValue string) string {
+	if value, exists := os.LookupEnv(envVar); exists && value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func parseTestConfig() dbConfig {
+	return dbConfig{
+		Database: getStringFromEnv("DB_NAME", "db_test"),
+		Username: getStringFromEnv("DB_USER", "root"),
+		Password: getStringFromEnv("DB_PASSWORD", "password"),
+	}
 }
 
 func (s *postgresBuilderSuite) SetupSuite() {
 	s.ctx = context.Background()
 
-	dbName := "users"
-	dbUser := "user"
-	dbPassword := "password"
+	config := parseTestConfig()
 
-	pgContainer, err := postgres.Run(s.ctx,
-		"postgres:16-alpine",
-		postgres.WithDatabase(dbName),
-		postgres.WithUsername(dbUser),
-		postgres.WithPassword(dbPassword),
-		postgres.BasicWaitStrategies(),
-	)
-	s.Require().NoError(err)
-	s.container = pgContainer
+	dsn := fmt.Sprintf("host=localhost port=5432 user=%s password=%s dbname=%s sslmode=disable", config.Username, config.Password, config.Database)
 
-	uri, err := pgContainer.ConnectionString(s.ctx, "sslmode=disable")
-	s.Require().NoError(err)
-
-	db, err := sql.Open("postgres", uri)
+	db, err := sql.Open("postgres", dsn)
 	s.Require().NoError(err)
 
 	err = db.Ping()
@@ -54,7 +62,6 @@ func (s *postgresBuilderSuite) SetupSuite() {
 
 func (s *postgresBuilderSuite) TearDownSuite() {
 	_ = s.db.Close()
-	_ = s.container.Terminate(s.ctx)
 }
 
 func (s *postgresBuilderSuite) TestCreate() {

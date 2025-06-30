@@ -3,12 +3,12 @@ package schema_test
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 
 	"github.com/ahmadfaizk/schema"
 	_ "github.com/go-sql-driver/mysql" // MySQL driver
 	"github.com/stretchr/testify/suite"
-	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )
 
 func TestMysqlBuilderSuite(t *testing.T) {
@@ -17,31 +17,25 @@ func TestMysqlBuilderSuite(t *testing.T) {
 
 type mysqlBuilderSuite struct {
 	suite.Suite
-	ctx       context.Context
-	container *mysql.MySQLContainer
-	db        *sql.DB
+	ctx context.Context
+	db  *sql.DB
 }
 
 func (s *mysqlBuilderSuite) SetupSuite() {
 	s.ctx = context.Background()
 
-	dbName := "db_test"
-	dbUser := "user"
-	dbPassword := "password"
+	config := parseTestConfig()
 
-	mysqlContainer, err := mysql.Run(s.ctx,
-		"mysql:8.0.36",
-		mysql.WithDatabase(dbName),
-		mysql.WithUsername(dbUser),
-		mysql.WithPassword(dbPassword),
+	dsn := fmt.Sprintf(
+		"%s:%s@tcp(%s:%d)/%s?parseTime=true&loc=Local",
+		config.Username,
+		config.Password,
+		"localhost",
+		3306,
+		config.Database,
 	)
-	s.Require().NoError(err)
-	s.container = mysqlContainer
 
-	uri, err := mysqlContainer.ConnectionString(s.ctx)
-	s.Require().NoError(err)
-
-	db, err := sql.Open("mysql", uri)
+	db, err := sql.Open("mysql", dsn)
 	s.Require().NoError(err)
 
 	err = db.Ping()
@@ -53,7 +47,6 @@ func (s *mysqlBuilderSuite) SetupSuite() {
 
 func (s *mysqlBuilderSuite) TearDownSuite() {
 	_ = s.db.Close()
-	_ = s.container.Terminate(s.ctx)
 }
 
 func (s *mysqlBuilderSuite) TestCreate() {
