@@ -56,7 +56,10 @@ func (s *mysqlBuilderSuite) AfterTest(suiteName, testName string) {
 	tables, err := builder.GetTables(s.ctx, tx)
 	s.Require().NoError(err)
 	for _, table := range tables {
-		builder.DropIfExists(s.ctx, tx, table.Name)
+		err := builder.DropIfExists(s.ctx, tx, table.Name)
+		if err != nil {
+			s.T().Logf("error dropping table %s: %v", table.Name, err)
+		}
 	}
 	err = tx.Commit()
 	s.Require().NoError(err, "expected no error when committing transaction after dropping tables")
