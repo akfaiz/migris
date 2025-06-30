@@ -288,6 +288,21 @@ func (p *pgGrammar) getType(col *columnDefinition) string {
 		return "VARCHAR"
 	case columnTypeDecimal:
 		return fmt.Sprintf("DECIMAL(%d, %d)", col.precision, col.scale)
+	case columnTypeBigInteger:
+		if col.autoIncrement {
+			return "BIGSERIAL"
+		}
+		return "BIGINT"
+	case columnTypeInteger:
+		if col.autoIncrement {
+			return "SERIAL"
+		}
+		return "INTEGER"
+	case columnTypeSmallInteger:
+		if col.autoIncrement {
+			return "SMALLSERIAL"
+		}
+		return "SMALLINT"
 	case columnTypeTime:
 		return fmt.Sprintf("TIME(%d)", col.precision)
 	case columnTypeTimestamp:
@@ -312,22 +327,16 @@ func (p *pgGrammar) getType(col *columnDefinition) string {
 		return "VARCHAR(255) CHECK (" + col.name + " IN (" + strings.Join(enumValues, ", ") + "))"
 	default:
 		return map[columnType]string{
-			columnTypeBoolean:         "BOOLEAN",
-			columnTypeText:            "TEXT",
-			columnTypeBigInteger:      "BIGINT",
-			columnTypeInteger:         "INTEGER",
-			columnTypeSmallInteger:    "SMALLINT",
-			columnTypeBigIncrements:   "BIGSERIAL",
-			columnTypeIncrements:      "SERIAL",
-			columnTypeSmallIncrements: "SMALLSERIAL",
-			columnTypeDouble:          "DOUBLE PRECISION",
-			columnTypeFloat:           "REAL",
-			columnTypeDate:            "DATE",
-			columnTypeYear:            "INTEGER", // PostgreSQL does not have a YEAR type, using INTEGER instead
-			columnTypeJSON:            "JSON",
-			columnTypeJSONB:           "JSONB",
-			columnTypeUUID:            "UUID",
-			columnTypeBinary:          "BYTEA",
+			columnTypeBoolean: "BOOLEAN",
+			columnTypeText:    "TEXT",
+			columnTypeDouble:  "DOUBLE PRECISION",
+			columnTypeFloat:   "REAL",
+			columnTypeDate:    "DATE",
+			columnTypeYear:    "INTEGER", // PostgreSQL does not have a YEAR type, using INTEGER instead
+			columnTypeJSON:    "JSON",
+			columnTypeJSONB:   "JSONB",
+			columnTypeUUID:    "UUID",
+			columnTypeBinary:  "BYTEA",
 		}[col.columnType]
 	}
 }

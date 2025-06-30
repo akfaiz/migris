@@ -16,20 +16,17 @@ func newPostgresBuilder() builder {
 	grammar := newPgGrammar()
 
 	return &postgresBuilder{
-		baseBuilder: baseBuilder{grammar: grammar, dialect: postgres},
+		baseBuilder: baseBuilder{grammar: grammar, dialect: "postgres"},
 		grammar:     grammar,
 	}
 }
 
 func (b *postgresBuilder) parseSchemaAndTable(name string) (string, string) {
-	if b.dialect == postgres {
-		names := strings.Split(name, ".")
-		if len(names) == 2 {
-			return names[0], names[1]
-		}
-		return "", names[0]
+	names := strings.Split(name, ".")
+	if len(names) == 2 {
+		return names[0], names[1]
 	}
-	return "", name
+	return "", names[0]
 }
 
 func (b *postgresBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, error) {
@@ -132,6 +129,9 @@ func (b *postgresBuilder) HasColumn(ctx context.Context, tx *sql.Tx, tableName s
 }
 
 func (b *postgresBuilder) HasColumns(ctx context.Context, tx *sql.Tx, tableName string, columnNames []string) (bool, error) {
+	if len(columnNames) == 0 {
+		return false, errors.New("no column names provided")
+	}
 	existingColumns, err := b.GetColumns(ctx, tx, tableName)
 	if err != nil {
 		return false, err

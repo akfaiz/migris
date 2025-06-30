@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -218,18 +219,30 @@ func (g *mysqlGrammar) compileIndexSql(blueprint *Blueprint, index *indexDefinit
 		return "", fmt.Errorf("index definition cannot be nil or empty")
 	}
 
-	indexName := g.createIndexName(blueprint, index)
+	indexName := index.name
+	if indexName == "" {
+		indexName = g.createIndexName(blueprint, index)
+	}
 	columns := strings.Join(index.columns, ", ")
 
 	switch index.indexType {
 	case indexTypePrimary:
-		return fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY (%s)", blueprint.name, columns), nil
+		sql := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, columns)
+		return sql, nil
 	case indexTypeUnique:
-		return fmt.Sprintf("ALTER TABLE %s ADD UNIQUE INDEX %s (%s)", blueprint.name, indexName, columns), nil
+		sql := fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (%s)", indexName, blueprint.name, columns)
+		if index.algorithmn != "" {
+			sql += fmt.Sprintf(" USING %s", index.algorithmn)
+		}
+		return sql, nil
 	case indexTypeIndex:
-		return fmt.Sprintf("CREATE INDEX %s ON %s (%s)", indexName, blueprint.name, columns), nil
+		sql := fmt.Sprintf("CREATE INDEX %s ON %s (%s)", indexName, blueprint.name, columns)
+		if index.algorithmn != "" {
+			sql += fmt.Sprintf(" USING %s", index.algorithmn)
+		}
+		return sql, nil
 	default:
-		return "", fmt.Errorf("unknown index type: %v", index.indexType)
+		return "", errors.New("unknown index type")
 	}
 }
 
@@ -302,6 +315,12 @@ func (g *mysqlGrammar) getType(col *columnDefinition) string {
 			return fmt.Sprintf("DOUBLE(%d, %d)", col.precision, col.scale)
 		}
 		return "DOUBLE"
+	case columnTypeBigInteger:
+		return g.modifyUnsignedAndAutoIncrement("BIGINT", col)
+	case columnTypeInteger:
+		return g.modifyUnsignedAndAutoIncrement("INT", col)
+	case columnTypeSmallInteger:
+		return g.modifyUnsignedAndAutoIncrement("SMALLINT", col)
 	case columnTypeTime:
 		return fmt.Sprintf("TIME(%d)", col.precision)
 	case columnTypeTimestamp:
@@ -314,21 +333,25 @@ func (g *mysqlGrammar) getType(col *columnDefinition) string {
 		return fmt.Sprintf("ENUM(%s)", g.quoteString(strings.Join(col.allowedEnums, "','")))
 	default:
 		return map[columnType]string{
-			columnTypeBoolean:         "BOOLEAN",
-			columnTypeText:            "TEXT",
-			columnTypeBigInteger:      "BIGINT",
-			columnTypeInteger:         "INT",
-			columnTypeSmallInteger:    "SMALLINT",
-			columnTypeBigIncrements:   "BIGSERIAL",
-			columnTypeIncrements:      "SERIAL",
-			columnTypeSmallIncrements: "SMALLSERIAL",
-			columnTypeDate:            "DATE",
-			columnTypeYear:            "YEAR",
-			columnTypeJSON:            "JSON",
-			columnTypeJSONB:           "JSON",
-			columnTypeUUID:            "UUID",
-			columnTypeBinary:          "BLOB",
-			columnTypeGeometry:        "GEOMETRY",
+			columnTypeBoolean:  "BOOLEAN",
+			columnTypeText:     "TEXT",
+			columnTypeDate:     "DATE",
+			columnTypeYear:     "YEAR",
+			columnTypeJSON:     "JSON",
+			columnTypeJSONB:    "JSON",
+			columnTypeUUID:     "UUID",
+			columnTypeBinary:   "BLOB",
+			columnTypeGeometry: "GEOMETRY",
 		}[col.columnType]
 	}
+}
+
+func (g *mysqlGrammar) modifyUnsignedAndAutoIncrement(sql string, col *columnDefinition) string {
+	if col.unsigned {
+		sql += " UNSIGNED"
+	}
+	if col.autoIncrement {
+		sql += " AUTO_INCREMENT"
+	}
+	return sql
 }

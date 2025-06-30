@@ -27,11 +27,11 @@ type builder interface {
 	Table(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error
 }
 
-func newBuilder(dialect dialectType) (builder, error) {
+func newBuilder(dialect string) (builder, error) {
 	switch dialect {
-	case postgres:
+	case "postgres", "pgx":
 		return newPostgresBuilder(), nil
-	case mysql:
+	case "mysql":
 		return newMysqlBuilder(), nil
 	default:
 		return nil, ErrDialectNotSet
@@ -39,7 +39,7 @@ func newBuilder(dialect dialectType) (builder, error) {
 }
 
 type baseBuilder struct {
-	dialect dialectType
+	dialect string
 	grammar grammar
 }
 
@@ -57,7 +57,7 @@ func (b *baseBuilder) validateCreateAndAlter(tx *sql.Tx, name string, blueprint 
 	if isEmptyString(name) {
 		return ErrTableIsNotSet
 	}
-	if b.dialect == postgres {
+	if b.dialect == "postgres" || b.dialect == "pgx" {
 		names := strings.Split(name, ".")
 		if len(names) > 2 {
 			return errors.New("invalid table name: " + name + ", it should be in the format 'schema.table' or just 'table'")

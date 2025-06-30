@@ -3,6 +3,8 @@ package schema
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"strings"
 )
 
 type mysqlBuilder struct {
@@ -13,7 +15,7 @@ type mysqlBuilder struct {
 func newMysqlBuilder() builder {
 	return &mysqlBuilder{
 		baseBuilder: baseBuilder{
-			dialect: mysql,
+			dialect: "mysql",
 			grammar: newMysqlGrammar(),
 		},
 		gramamr: newMysqlGrammar(),
@@ -33,6 +35,31 @@ func (b *mysqlBuilder) getCurrentDatabase(ctx context.Context, tx *sql.Tx) (stri
 		return "", err
 	}
 	return dbName, nil
+}
+
+func (b *mysqlBuilder) CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
+	if err := b.validateCreateAndAlter(tx, name, blueprint); err != nil {
+		return err
+	}
+
+	exist, err := b.HasTable(ctx, tx, name)
+	if err != nil {
+		return err
+	}
+	if exist {
+		return nil // Table already exists, no need to create it
+	}
+
+	bp := &Blueprint{name: name}
+	bp.createIfNotExists()
+	blueprint(bp)
+
+	sqls, err := bp.toSql(b.grammar)
+	if err != nil {
+		return err
+	}
+
+	return execContext(ctx, tx, sqls...)
 }
 
 func (b *mysqlBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, error) {
@@ -59,13 +86,17 @@ func (b *mysqlBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName str
 	var columns []*Column
 	for rows.Next() {
 		var col Column
+		var nullableStr string
 		if err := rows.Scan(
 			&col.Name, &col.TypeName, &col.TypeFull,
-			&col.Collation, &col.Nullable,
+			&col.Collation, &nullableStr,
 			&col.DefaultVal, &col.Comment,
 			&col.Extra,
 		); err != nil {
 			return nil, err
+		}
+		if nullableStr == "YES" {
+			col.Nullable = true
 		}
 		columns = append(columns, &col)
 	}
@@ -96,9 +127,11 @@ func (b *mysqlBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName str
 	var indexes []*Index
 	for rows.Next() {
 		var idx Index
-		if err := rows.Scan(&idx.Name, &idx.Columns, &idx.Type, &idx.Unique); err != nil {
+		var columnsStr string
+		if err := rows.Scan(&idx.Name, &columnsStr, &idx.Type, &idx.Unique); err != nil {
 			return nil, err
 		}
+		idx.Columns = strings.Split(columnsStr, ",")
 		indexes = append(indexes, &idx)
 	}
 	return indexes, nil
@@ -118,7 +151,7 @@ func (b *mysqlBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo,
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queryContext(ctx, tx, query, database)
+	rows, err := queryContext(ctx, tx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -136,12 +169,18 @@ func (b *mysqlBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo,
 }
 
 func (b *mysqlBuilder) HasColumn(ctx context.Context, tx *sql.Tx, tableName string, columnName string) (bool, error) {
+	if columnName == "" {
+		return false, errors.New("column name cannot be empty")
+	}
 	return b.HasColumns(ctx, tx, tableName, []string{columnName})
 }
 
 func (b *mysqlBuilder) HasColumns(ctx context.Context, tx *sql.Tx, tableName string, columnNames []string) (bool, error) {
 	if err := b.validateTxAndName(tx, tableName); err != nil {
 		return false, err
+	}
+	if len(columnNames) == 0 {
+		return false, errors.New("no column names provided")
 	}
 
 	columns, err := b.GetColumns(ctx, tx, tableName)
@@ -219,7 +258,7 @@ func (b *mysqlBuilder) HasTable(ctx context.Context, tx *sql.Tx, name string) (b
 		return false, err
 	}
 
-	row := tx.QueryRowContext(ctx, query)
+	row := queryRowContext(ctx, tx, query)
 	var exists bool
 	if err := row.Scan(&exists); err != nil {
 		if err == sql.ErrNoRows {
