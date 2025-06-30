@@ -49,6 +49,19 @@ func (s *mysqlBuilderSuite) TearDownSuite() {
 	_ = s.db.Close()
 }
 
+func (s *mysqlBuilderSuite) AfterTest(suiteName, testName string) {
+	builder, _ := schema.NewBuilder("mysql")
+	tx, err := s.db.BeginTx(s.ctx, nil)
+	s.Require().NoError(err)
+	tables, err := builder.GetTables(s.ctx, tx)
+	s.Require().NoError(err)
+	for _, table := range tables {
+		builder.DropIfExists(s.ctx, tx, table.Name)
+	}
+	err = tx.Commit()
+	s.Require().NoError(err, "expected no error when committing transaction after dropping tables")
+}
+
 func (s *mysqlBuilderSuite) TestCreate() {
 	builder, _ := schema.NewBuilder("mysql")
 	tx, err := s.db.BeginTx(s.ctx, nil)

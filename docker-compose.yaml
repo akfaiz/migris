@@ -23,7 +23,7 @@ services:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: db_test
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping"]
+      test: ["CMD", "mysqladmin", "ping", "-ppassword"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -12,6 +12,7 @@ var supportedDialects = map[string]bool{
 	"postgres": true,
 	"pgx":      true,
 	"mysql":    true,
+	"mariadb":  true,
 }
 
 // SetDialect sets the current dialect for the schema package.

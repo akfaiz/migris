@@ -41,7 +41,7 @@ func NewBuilder(dialect string) (Builder, error) {
 	switch dialect {
 	case "postgres", "pgx":
 		return newPostgresBuilder(), nil
-	case "mysql":
+	case "mysql", "mariadb":
 		return newMysqlBuilder(), nil
 	default:
 		return nil, ErrDialectNotSet

@@ -11,13 +11,13 @@ Inspired by Laravel's schema builder, Schema simplifies defining and evolving da
 - 🧱 Supports `CREATE TABLE`, columns, primary keys, unique constraints, default values, and nullable fields
 - 🔄 Works seamlessly with Goose and other transaction-based migration tools
 - 🧩 Clean, fluent API for easy schema design
-- 📦 Supports multiple databases (PostgreSQL, MySQL)
+- 📦 Supports multiple databases (PostgreSQL, MySQL, MariaDB)
 
 ## Supported Databases
 
 - PostgreSQL
 - MySQL
-- MariaDB (TODO)
+- MariaDB
 - SQLite (TODO)
 
 ## Installation
