@@ -42,7 +42,7 @@ func (s *mysqlBuilderSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.db = db
-	schema.SetDebug(true)
+	schema.SetDebug(false)
 }
 
 func (s *mysqlBuilderSuite) TearDownSuite() {

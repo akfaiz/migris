@@ -1,7 +1,6 @@
 package schema
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -188,11 +187,71 @@ func (g *mysqlGrammar) compileDropColumn(blueprint *Blueprint) (string, error) {
 	return fmt.Sprintf("ALTER TABLE %s %s", blueprint.name, strings.Join(columns, ", ")), nil
 }
 
-func (g *mysqlGrammar) compileDropForeignKey(blueprint *Blueprint, foreignKeyName string) (string, error) {
-	if foreignKeyName == "" {
-		return "", fmt.Errorf("foreign key name cannot be empty")
+func (g *mysqlGrammar) compileRenameColumn(blueprint *Blueprint, oldName, newName string) (string, error) {
+	if oldName == "" || newName == "" {
+		return "", fmt.Errorf("old and new column names cannot be empty")
 	}
-	return fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s", blueprint.name, foreignKeyName), nil
+	return fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", blueprint.name, oldName, newName), nil
+}
+
+func (g *mysqlGrammar) compileIndex(blueprint *Blueprint, index *indexDefinition) (string, error) {
+	if index == nil || len(index.columns) == 0 {
+		return "", fmt.Errorf("index definition cannot be nil or empty")
+	}
+
+	indexName := index.name
+	if indexName == "" {
+		indexName = g.createIndexName(blueprint, index)
+	}
+	columns := strings.Join(index.columns, ", ")
+
+	sql := fmt.Sprintf("CREATE INDEX %s ON %s (%s)", indexName, blueprint.name, columns)
+	if index.algorithm != "" {
+		sql += fmt.Sprintf(" USING %s", index.algorithm)
+	}
+	return sql, nil
+}
+
+func (g *mysqlGrammar) compileUnique(blueprint *Blueprint, index *indexDefinition) (string, error) {
+	if index == nil || len(index.columns) == 0 {
+		return "", fmt.Errorf("unique index definition cannot be nil or empty")
+	}
+
+	indexName := index.name
+	if indexName == "" {
+		indexName = g.createIndexName(blueprint, index)
+	}
+	columns := strings.Join(index.columns, ", ")
+
+	return fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (%s)", indexName, blueprint.name, columns), nil
+}
+
+func (g *mysqlGrammar) compilePrimary(blueprint *Blueprint, index *indexDefinition) (string, error) {
+	if index == nil || len(index.columns) == 0 {
+		return "", fmt.Errorf("primary key index definition cannot be nil or empty")
+	}
+
+	indexName := index.name
+	if indexName == "" {
+		indexName = g.createIndexName(blueprint, index)
+	}
+	columns := strings.Join(index.columns, ", ")
+
+	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, columns), nil
+}
+
+func (g *mysqlGrammar) compileFullText(blueprint *Blueprint, index *indexDefinition) (string, error) {
+	if index == nil || len(index.columns) == 0 {
+		return "", fmt.Errorf("fulltext index definition cannot be nil or empty")
+	}
+
+	indexName := index.name
+	if indexName == "" {
+		indexName = g.createIndexName(blueprint, index)
+	}
+	columns := strings.Join(index.columns, ", ")
+
+	return fmt.Sprintf("CREATE FULLTEXT INDEX %s ON %s (%s)", indexName, blueprint.name, columns), nil
 }
 
 func (g *mysqlGrammar) compileDropIndex(indexName string) (string, error) {
@@ -209,7 +268,14 @@ func (g *mysqlGrammar) compileDropUnique(indexName string) (string, error) {
 	return fmt.Sprintf("DROP INDEX %s", indexName), nil
 }
 
-func (g *mysqlGrammar) compileDropPrimaryKey(blueprint *Blueprint, indexName string) (string, error) {
+func (g *mysqlGrammar) compileDropFulltext(indexName string) (string, error) {
+	if indexName == "" {
+		return "", fmt.Errorf("fulltext index name cannot be empty")
+	}
+	return fmt.Sprintf("DROP INDEX %s", indexName), nil
+}
+
+func (g *mysqlGrammar) compileDropPrimary(blueprint *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
 		return "", fmt.Errorf("primary key index name cannot be empty")
 	}
@@ -223,46 +289,7 @@ func (g *mysqlGrammar) compileRenameIndex(blueprint *Blueprint, oldName, newName
 	return fmt.Sprintf("ALTER TABLE %s RENAME INDEX %s TO %s", blueprint.name, oldName, newName), nil
 }
 
-func (g *mysqlGrammar) compileRenameColumn(blueprint *Blueprint, oldName, newName string) (string, error) {
-	if oldName == "" || newName == "" {
-		return "", fmt.Errorf("old and new column names cannot be empty")
-	}
-	return fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", blueprint.name, oldName, newName), nil
-}
-
-func (g *mysqlGrammar) compileIndexSql(blueprint *Blueprint, index *indexDefinition) (string, error) {
-	if index == nil || len(index.columns) == 0 {
-		return "", fmt.Errorf("index definition cannot be nil or empty")
-	}
-
-	indexName := index.name
-	if indexName == "" {
-		indexName = g.createIndexName(blueprint, index)
-	}
-	columns := strings.Join(index.columns, ", ")
-
-	switch index.indexType {
-	case indexTypePrimary:
-		sql := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, columns)
-		return sql, nil
-	case indexTypeUnique:
-		sql := fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (%s)", indexName, blueprint.name, columns)
-		if index.algorithm != "" {
-			sql += fmt.Sprintf(" USING %s", index.algorithm)
-		}
-		return sql, nil
-	case indexTypeIndex:
-		sql := fmt.Sprintf("CREATE INDEX %s ON %s (%s)", indexName, blueprint.name, columns)
-		if index.algorithm != "" {
-			sql += fmt.Sprintf(" USING %s", index.algorithm)
-		}
-		return sql, nil
-	default:
-		return "", errors.New("unknown index type")
-	}
-}
-
-func (g *mysqlGrammar) compileForeignKeySql(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error) {
+func (g *mysqlGrammar) compileForeign(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error) {
 	if foreignKey.column == "" || foreignKey.on == "" || foreignKey.references == "" {
 		return "", fmt.Errorf("foreign key definition is incomplete: column, on, and references must be set")
 	}
@@ -284,6 +311,13 @@ func (g *mysqlGrammar) compileForeignKeySql(blueprint *Blueprint, foreignKey *fo
 		onDelete,
 		onUpdate,
 	), nil
+}
+
+func (g *mysqlGrammar) compileDropForeign(blueprint *Blueprint, foreignKeyName string) (string, error) {
+	if foreignKeyName == "" {
+		return "", fmt.Errorf("foreign key name cannot be empty")
+	}
+	return fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s", blueprint.name, foreignKeyName), nil
 }
 
 func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
@@ -318,6 +352,8 @@ func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 
 func (g *mysqlGrammar) getType(col *columnDefinition) string {
 	switch col.columnType {
+	case columnTypeCustom:
+		return col.customColumnType
 	case columnTypeBoolean:
 		return "TINYINT(1)"
 	case columnTypeChar:
@@ -325,10 +361,10 @@ func (g *mysqlGrammar) getType(col *columnDefinition) string {
 	case columnTypeString:
 		return fmt.Sprintf("VARCHAR(%d)", col.length)
 	case columnTypeDecimal:
-		return fmt.Sprintf("DECIMAL(%d, %d)", col.precision, col.scale)
+		return fmt.Sprintf("DECIMAL(%d, %d)", col.total, col.places)
 	case columnTypeDouble, columnTypeFloat:
-		if col.precision > 0 && col.scale > 0 {
-			return fmt.Sprintf("DOUBLE(%d, %d)", col.precision, col.scale)
+		if col.total > 0 && col.places > 0 {
+			return fmt.Sprintf("DOUBLE(%d, %d)", col.total, col.places)
 		}
 		return "DOUBLE"
 	case columnTypeBigInteger:
@@ -337,12 +373,22 @@ func (g *mysqlGrammar) getType(col *columnDefinition) string {
 		return g.modifyUnsignedAndAutoIncrement("INT", col)
 	case columnTypeSmallInteger:
 		return g.modifyUnsignedAndAutoIncrement("SMALLINT", col)
+	case columnTypeMediumInteger:
+		return g.modifyUnsignedAndAutoIncrement("MEDIUMINT", col)
+	case columnTypeTinyInteger:
+		return g.modifyUnsignedAndAutoIncrement("TINYINT", col)
 	case columnTypeTime:
 		return fmt.Sprintf("TIME(%d)", col.precision)
-	case columnTypeTimestamp:
-		return fmt.Sprintf("TIMESTAMP(%d)", col.precision)
-	case columnTypeTimestampTz:
-		return fmt.Sprintf("TIMESTAMPTZ(%d)", col.precision)
+	case columnTypeDateTime, columnTypeDateTimeTz:
+		if col.precision > 0 {
+			return fmt.Sprintf("DATETIME(%d)", col.precision)
+		}
+		return "DATETIME"
+	case columnTypeTimestamp, columnTypeTimestampTz:
+		if col.precision > 0 {
+			return fmt.Sprintf("TIMESTAMP(%d)", col.precision)
+		}
+		return "TIMESTAMP"
 	case columnTypeGeography:
 		return fmt.Sprintf("GEOGRAPHY(%s, %d)", col.subType, col.srid)
 	case columnTypeEnum:
@@ -350,7 +396,9 @@ func (g *mysqlGrammar) getType(col *columnDefinition) string {
 	default:
 		return map[columnType]string{
 			columnTypeBoolean:  "BOOLEAN",
+			columnTypeLongText: "LONGTEXT",
 			columnTypeText:     "TEXT",
+			columnTypeTinyText: "TINYTEXT",
 			columnTypeDate:     "DATE",
 			columnTypeYear:     "YEAR",
 			columnTypeJSON:     "JSON",
@@ -358,6 +406,7 @@ func (g *mysqlGrammar) getType(col *columnDefinition) string {
 			columnTypeUUID:     "UUID",
 			columnTypeBinary:   "BLOB",
 			columnTypeGeometry: "GEOMETRY",
+			columnTypePoint:    "POINT",
 		}[col.columnType]
 	}
 }

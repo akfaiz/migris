@@ -37,6 +37,10 @@ type Builder interface {
 	Table(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error
 }
 
+// NewBuilder creates a new Builder instance based on the specified dialect.
+// It returns an error if the dialect is not supported.
+//
+// Supported dialects are "postgres", "pgx", "mysql", and "mariadb".
 func NewBuilder(dialect string) (Builder, error) {
 	switch dialect {
 	case "postgres", "pgx":
@@ -44,7 +48,7 @@ func NewBuilder(dialect string) (Builder, error) {
 	case "mysql", "mariadb":
 		return newMysqlBuilder(), nil
 	default:
-		return nil, ErrDialectNotSet
+		return nil, errors.New("unknown dialect: " + dialect)
 	}
 }
 
