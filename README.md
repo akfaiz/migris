@@ -26,13 +26,6 @@ go get github.com/ahmadfaizk/schema
 ```
 
 ## Usage
-
-1. Create a migration file using Goose:
-```bash
-goose create create_users_table go
-```
-
-2. Implement the migration using Schema:
 ```go
 package migrations
 
