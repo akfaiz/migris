@@ -1,7 +1,6 @@
 package schema
 
 import (
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -82,7 +81,7 @@ func (g *pgGrammar) compileCreateIfNotExists(blueprint *Blueprint) (string, erro
 }
 
 func (g *pgGrammar) compileAdd(blueprint *Blueprint) (string, error) {
-	if len(blueprint.getAddeddColumns()) == 0 {
+	if len(blueprint.getAddedColumns()) == 0 {
 		return "", nil
 	}
 
@@ -101,7 +100,7 @@ func (g *pgGrammar) compileChange(bp *Blueprint) ([]string, error) {
 		return nil, nil
 	}
 
-	var sqls []string
+	var queries []string
 	for _, col := range bp.getChangedColumns() {
 		if col.name == "" {
 			return nil, fmt.Errorf("column name cannot be empty for change operation")
@@ -124,18 +123,18 @@ func (g *pgGrammar) compileChange(bp *Blueprint) ([]string, error) {
 			}
 		}
 		sql := "ALTER TABLE " + bp.name + " " + strings.Join(statements, ", ")
-		sqls = append(sqls, sql)
+		queries = append(queries, sql)
 
 		if col.hasCommand("comment") {
 			if col.comment != "" {
-				sqls = append(sqls, fmt.Sprintf("COMMENT ON COLUMN %s.%s IS '%s'", bp.name, col.name, col.comment))
+				queries = append(queries, fmt.Sprintf("COMMENT ON COLUMN %s.%s IS '%s'", bp.name, col.name, col.comment))
 			} else {
-				sqls = append(sqls, fmt.Sprintf("COMMENT ON COLUMN %s.%s IS NULL", bp.name, col.name))
+				queries = append(queries, fmt.Sprintf("COMMENT ON COLUMN %s.%s IS NULL", bp.name, col.name))
 			}
 		}
 	}
 
-	return sqls, nil
+	return queries, nil
 }
 
 func (g *pgGrammar) compileDrop(blueprint *Blueprint) (string, error) {
@@ -159,44 +158,73 @@ func (g *pgGrammar) compileDropColumn(blueprint *Blueprint) (string, error) {
 	return fmt.Sprintf("ALTER TABLE %s %s", blueprint.name, strings.Join(columns, ", ")), nil
 }
 
-func (p *pgGrammar) compileRenameColumn(blueprint *Blueprint, oldName, newName string) (string, error) {
+func (g *pgGrammar) compileRenameColumn(blueprint *Blueprint, oldName, newName string) (string, error) {
 	if oldName == "" || newName == "" {
 		return "", fmt.Errorf("table name, old column name, and new column name cannot be empty for rename operation")
 	}
 	return fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", blueprint.name, oldName, newName), nil
 }
 
-func (p *pgGrammar) compileIndexSql(blueprint *Blueprint, index *indexDefinition) (string, error) {
+func (g *pgGrammar) compileIndex(blueprint *Blueprint, index *indexDefinition) (string, error) {
 	if slices.Contains(index.columns, "") {
 		return "", fmt.Errorf("index column cannot be empty")
 	}
 	indexName := index.name
 	if indexName == "" {
-		indexName = p.createIndexName(blueprint, index)
+		indexName = g.createIndexName(blueprint, index)
 	}
-	columns := strings.Join(index.columns, ", ")
+	columnsStr := strings.Join(index.columns, ", ")
 
-	switch index.indexType {
-	case indexTypePrimary:
-		sql := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, columns)
-		return sql, nil
-	case indexTypeUnique:
-		sql := fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s", indexName, blueprint.name)
-		if index.algorithmn != "" {
-			sql += fmt.Sprintf(" USING %s", index.algorithmn)
-		}
-		sql += fmt.Sprintf(" (%s)", columns)
-		return sql, nil
-	case indexTypeIndex:
-		sql := fmt.Sprintf("CREATE INDEX %s ON %s", indexName, blueprint.name)
-		if index.algorithmn != "" {
-			sql += fmt.Sprintf(" USING %s", index.algorithmn)
-		}
-		sql += fmt.Sprintf(" (%s)", columns)
-		return sql, nil
-	default:
-		return "", errors.New("unknown index type")
+	sql := fmt.Sprintf("CREATE INDEX %s ON %s", indexName, blueprint.name)
+	if index.algorithm != "" {
+		sql += fmt.Sprintf(" USING %s", index.algorithm)
 	}
+	return fmt.Sprintf("%s (%s)", sql, columnsStr), nil
+}
+
+func (g *pgGrammar) compileUnique(blueprint *Blueprint, index *indexDefinition) (string, error) {
+	if slices.Contains(index.columns, "") {
+		return "", fmt.Errorf("unique index column cannot be empty")
+	}
+	indexName := index.name
+	if indexName == "" {
+		indexName = g.createIndexName(blueprint, index)
+	}
+	columnsStr := strings.Join(index.columns, ", ")
+	return fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (%s)", indexName, blueprint.name, columnsStr), nil
+}
+
+func (g *pgGrammar) compilePrimary(blueprint *Blueprint, index *indexDefinition) (string, error) {
+	if slices.Contains(index.columns, "") {
+		return "", fmt.Errorf("primary key index column cannot be empty")
+	}
+	indexName := index.name
+	if indexName == "" {
+		indexName = g.createIndexName(blueprint, index)
+	}
+	columnsStr := strings.Join(index.columns, ", ")
+	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, columnsStr), nil
+}
+
+func (g *pgGrammar) compileFullText(blueprint *Blueprint, index *indexDefinition) (string, error) {
+	if slices.Contains(index.columns, "") {
+		return "", fmt.Errorf("fulltext index column cannot be empty")
+	}
+	indexName := index.name
+	if indexName == "" {
+		indexName = g.createIndexName(blueprint, index)
+	}
+	language := index.language
+	if language == "" {
+		language = "english" // Default language for full-text search
+	}
+	var columns []string
+	for _, col := range index.columns {
+		columns = append(columns, fmt.Sprintf("to_tsvector(%s, %s)", g.quoteString(language), col))
+	}
+	columnsStr := strings.Join(columns, " || ")
+
+	return fmt.Sprintf("CREATE INDEX %s ON %s USING gin (%s)", indexName, blueprint.name, columnsStr), nil
 }
 
 func (g *pgGrammar) compileDropIndex(indexName string) (string, error) {
@@ -213,21 +241,28 @@ func (g *pgGrammar) compileDropUnique(indexName string) (string, error) {
 	return fmt.Sprintf("DROP INDEX %s", indexName), nil
 }
 
-func (p *pgGrammar) compileRenameIndex(blueprint *Blueprint, oldName, newName string) (string, error) {
+func (g *pgGrammar) compileDropFulltext(indexName string) (string, error) {
+	if indexName == "" {
+		return "", fmt.Errorf("index name cannot be empty for drop operation")
+	}
+	return fmt.Sprintf("DROP INDEX %s", indexName), nil
+}
+
+func (g *pgGrammar) compileRenameIndex(_ *Blueprint, oldName, newName string) (string, error) {
 	if oldName == "" || newName == "" {
 		return "", fmt.Errorf("index names for rename operation cannot be empty: oldName=%s, newName=%s", oldName, newName)
 	}
 	return fmt.Sprintf("ALTER INDEX %s RENAME TO %s", oldName, newName), nil
 }
 
-func (p *pgGrammar) compileDropPrimaryKey(blueprint *Blueprint, indexName string) (string, error) {
+func (g *pgGrammar) compileDropPrimary(blueprint *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
-		indexName = p.createIndexName(blueprint, &indexDefinition{indexType: indexTypePrimary})
+		indexName = g.createIndexName(blueprint, &indexDefinition{indexType: indexTypePrimary})
 	}
 	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", blueprint.name, indexName), nil
 }
 
-func (p *pgGrammar) compileForeignKeySql(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error) {
+func (g *pgGrammar) compileForeign(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error) {
 	if foreignKey.column == "" || foreignKey.on == "" || foreignKey.references == "" {
 		return "", fmt.Errorf("foreign key definition is incomplete: column, on, and references must be set")
 	}
@@ -242,7 +277,7 @@ func (p *pgGrammar) compileForeignKeySql(blueprint *Blueprint, foreignKey *forei
 
 	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(%s)%s%s",
 		blueprint.name,
-		p.createForeginKeyName(blueprint, foreignKey),
+		g.createForeignKeyName(blueprint, foreignKey),
 		foreignKey.column,
 		foreignKey.on,
 		foreignKey.references,
@@ -251,22 +286,22 @@ func (p *pgGrammar) compileForeignKeySql(blueprint *Blueprint, foreignKey *forei
 	), nil
 }
 
-func (p *pgGrammar) compileDropForeignKey(blueprint *Blueprint, foreignKeyName string) (string, error) {
+func (g *pgGrammar) compileDropForeign(blueprint *Blueprint, foreignKeyName string) (string, error) {
 	if foreignKeyName == "" {
 		return "", fmt.Errorf("foreign key name cannot be empty for drop operation")
 	}
 	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", blueprint.name, foreignKeyName), nil
 }
 
-func (p *pgGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
+func (g *pgGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 	var columns []string
-	for _, col := range blueprint.getAddeddColumns() {
+	for _, col := range blueprint.getAddedColumns() {
 		if col.name == "" {
 			return nil, fmt.Errorf("column name cannot be empty")
 		}
-		sql := col.name + " " + p.getType(col)
+		sql := col.name + " " + g.getType(col)
 		if col.defaultVal != nil {
-			sql += fmt.Sprintf(" DEFAULT %s", p.getDefaultValue(col))
+			sql += fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col))
 		}
 		if col.nullable {
 			sql += " NULL"
@@ -288,8 +323,10 @@ func (p *pgGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 	return columns, nil
 }
 
-func (p *pgGrammar) getType(col *columnDefinition) string {
+func (g *pgGrammar) getType(col *columnDefinition) string {
 	switch col.columnType {
+	case columnTypeCustom:
+		return col.customColumnType
 	case columnTypeChar:
 		if col.length > 0 {
 			return fmt.Sprintf("CHAR(%d)", col.length)
@@ -301,27 +338,27 @@ func (p *pgGrammar) getType(col *columnDefinition) string {
 		}
 		return "VARCHAR"
 	case columnTypeDecimal:
-		return fmt.Sprintf("DECIMAL(%d, %d)", col.precision, col.scale)
+		return fmt.Sprintf("DECIMAL(%d, %d)", col.total, col.places)
 	case columnTypeBigInteger:
 		if col.autoIncrement {
 			return "BIGSERIAL"
 		}
 		return "BIGINT"
-	case columnTypeInteger:
+	case columnTypeInteger, columnTypeMediumInteger:
 		if col.autoIncrement {
 			return "SERIAL"
 		}
 		return "INTEGER"
-	case columnTypeSmallInteger:
+	case columnTypeSmallInteger, columnTypeTinyInteger:
 		if col.autoIncrement {
 			return "SMALLSERIAL"
 		}
 		return "SMALLINT"
 	case columnTypeTime:
 		return fmt.Sprintf("TIME(%d)", col.precision)
-	case columnTypeTimestamp:
+	case columnTypeTimestamp, columnTypeDateTime:
 		return fmt.Sprintf("TIMESTAMP(%d)", col.precision)
-	case columnTypeTimestampTz:
+	case columnTypeTimestampTz, columnTypeDateTimeTz:
 		return fmt.Sprintf("TIMESTAMPTZ(%d)", col.precision)
 	case columnTypeGeography:
 		return fmt.Sprintf("GEOGRAPHY(%s, %d)", col.subType, col.srid)
@@ -330,6 +367,8 @@ func (p *pgGrammar) getType(col *columnDefinition) string {
 			return fmt.Sprintf("GEOMETRY(%s, %d)", col.subType, col.srid)
 		}
 		return fmt.Sprintf("GEOMETRY(%s)", col.subType)
+	case columnTypePoint:
+		return fmt.Sprintf("POINT(%d)", col.srid)
 	case columnTypeEnum:
 		if len(col.allowedEnums) == 0 {
 			return "VARCHAR(255)" // Fallback to VARCHAR if no enums are defined
@@ -341,16 +380,19 @@ func (p *pgGrammar) getType(col *columnDefinition) string {
 		return "VARCHAR(255) CHECK (" + col.name + " IN (" + strings.Join(enumValues, ", ") + "))"
 	default:
 		return map[columnType]string{
-			columnTypeBoolean: "BOOLEAN",
-			columnTypeText:    "TEXT",
-			columnTypeDouble:  "DOUBLE PRECISION",
-			columnTypeFloat:   "REAL",
-			columnTypeDate:    "DATE",
-			columnTypeYear:    "INTEGER", // PostgreSQL does not have a YEAR type, using INTEGER instead
-			columnTypeJSON:    "JSON",
-			columnTypeJSONB:   "JSONB",
-			columnTypeUUID:    "UUID",
-			columnTypeBinary:  "BYTEA",
+			columnTypeBoolean:    "BOOLEAN",
+			columnTypeLongText:   "TEXT",
+			columnTypeText:       "TEXT",
+			columnTypeMediumText: "TEXT",
+			columnTypeTinyText:   "TEXT",
+			columnTypeDouble:     "DOUBLE PRECISION",
+			columnTypeFloat:      "REAL",
+			columnTypeDate:       "DATE",
+			columnTypeYear:       "INTEGER", // PostgreSQL does not have a YEAR type, using INTEGER instead
+			columnTypeJSON:       "JSON",
+			columnTypeJSONB:      "JSONB",
+			columnTypeUUID:       "UUID",
+			columnTypeBinary:     "BYTEA",
 		}[col.columnType]
 	}
 }

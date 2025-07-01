@@ -6,4 +6,7 @@ type IndexDefinition interface {
 	Algorithm(algorithm string) IndexDefinition
 	// Name sets the name of the index.
 	Name(name string) IndexDefinition
+	// Language sets the language for the index.
+	// Used for full-text indexes in PostgreSQL.
+	Language(language string) IndexDefinition
 }

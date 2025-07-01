@@ -6,6 +6,7 @@ require (
 	github.com/ahmadfaizk/schema v0.1.0
 	github.com/lib/pq v1.10.9
 	github.com/pressly/goose/v3 v3.24.3
+	github.com/urfave/cli/v3 v3.3.8
 )
 
 replace github.com/ahmadfaizk/schema => ../..

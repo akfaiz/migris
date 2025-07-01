@@ -1,12 +1,12 @@
 package schema
 
-import "errors"
-
-var ErrDialectNotSet = errors.New("dialect not set")
-var ErrUnknownDialect = errors.New("unknown dialect")
+import (
+	"fmt"
+	"strings"
+)
 
 var dialect string
-var debug bool = false
+var debug = false
 
 var supportedDialects = map[string]bool{
 	"postgres": true,
@@ -19,7 +19,11 @@ var supportedDialects = map[string]bool{
 func SetDialect(d string) error {
 	_, ok := supportedDialects[d]
 	if !ok {
-		return ErrUnknownDialect
+		supportedDialectList := make([]string, 0, len(supportedDialects))
+		for key := range supportedDialects {
+			supportedDialectList = append(supportedDialectList, key)
+		}
+		return fmt.Errorf("unknown dialect: %s, supported dialects are: %s", d, strings.Join(supportedDialectList, ", "))
 	}
 	dialect = d
 

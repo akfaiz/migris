@@ -9,7 +9,7 @@ import (
 
 type mysqlBuilder struct {
 	baseBuilder
-	gramamr *mysqlGrammar
+	grammar *mysqlGrammar
 }
 
 func newMysqlBuilder() Builder {
@@ -18,7 +18,7 @@ func newMysqlBuilder() Builder {
 			dialect: "mysql",
 			grammar: newMysqlGrammar(),
 		},
-		gramamr: newMysqlGrammar(),
+		grammar: newMysqlGrammar(),
 	}
 }
 
@@ -54,12 +54,12 @@ func (b *mysqlBuilder) CreateIfNotExists(ctx context.Context, tx *sql.Tx, name s
 	bp.createIfNotExists()
 	blueprint(bp)
 
-	sqls, err := bp.toSql(b.grammar)
+	statements, err := bp.toSql(b.grammar)
 	if err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, sqls...)
+	return execContext(ctx, tx, statements...)
 }
 
 func (b *mysqlBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, error) {
@@ -72,7 +72,7 @@ func (b *mysqlBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName str
 		return nil, err
 	}
 
-	query, err := b.gramamr.compileColumns(database, tableName)
+	query, err := b.grammar.compileColumns(database, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (b *mysqlBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName str
 		return nil, err
 	}
 
-	query, err := b.gramamr.compileIndexes(database, tableName)
+	query, err := b.grammar.compileIndexes(database, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (b *mysqlBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo,
 		return nil, err
 	}
 
-	query, err := b.gramamr.compileTables(database)
+	query, err := b.grammar.compileTables(database)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func (b *mysqlBuilder) HasTable(ctx context.Context, tx *sql.Tx, name string) (b
 		return false, err
 	}
 
-	query, err := b.gramamr.compileTableExists(database, name)
+	query, err := b.grammar.compileTableExists(database, name)
 	if err != nil {
 		return false, err
 	}
@@ -257,7 +257,7 @@ func (b *mysqlBuilder) HasTable(ctx context.Context, tx *sql.Tx, name string) (b
 	row := queryRowContext(ctx, tx, query)
 	var exists bool
 	if err := row.Scan(&exists); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil // Table does not exist
 		}
 		return false, err // Other error occurred

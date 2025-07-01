@@ -16,13 +16,17 @@ type grammar interface {
 	compileRename(bp *Blueprint) (string, error)
 	compileDropColumn(blueprint *Blueprint) (string, error)
 	compileRenameColumn(blueprint *Blueprint, oldName, newName string) (string, error)
-	compileIndexSql(blueprint *Blueprint, index *indexDefinition) (string, error)
+	compileIndex(blueprint *Blueprint, index *indexDefinition) (string, error)
+	compileUnique(blueprint *Blueprint, index *indexDefinition) (string, error)
+	compilePrimary(blueprint *Blueprint, index *indexDefinition) (string, error)
+	compileFullText(blueprint *Blueprint, index *indexDefinition) (string, error)
 	compileDropIndex(indexName string) (string, error)
 	compileDropUnique(indexName string) (string, error)
+	compileDropFulltext(indexName string) (string, error)
+	compileDropPrimary(blueprint *Blueprint, indexName string) (string, error)
 	compileRenameIndex(blueprint *Blueprint, oldName, newName string) (string, error)
-	compileDropPrimaryKey(blueprint *Blueprint, indexName string) (string, error)
-	compileForeignKeySql(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error)
-	compileDropForeignKey(blueprint *Blueprint, foreignKeyName string) (string, error)
+	compileForeign(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error)
+	compileDropForeign(blueprint *Blueprint, foreignKeyName string) (string, error)
 }
 
 type baseGrammar struct{}
@@ -74,11 +78,13 @@ func (g *baseGrammar) createIndexName(blueprint *Blueprint, index *indexDefiniti
 		return fmt.Sprintf("uk_%s_%s", blueprint.name, strings.Join(index.columns, "_"))
 	case indexTypeIndex:
 		return fmt.Sprintf("idx_%s_%s", blueprint.name, strings.Join(index.columns, "_"))
+	case indexTypeFulltext:
+		return fmt.Sprintf("ft_%s_%s", blueprint.name, strings.Join(index.columns, "_"))
 	default:
 		return ""
 	}
 }
 
-func (g *baseGrammar) createForeginKeyName(blueprint *Blueprint, foreignKey *foreignKeyDefinition) string {
+func (g *baseGrammar) createForeignKeyName(blueprint *Blueprint, foreignKey *foreignKeyDefinition) string {
 	return fmt.Sprintf("fk_%s_%s", blueprint.name, foreignKey.on)
 }
