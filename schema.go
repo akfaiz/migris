@@ -39,11 +39,11 @@ type TableInfo struct {
 }
 
 func newBuilder() (Builder, error) {
-	if dialect == "" {
+	if dialectValue == dialectUnknown {
 		return nil, errors.New("schema dialect is not set, please call schema.SetDialect() before using schema functions")
 	}
 
-	builder, err := NewBuilder(dialect)
+	builder, err := NewBuilder(dialectValue.String())
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, e
 //
 //	indexes, err := schema.GetIndexes(ctx, tx, "users")
 func GetIndexes(ctx context.Context, tx *sql.Tx, tableName string) ([]*Index, error) {
-	builder, err := NewBuilder(dialect)
+	builder, err := newBuilder()
 	if err != nil {
 		return nil, err
 	}
