@@ -91,6 +91,14 @@ func TestPgGrammar_CompileCreateIfNotExists(t *testing.T) {
 			want:    "CREATE TABLE IF NOT EXISTS users (id BIGSERIAL NOT NULL PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL UNIQUE, password VARCHAR NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL)",
 			wantErr: false,
 		},
+		{
+			name:  "Create table with column name is empty",
+			table: "empty_column_table",
+			blueprint: func(bp *Blueprint) {
+				bp.String("", 255) // Intentionally empty column name
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -105,6 +113,163 @@ func TestPgGrammar_CompileCreateIfNotExists(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, got, "SQL statement mismatch for %s", tt.name)
+		})
+	}
+}
+
+func TestPgGrammar_CompileAdd(t *testing.T) {
+	grammar := newPgGrammar()
+
+	tests := []struct {
+		name      string
+		table     string
+		blueprint func(bp *Blueprint)
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:  "Add single column",
+			table: "users",
+			blueprint: func(bp *Blueprint) {
+				bp.String("phone", 20)
+			},
+			want:    "ALTER TABLE users ADD COLUMN phone VARCHAR(20) NOT NULL",
+			wantErr: false,
+		},
+		{
+			name:  "Add multiple columns",
+			table: "users",
+			blueprint: func(bp *Blueprint) {
+				bp.String("phone", 20)
+				bp.String("address", 255).Nullable()
+				bp.Integer("age")
+			},
+			want:    "ALTER TABLE users ADD COLUMN phone VARCHAR(20) NOT NULL, ADD COLUMN address VARCHAR(255) NULL, ADD COLUMN age INTEGER NOT NULL",
+			wantErr: false,
+		},
+		{
+			name:  "Add column with default value",
+			table: "users",
+			blueprint: func(bp *Blueprint) {
+				bp.Boolean("active").Default(true)
+			},
+			want:    "ALTER TABLE users ADD COLUMN active BOOLEAN DEFAULT true NOT NULL",
+			wantErr: false,
+		},
+		{
+			name:  "Add column with comment",
+			table: "users",
+			blueprint: func(bp *Blueprint) {
+				bp.String("notes", 500).Comment("User notes")
+			},
+			want:    "ALTER TABLE users ADD COLUMN notes VARCHAR(500) NOT NULL COMMENT 'User notes'",
+			wantErr: false,
+		},
+		{
+			name:  "Add unique column",
+			table: "users",
+			blueprint: func(bp *Blueprint) {
+				bp.String("username", 50).Unique()
+			},
+			want:    "ALTER TABLE users ADD COLUMN username VARCHAR(50) NOT NULL UNIQUE",
+			wantErr: false,
+		},
+		{
+			name:  "Add primary key column",
+			table: "categories",
+			blueprint: func(bp *Blueprint) {
+				bp.Integer("id").Primary()
+			},
+			want:    "ALTER TABLE categories ADD COLUMN id INTEGER NOT NULL PRIMARY KEY",
+			wantErr: false,
+		},
+		{
+			name:  "Add auto increment column",
+			table: "logs",
+			blueprint: func(bp *Blueprint) {
+				bp.BigInteger("id").AutoIncrement()
+			},
+			want:    "ALTER TABLE logs ADD COLUMN id BIGSERIAL NOT NULL",
+			wantErr: false,
+		},
+		{
+			name:  "Add complex column with all attributes",
+			table: "products",
+			blueprint: func(bp *Blueprint) {
+				bp.Decimal("price", 10, 2).Default(0).Comment("Product price")
+			},
+			want:    "ALTER TABLE products ADD COLUMN price DECIMAL(10, 2) DEFAULT 0 NOT NULL COMMENT 'Product price'",
+			wantErr: false,
+		},
+		{
+			name:  "Add timestamp columns",
+			table: "orders",
+			blueprint: func(bp *Blueprint) {
+				bp.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
+				bp.Timestamp("updated_at").Default("CURRENT_TIMESTAMP").Nullable()
+			},
+			want:    "ALTER TABLE orders ADD COLUMN created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, ADD COLUMN updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NULL",
+			wantErr: false,
+		},
+		{
+			name:  "Add different data types",
+			table: "mixed_table",
+			blueprint: func(bp *Blueprint) {
+				bp.Text("description")
+				bp.JSON("metadata").Nullable()
+				bp.UUID("reference_id")
+				bp.Date("event_date")
+			},
+			want:    "ALTER TABLE mixed_table ADD COLUMN description TEXT NOT NULL, ADD COLUMN metadata JSON NULL, ADD COLUMN reference_id UUID NOT NULL, ADD COLUMN event_date DATE NOT NULL",
+			wantErr: false,
+		},
+		{
+			name:      "No columns to add",
+			table:     "users",
+			blueprint: func(bp *Blueprint) {},
+			want:      "",
+			wantErr:   false,
+		},
+		{
+			name:  "Error on empty column name",
+			table: "users",
+			blueprint: func(bp *Blueprint) {
+				bp.String("", 255) // Intentionally empty column name
+			},
+			wantErr: true,
+		},
+		{
+			name:  "Add enum column",
+			table: "users",
+			blueprint: func(bp *Blueprint) {
+				bp.Enum("status", []string{"active", "inactive", "pending"})
+			},
+			want:    "ALTER TABLE users ADD COLUMN status VARCHAR(255) CHECK (status IN ('active', 'inactive', 'pending')) NOT NULL",
+			wantErr: false,
+		},
+		{
+			name:  "Add geography column",
+			table: "locations",
+			blueprint: func(bp *Blueprint) {
+				bp.Geography("coordinates", "POINT", 4326)
+			},
+			want:    "ALTER TABLE locations ADD COLUMN coordinates GEOGRAPHY(POINT, 4326) NOT NULL",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &Blueprint{name: tt.table}
+			tt.blueprint(bp)
+			got, err := grammar.compileAdd(bp)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -329,87 +494,6 @@ func TestPgGrammar_GetColumns(t *testing.T) {
 			want: []string{"name VARCHAR(255) NOT NULL"},
 		},
 		{
-			name: "All column types",
-			blueprint: func(bp *Blueprint) {
-				bp.ID()
-				bp.Binary("data").Nullable()
-				bp.Char("code", 10).Comment("Unique code for user")
-				bp.String("name", 255)
-				bp.LongText("bio_long").Nullable()
-				bp.Text("bio").Nullable()
-				bp.MediumText("bio_medium").Nullable()
-				bp.TinyText("bio_tiny").Nullable()
-				bp.BigIncrements("id_big")
-				bp.BigInteger("company_id")
-				bp.Double("price").Default(30.5)
-				bp.Increments("stock").Default(100)
-				bp.Integer("age").Default(30)
-				bp.MediumIncrements("medium_level").Default(1)
-				bp.MediumInteger("medium_rank").Default(5)
-				bp.SmallIncrements("level").Default(1)
-				bp.SmallInteger("rank").Default(5)
-				bp.TinyIncrements("tiny_level").Default(1)
-				bp.TinyInteger("tiny_rank").Default(5)
-				bp.Boolean("is_active").Default(true)
-				bp.Float("rating").Default(4.5)
-				bp.Decimal("balance").Default(100.00)
-				bp.DateTime("created_at_dt").Default("CURRENT_TIMESTAMP")
-				bp.DateTimeTz("created_at_dtz").Default("CURRENT_TIMESTAMP")
-				bp.Date("birth_date").Nullable()
-				bp.Time("last_login").Nullable()
-				bp.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-				bp.TimestampTz("created_at_tz").Default("CURRENT_TIMESTAMP")
-				bp.Year("year").Default(2023)
-				bp.JSON("settings").Nullable()
-				bp.JSONB("preferences").Nullable()
-				bp.UUID("session_id").Nullable()
-				bp.Geography("location", "POINT", 4326).Nullable()
-				bp.Geometry("shape", "LINESTRING", 4326).Nullable()
-				bp.Point("coordinates", 4326).Nullable()
-				bp.Enum("status", []string{"active", "inactive"}).Default("active")
-				bp.Column("ids", "integer[]").Nullable()
-			},
-			want: []string{
-				"id BIGSERIAL NOT NULL PRIMARY KEY",
-				"data BYTEA NULL",
-				"code CHAR(10) NOT NULL COMMENT 'Unique code for user'",
-				"name VARCHAR(255) NOT NULL",
-				"bio_long TEXT NULL",
-				"bio TEXT NULL",
-				"bio_medium TEXT NULL",
-				"bio_tiny TEXT NULL",
-				"id_big BIGSERIAL NOT NULL",
-				"company_id BIGINT NOT NULL",
-				"price DOUBLE PRECISION DEFAULT 30.5 NOT NULL",
-				"stock SERIAL DEFAULT 100 NOT NULL",
-				"age INTEGER DEFAULT 30 NOT NULL",
-				"medium_level SERIAL DEFAULT 1 NOT NULL",
-				"medium_rank INTEGER DEFAULT 5 NOT NULL",
-				"level SMALLSERIAL DEFAULT 1 NOT NULL",
-				"rank SMALLINT DEFAULT 5 NOT NULL",
-				"tiny_level SMALLSERIAL DEFAULT 1 NOT NULL",
-				"tiny_rank SMALLINT DEFAULT 5 NOT NULL",
-				"is_active BOOLEAN DEFAULT true NOT NULL",
-				"rating REAL DEFAULT 4.5 NOT NULL",
-				"balance DECIMAL(8, 2) DEFAULT 100 NOT NULL",
-				"created_at_dt TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL",
-				"created_at_dtz TIMESTAMPTZ(0) DEFAULT CURRENT_TIMESTAMP NOT NULL",
-				"birth_date DATE NULL",
-				"last_login TIME(0) NULL",
-				"created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL",
-				"created_at_tz TIMESTAMPTZ(0) DEFAULT CURRENT_TIMESTAMP NOT NULL",
-				"year INTEGER DEFAULT 2023 NOT NULL",
-				"settings JSON NULL",
-				"preferences JSONB NULL",
-				"session_id UUID NULL",
-				"location GEOGRAPHY(POINT, 4326) NULL",
-				"shape GEOMETRY(LINESTRING, 4326) NULL",
-				"coordinates POINT(4326) NULL",
-				"status VARCHAR(255) CHECK (status IN ('active', 'inactive')) DEFAULT 'active' NOT NULL",
-				"ids integer[] NULL",
-			},
-		},
-		{
 			name: "Nullable column",
 			blueprint: func(bp *Blueprint) {
 				bp.String("email", 255).Nullable()
@@ -422,6 +506,13 @@ func TestPgGrammar_GetColumns(t *testing.T) {
 				bp.Boolean("active").Default(true)
 			},
 			want: []string{"active BOOLEAN DEFAULT true NOT NULL"},
+		},
+		{
+			name: "Column with comment",
+			blueprint: func(bp *Blueprint) {
+				bp.String("description", 500).Comment("User description")
+			},
+			want: []string{"description VARCHAR(500) NOT NULL COMMENT 'User description'"},
 		},
 		{
 			name: "Primary key column",
@@ -448,103 +539,6 @@ func TestPgGrammar_GetColumns(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestPgGrammar_GetType(t *testing.T) {
-	grammar := newPgGrammar()
-
-	tests := []struct {
-		name      string
-		blueprint func(bp *Blueprint)
-		want      string
-	}{
-		{
-			name: "Integer type",
-			blueprint: func(bp *Blueprint) {
-				bp.Integer("id")
-			},
-			want: "INTEGER",
-		},
-		{
-			name: "Char type",
-			blueprint: func(bp *Blueprint) {
-				bp.Char("code")
-			},
-			want: "CHAR",
-		},
-		{
-			name: "String type with length",
-			blueprint: func(bp *Blueprint) {
-				bp.String("name", 255)
-			},
-			want: "VARCHAR(255)",
-		},
-		{
-			name: "Decimal type with precision and scale",
-			blueprint: func(bp *Blueprint) {
-				bp.Decimal("price", 10, 2)
-			},
-			want: "DECIMAL(10, 2)",
-		},
-		{
-			name: "Time",
-			blueprint: func(bp *Blueprint) {
-				bp.Time("last_login")
-			},
-			want: "TIME(0)",
-		},
-		{
-			name: "Timestamp with precision",
-			blueprint: func(bp *Blueprint) {
-				bp.Timestamp("created_at", 3)
-			},
-			want: "TIMESTAMP(3)",
-		},
-		{
-			name: "Timestamp with time zone",
-			blueprint: func(bp *Blueprint) {
-				bp.TimestampTz("created_at_tz", 3)
-			},
-			want: "TIMESTAMPTZ(3)",
-		},
-		{
-			name: "JSON type",
-			blueprint: func(bp *Blueprint) {
-				bp.JSON("data")
-			},
-			want: "JSON",
-		},
-		{
-			name: "Geography type",
-			blueprint: func(bp *Blueprint) {
-				bp.Geography("location", "POINT", 4326)
-			},
-			want: "GEOGRAPHY(POINT, 4326)",
-		},
-		{
-			name: "Geometry type",
-			blueprint: func(bp *Blueprint) {
-				bp.Geometry("shape", "LINESTRING", 4326)
-			},
-			want: "GEOMETRY(LINESTRING, 4326)",
-		},
-		{
-			name: "Enum type",
-			blueprint: func(bp *Blueprint) {
-				bp.Enum("status", []string{"active", "inactive"})
-			},
-			want: "VARCHAR(255) CHECK (status IN ('active', 'inactive'))",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bp := &Blueprint{name: "test_table"}
-			tt.blueprint(bp)
-			got := grammar.getType(bp.columns[0])
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -1516,6 +1510,341 @@ func TestPgGrammar_CompilePrimary(t *testing.T) {
 			}
 
 			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestPgGrammar_GetType(t *testing.T) {
+	grammar := newPgGrammar()
+
+	tests := []struct {
+		name      string
+		blueprint func(bp *Blueprint)
+		want      string
+	}{
+		{
+			name: "custom column type",
+			blueprint: func(table *Blueprint) {
+				table.Column("name", "CUSTOM_TYPE")
+			},
+			want: "CUSTOM_TYPE",
+		},
+		{
+			name: "boolean column type",
+			blueprint: func(table *Blueprint) {
+				table.Boolean("active")
+			},
+			want: "BOOLEAN",
+		},
+		{
+			name: "char column type",
+			blueprint: func(table *Blueprint) {
+				table.Char("code", 10)
+			},
+			want: "CHAR(10)",
+		},
+		{
+			name: "char column type without length",
+			blueprint: func(table *Blueprint) {
+				table.Char("code")
+			},
+			want: "CHAR",
+		},
+		{
+			name: "string column type",
+			blueprint: func(table *Blueprint) {
+				table.String("name", 255)
+			},
+			want: "VARCHAR(255)",
+		},
+		{
+			name: "decimal column type",
+			blueprint: func(table *Blueprint) {
+				table.Decimal("price", 10, 2)
+			},
+			want: "DECIMAL(10, 2)",
+		},
+		{
+			name: "double column type with precision",
+			blueprint: func(table *Blueprint) {
+				table.Double("value", 8, 2)
+			},
+			want: "DOUBLE PRECISION",
+		},
+		{
+			name: "double column type without precision",
+			blueprint: func(table *Blueprint) {
+				table.Double("value", 0, 0)
+			},
+			want: "DOUBLE PRECISION",
+		},
+		{
+			name: "float column type with precision",
+			blueprint: func(table *Blueprint) {
+				table.Float("value", 6, 2)
+			},
+			want: "REAL",
+		},
+		{
+			name: "float column type without precision",
+			blueprint: func(table *Blueprint) {
+				table.Float("value", 0, 0)
+			},
+			want: "REAL",
+		},
+		{
+			name: "big integer column type",
+			blueprint: func(table *Blueprint) {
+				table.BigInteger("id")
+			},
+			want: "BIGINT",
+		},
+		{
+			name: "big integer auto increment",
+			blueprint: func(table *Blueprint) {
+				table.BigInteger("id").AutoIncrement()
+			},
+			want: "BIGSERIAL",
+		},
+		{
+			name: "integer column type",
+			blueprint: func(table *Blueprint) {
+				table.Integer("count")
+			},
+			want: "INTEGER",
+		},
+		{
+			name: "integer auto increment",
+			blueprint: func(table *Blueprint) {
+				table.Integer("id").AutoIncrement()
+			},
+			want: "SERIAL",
+		},
+		{
+			name: "small integer column type",
+			blueprint: func(table *Blueprint) {
+				table.SmallInteger("status")
+			},
+			want: "SMALLINT",
+		},
+		{
+			name: "small integer auto increment",
+			blueprint: func(table *Blueprint) {
+				table.SmallInteger("id").Unsigned().AutoIncrement()
+			},
+			want: "SMALLSERIAL",
+		},
+		{
+			name: "medium integer column type",
+			blueprint: func(table *Blueprint) {
+				table.MediumInteger("value")
+			},
+			want: "INTEGER",
+		},
+		{
+			name: "medium auto increment",
+			blueprint: func(table *Blueprint) {
+				table.MediumIncrements("id")
+			},
+			want: "SERIAL",
+		},
+		{
+			name: "tiny integer column type",
+			blueprint: func(table *Blueprint) {
+				table.TinyInteger("flag")
+			},
+			want: "SMALLINT",
+		},
+		{
+			name: "tiny integer auto increment",
+			blueprint: func(table *Blueprint) {
+				table.TinyInteger("id").AutoIncrement()
+			},
+			want: "SMALLSERIAL",
+		},
+		{
+			name: "time column type",
+			blueprint: func(table *Blueprint) {
+				table.Time("created_at")
+			},
+			want: "TIME(0)",
+		},
+		{
+			name: "datetime column type with precision",
+			blueprint: func(table *Blueprint) {
+				table.DateTime("created_at", 6)
+			},
+			want: "TIMESTAMP(6)",
+		},
+		{
+			name: "datetime column type without precision",
+			blueprint: func(table *Blueprint) {
+				table.DateTime("created_at", 0)
+			},
+			want: "TIMESTAMP(0)",
+		},
+		{
+			name: "datetime tz column type with precision",
+			blueprint: func(table *Blueprint) {
+				table.DateTimeTz("created_at", 3)
+			},
+			want: "TIMESTAMPTZ(3)",
+		},
+		{
+			name: "datetime tz column type without precision",
+			blueprint: func(table *Blueprint) {
+				table.DateTimeTz("created_at", 0)
+			},
+			want: "TIMESTAMPTZ(0)",
+		},
+		{
+			name: "timestamp column type with precision",
+			blueprint: func(table *Blueprint) {
+				table.Timestamp("created_at", 6)
+			},
+			want: "TIMESTAMP(6)",
+		},
+		{
+			name: "timestamp column type without precision",
+			blueprint: func(table *Blueprint) {
+				table.Timestamp("created_at", 0)
+			},
+			want: "TIMESTAMP(0)",
+		},
+		{
+			name: "timestamp tz column type with precision",
+			blueprint: func(table *Blueprint) {
+				table.TimestampTz("created_at", 3)
+			},
+			want: "TIMESTAMPTZ(3)",
+		},
+		{
+			name: "timestamp tz column type without precision",
+			blueprint: func(table *Blueprint) {
+				table.TimestampTz("created_at", 0)
+			},
+			want: "TIMESTAMPTZ(0)",
+		},
+		{
+			name: "geography column type",
+			blueprint: func(table *Blueprint) {
+				table.Geography("location", "POINT", 4326)
+			},
+			want: "GEOGRAPHY(POINT, 4326)",
+		},
+		{
+			name: "long text column type",
+			blueprint: func(table *Blueprint) {
+				table.LongText("content")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "text column type",
+			blueprint: func(table *Blueprint) {
+				table.Text("description")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "tiny text column type",
+			blueprint: func(table *Blueprint) {
+				table.TinyText("notes")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "date column type",
+			blueprint: func(table *Blueprint) {
+				table.Date("birth_date")
+			},
+			want: "DATE",
+		},
+		{
+			name: "year column type",
+			blueprint: func(table *Blueprint) {
+				table.Year("graduation_year")
+			},
+			want: "INTEGER",
+		},
+		{
+			name: "json column type",
+			blueprint: func(table *Blueprint) {
+				table.JSON("metadata")
+			},
+			want: "JSON",
+		},
+		{
+			name: "jsonb column type",
+			blueprint: func(table *Blueprint) {
+				table.JSONB("data")
+			},
+			want: "JSONB",
+		},
+		{
+			name: "uuid column type",
+			blueprint: func(table *Blueprint) {
+				table.UUID("uuid")
+			},
+			want: "UUID",
+		},
+		{
+			name: "binary column type",
+			blueprint: func(table *Blueprint) {
+				table.Binary("data")
+			},
+			want: "BYTEA",
+		},
+		{
+			name: "point column type",
+			blueprint: func(table *Blueprint) {
+				table.Point("location")
+			},
+			want: "POINT(4326)",
+		},
+		{
+			name: "Geography type",
+			blueprint: func(bp *Blueprint) {
+				bp.Geography("location", "POINT", 4326)
+			},
+			want: "GEOGRAPHY(POINT, 4326)",
+		},
+		{
+			name: "Geometry type with SRID",
+			blueprint: func(bp *Blueprint) {
+				bp.Geometry("shape", "POLYGON", 4326)
+			},
+			want: "GEOMETRY(POLYGON, 4326)",
+		},
+		{
+			name: "Geometry type without SRID",
+			blueprint: func(bp *Blueprint) {
+				bp.Geometry("shape", "POLYGON")
+			},
+			want: "GEOMETRY(POLYGON)",
+		},
+		{
+			name: "Enum type",
+			blueprint: func(bp *Blueprint) {
+				bp.Enum("status", []string{"active", "inactive"})
+			},
+			want: "VARCHAR(255) CHECK (status IN ('active', 'inactive'))",
+		},
+		{
+			name: "Enum with empty values",
+			blueprint: func(bp *Blueprint) {
+				bp.Enum("status", []string{})
+			},
+			want: "VARCHAR(255)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &Blueprint{name: "test_table"}
+			tt.blueprint(bp)
+			got := grammar.getType(bp.columns[0])
 			assert.Equal(t, tt.want, got)
 		})
 	}

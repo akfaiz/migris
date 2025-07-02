@@ -1,15 +1,8 @@
 COVERAGE_FILE := coverage.out
 COVERAGE_HTML := coverage.html
-MIN_COVERAGE  := 75
+MIN_COVERAGE  := 80
 
-# Go source files (excluding vendor)
-GO_FILES := $(shell find . -type f -name '*.go' -not -path "./vendor/*")
-
-# Run tests
-.PHONY: test
-test:
-	@echo "Running tests..."
-	@go test -v -coverprofile=$(COVERAGE_FILE) ./...
+FORMAT ?= dots
 
 # Format code
 .PHONY: fmt
@@ -23,10 +16,26 @@ lint:
 	@echo "Linting code..."
 	@golangci-lint run --timeout 5m
 
+# Install dependencies and tools
+.PHONY: install
+install:
+	@echo "Installing dependencies..."
+	@go mod download
+	@go mod tidy
+	@echo "Installing tools..."
+	@go install gotest.tools/gotestsum@latest
+
+# Run tests
+.PHONY: test
+test:
+	@echo "Running tests..."
+	gotestsum --format $(FORMAT)  -- -tags musl -cover -race ./... -coverprofile=$(COVERAGE_FILE) -coverpkg=./...
+
 .PHONY: coverage
 coverage:
 	@echo "Generating test coverage report..."
 	@go tool cover -html=$(COVERAGE_FILE) -o $(COVERAGE_HTML)
+	@go tool cover -func=$(COVERAGE_FILE) | tee coverage.txt
 	@echo "Coverage HTML report generated: $(COVERAGE_HTML)"
 	@open $(COVERAGE_HTML)
 

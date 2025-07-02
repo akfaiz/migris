@@ -112,7 +112,7 @@ func (b *Blueprint) Char(name string, length ...int) ColumnDefinition {
 	col := &columnDefinition{
 		name:       name,
 		columnType: columnTypeChar,
-		length:     optionalInt(0, length...),
+		length:     optional(0, length...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -123,7 +123,7 @@ func (b *Blueprint) String(name string, length ...int) ColumnDefinition {
 	col := &columnDefinition{
 		name:       name,
 		columnType: columnTypeString,
-		length:     optionalInt(0, length...),
+		length:     optional(0, length...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -179,7 +179,7 @@ func (b *Blueprint) BigInteger(name string, autoIncrement ...bool) ColumnDefinit
 	col := &columnDefinition{
 		name:          name,
 		columnType:    columnTypeBigInteger,
-		autoIncrement: optionalBool(false, autoIncrement...),
+		autoIncrement: optional(false, autoIncrement...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -253,7 +253,7 @@ func (b *Blueprint) Float(name string, params ...int) ColumnDefinition {
 //
 // If a name is provided, it will be used as the column name; otherwise, "id" will be used.
 func (b *Blueprint) ID(name ...string) ColumnDefinition {
-	return b.BigIncrements(optionalString("id", name...)).Primary()
+	return b.BigIncrements(optional("id", name...)).Primary()
 }
 
 // Increments create a new increment column definition in the blueprint.
@@ -266,7 +266,7 @@ func (b *Blueprint) Integer(name string, autoIncrement ...bool) ColumnDefinition
 	col := &columnDefinition{
 		name:          name,
 		columnType:    columnTypeInteger,
-		autoIncrement: optionalBool(false, autoIncrement...),
+		autoIncrement: optional(false, autoIncrement...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -281,7 +281,7 @@ func (b *Blueprint) MediumInteger(name string, autoIncrement ...bool) ColumnDefi
 	col := &columnDefinition{
 		name:          name,
 		columnType:    columnTypeMediumInteger,
-		autoIncrement: optionalBool(false, autoIncrement...),
+		autoIncrement: optional(false, autoIncrement...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -297,7 +297,7 @@ func (b *Blueprint) SmallInteger(name string, autoIncrement ...bool) ColumnDefin
 	col := &columnDefinition{
 		name:          name,
 		columnType:    columnTypeSmallInteger,
-		autoIncrement: optionalBool(false, autoIncrement...),
+		autoIncrement: optional(false, autoIncrement...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -313,7 +313,7 @@ func (b *Blueprint) TinyInteger(name string, autoIncrement ...bool) ColumnDefini
 	col := &columnDefinition{
 		name:          name,
 		columnType:    columnTypeTinyInteger,
-		autoIncrement: optionalBool(false, autoIncrement...),
+		autoIncrement: optional(false, autoIncrement...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -324,7 +324,7 @@ func (b *Blueprint) UnsignedBigInteger(name string, autoIncrement ...bool) Colum
 	col := &columnDefinition{
 		name:          name,
 		columnType:    columnTypeBigInteger,
-		autoIncrement: optionalBool(false, autoIncrement...),
+		autoIncrement: optional(false, autoIncrement...),
 		unsigned:      true,
 	}
 	b.columns = append(b.columns, col)
@@ -336,7 +336,7 @@ func (b *Blueprint) UnsignedInteger(name string, autoIncrement ...bool) ColumnDe
 	col := &columnDefinition{
 		name:          name,
 		columnType:    columnTypeInteger,
-		autoIncrement: optionalBool(false, autoIncrement...),
+		autoIncrement: optional(false, autoIncrement...),
 		unsigned:      true,
 	}
 	b.columns = append(b.columns, col)
@@ -348,7 +348,7 @@ func (b *Blueprint) UnsignedMediumInteger(name string, autoIncrement ...bool) Co
 	col := &columnDefinition{
 		name:          name,
 		columnType:    columnTypeMediumInteger,
-		autoIncrement: optionalBool(false, autoIncrement...),
+		autoIncrement: optional(false, autoIncrement...),
 		unsigned:      true,
 	}
 	b.columns = append(b.columns, col)
@@ -360,7 +360,7 @@ func (b *Blueprint) UnsignedSmallInteger(name string, autoIncrement ...bool) Col
 	col := &columnDefinition{
 		name:          name,
 		columnType:    columnTypeSmallInteger,
-		autoIncrement: optionalBool(false, autoIncrement...),
+		autoIncrement: optional(false, autoIncrement...),
 		unsigned:      true,
 	}
 	b.columns = append(b.columns, col)
@@ -372,7 +372,7 @@ func (b *Blueprint) UnsignedTinyInteger(name string, autoIncrement ...bool) Colu
 	col := &columnDefinition{
 		name:          name,
 		columnType:    columnTypeTinyInteger,
-		autoIncrement: optionalBool(false, autoIncrement...),
+		autoIncrement: optional(false, autoIncrement...),
 		unsigned:      true,
 	}
 	b.columns = append(b.columns, col)
@@ -384,7 +384,7 @@ func (b *Blueprint) DateTime(name string, precision ...int) ColumnDefinition {
 	col := &columnDefinition{
 		name:       name,
 		columnType: columnTypeDateTime,
-		precision:  optionalInt(0, precision...),
+		precision:  optional(0, precision...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -395,7 +395,7 @@ func (b *Blueprint) DateTimeTz(name string, precision ...int) ColumnDefinition {
 	col := &columnDefinition{
 		name:       name,
 		columnType: columnTypeDateTimeTz,
-		precision:  optionalInt(0, precision...),
+		precision:  optional(0, precision...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -412,10 +412,11 @@ func (b *Blueprint) Date(name string) ColumnDefinition {
 }
 
 // Time creates a new time column definition in the blueprint.
-func (b *Blueprint) Time(name string) ColumnDefinition {
+func (b *Blueprint) Time(name string, precission ...int) ColumnDefinition {
 	col := &columnDefinition{
 		name:       name,
 		columnType: columnTypeTime,
+		precision:  optional(0, precission...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -427,7 +428,7 @@ func (b *Blueprint) Timestamp(name string, precision ...int) ColumnDefinition {
 	col := &columnDefinition{
 		name:       name,
 		columnType: columnTypeTimestamp,
-		precision:  optionalInt(0, precision...),
+		precision:  optional(0, precision...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -439,7 +440,7 @@ func (b *Blueprint) TimestampTz(name string, precision ...int) ColumnDefinition 
 	col := &columnDefinition{
 		name:       name,
 		columnType: columnTypeTimestampTz,
-		precision:  optionalInt(0, precision...),
+		precision:  optional(0, precision...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -515,7 +516,7 @@ func (b *Blueprint) Geography(name string, subType string, srid ...int) ColumnDe
 		name:       name,
 		columnType: columnTypeGeography,
 		subType:    subType,
-		srid:       optionalInt(4326, srid...),
+		srid:       optional(4326, srid...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -524,12 +525,12 @@ func (b *Blueprint) Geography(name string, subType string, srid ...int) ColumnDe
 // Geometry creates a new geometry column definition in the blueprint.
 // The subType parameter is optional and can be used to specify the type of geometry (e.g., "Point", "LineString", "Polygon").
 // The srid parameter is optional and specifies the Spatial Reference Identifier (SRID) for the geometry type.
-func (b *Blueprint) Geometry(name string, subType string, srid int) ColumnDefinition {
+func (b *Blueprint) Geometry(name string, subType string, srid ...int) ColumnDefinition {
 	col := &columnDefinition{
 		name:       name,
 		columnType: columnTypeGeometry,
 		subType:    subType,
-		srid:       srid,
+		srid:       optional(0, srid...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -540,7 +541,7 @@ func (b *Blueprint) Point(name string, srid ...int) ColumnDefinition {
 	col := &columnDefinition{
 		name:       name,
 		columnType: columnTypePoint,
-		srid:       optionalInt(4326, srid...),
+		srid:       optional(4326, srid...),
 	}
 	b.columns = append(b.columns, col)
 	return col
@@ -1031,13 +1032,13 @@ func (c *columnDefinition) Default(value any) ColumnDefinition {
 func (c *columnDefinition) Index(indexName ...string) ColumnDefinition {
 	c.addCommand("index")
 	c.index = true
-	c.indexName = optionalString("", indexName...)
+	c.indexName = optional("", indexName...)
 	return c
 }
 
 func (c *columnDefinition) Nullable(value ...bool) ColumnDefinition {
 	c.addCommand("nullable")
-	c.nullable = optionalBool(true, value...)
+	c.nullable = optional(true, value...)
 	return c
 }
 
@@ -1050,7 +1051,7 @@ func (c *columnDefinition) Primary() ColumnDefinition {
 func (c *columnDefinition) Unique(indexName ...string) ColumnDefinition {
 	c.addCommand("unique")
 	c.unique = true
-	c.uniqueIndexName = optionalString("", indexName...)
+	c.uniqueIndexName = optional("", indexName...)
 	return c
 }
 
@@ -1091,13 +1092,13 @@ func (id *indexDefinition) Algorithm(algorithm string) IndexDefinition {
 }
 
 func (id *indexDefinition) Deferrable(value ...bool) IndexDefinition {
-	val := optionalBool(true, value...)
+	val := optional(true, value...)
 	id.deferrable = &val
 	return id
 }
 
 func (id *indexDefinition) InitiallyImmediate(value ...bool) IndexDefinition {
-	val := optionalBool(true, value...)
+	val := optional(true, value...)
 	id.initiallyImmediate = &val
 	return id
 }
@@ -1135,13 +1136,13 @@ func (fk *foreignKeyDefinition) CascadeOnUpdate() ForeignKeyDefinition {
 }
 
 func (fk *foreignKeyDefinition) Deferrable(value ...bool) ForeignKeyDefinition {
-	val := optionalBool(true, value...)
+	val := optional(true, value...)
 	fk.deferrable = &val
 	return fk
 }
 
 func (fk *foreignKeyDefinition) InitiallyImmediate(value ...bool) ForeignKeyDefinition {
-	val := optionalBool(true, value...)
+	val := optional(true, value...)
 	fk.initiallyImmediate = &val
 	return fk
 }
