@@ -2,30 +2,40 @@ package schema
 
 import (
 	"fmt"
-	"strings"
 )
 
-var dialect string
-var debug = false
+type dialect uint8
 
-var supportedDialects = map[string]bool{
-	"postgres": true,
-	"pgx":      true,
-	"mysql":    true,
-	"mariadb":  true,
+const (
+	dialectUnknown dialect = iota
+	dialectMySQL
+	dialectPostgres
+)
+
+func (d dialect) String() string {
+	switch d {
+	case dialectMySQL:
+		return "mysql"
+	case dialectPostgres:
+		return "postgres"
+	default:
+		return ""
+	}
 }
+
+var dialectValue dialect = dialectUnknown
+var debug = false
 
 // SetDialect sets the current dialect for the schema package.
 func SetDialect(d string) error {
-	_, ok := supportedDialects[d]
-	if !ok {
-		supportedDialectList := make([]string, 0, len(supportedDialects))
-		for key := range supportedDialects {
-			supportedDialectList = append(supportedDialectList, key)
-		}
-		return fmt.Errorf("unknown dialect: %s, supported dialects are: %s", d, strings.Join(supportedDialectList, ", "))
+	switch d {
+	case "mysql", "mariadb":
+		dialectValue = dialectMySQL
+	case "postgres", "pgx":
+		dialectValue = dialectPostgres
+	default:
+		return fmt.Errorf("unknown dialect: %s", d)
 	}
-	dialect = d
 
 	return nil
 }

@@ -1,23 +1,28 @@
 # Schema
+[![Go Report Card](https://goreportcard.com/badge/github.com/ahmadfaizk/schema)](https://goreportcard.com/report/github.com/ahmadfaizk/schema)
+![Coverage](https://img.shields.io/badge/Coverage-81.0%25-brightgreen)
+[![GoDoc](https://pkg.go.dev/badge/github.com/ahmadfaizk/schema)](https://pkg.go.dev/github.com/ahmadfaizk/schema)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/ahmadfaizk/schema)](https://golang.org/doc/devel/release.html)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Schema is a fluent, expressive Go library for generating and executing DDL SQL (e.g., `CREATE TABLE`) within Go code — ideal for use with migration tools like [Goose](https://github.com/pressly/goose).
+`Schema` is a simple Go library for building and running SQL schema (DDL) code in a clean, readable, and migration-friendly way. Inspired by Laravel's Schema Builder, it helps you easily create or change database tables—and works well with tools like [`goose`](https://github.com/pressly/goose).
 
-Inspired by Laravel's schema builder, Schema simplifies defining and evolving database schemas using idiomatic Go.
+## Features
 
-
-## ✨ Features
-
-- ✅ Programmatic DDL builder for Go
-- 🧱 Supports `CREATE TABLE`, columns, primary keys, unique constraints, default values, and nullable fields
-- 🔄 Works seamlessly with Goose and other transaction-based migration tools
-- 🧩 Clean, fluent API for easy schema design
+- 📊 Programmatic table and column definitions
+- 🗃️ Support for common data types and constraints
+- ⚙️ Auto-generates `CREATE TABLE`, `ALTER TABLE`, index and foreign key SQL
+- 🔀 Designed to work with database transactions
+- 🧪 Built-in types and functions make migration code clear and testable
+- 🔍 Provides helper functions to list tables, columns, and indexes
 
 ## Supported Databases
 
-- PostgreSQL
-- MySQL
-- MariaDB
-- SQLite (TODO)
+Currently, `schema` is tested and optimized for:
+
+* PostgreSQL
+* MySQL / MariaDB
+* SQLite (TODO)
 
 ## Installation
 
@@ -25,7 +30,7 @@ Inspired by Laravel's schema builder, Schema simplifies defining and evolving da
 go get github.com/ahmadfaizk/schema
 ```
 
-## Usage
+## Integration Example (with goose)
 ```go
 package migrations
 
@@ -48,8 +53,7 @@ func upCreateUsersTable(ctx context.Context, tx *sql.Tx) error {
 		table.String("email")
 		table.Timestamp("email_verified_at").Nullable()
 		table.String("password")
-		table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-		table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+		table.Timestamps()
 	})
 }
 
@@ -61,6 +65,9 @@ For more examples, check out the [examples](examples/basic) directory.
 
 ## Documentation
 For detailed documentation, please refer to the [GoDoc](https://pkg.go.dev/github.com/ahmadfaizk/schema) page.
+
+## Contributing
+Contributions are welcome! Please read the [contributing guidelines](CONTRIBUTING.md) and submit a pull request.
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
