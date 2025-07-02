@@ -65,15 +65,26 @@ jobs:
       with:
         go-version: '1.23'
 
+    - name: Install dependencies
+      run: |
+        go mod download
+        go install gotest.tools/gotestsum@latest
+
     - name: Test
       env:
         DB_USER: root
         DB_PASSWORD: password
         DB_NAME: db_test
       run: |
-          go test -v ./... -covermode=count -coverprofile=coverage.txt
+          gotestsum --format testdox --junitfile junit.xml -- -cover -race ./... -coverprofile=coverage.txt -coverpkg=./...
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Upload test results to Codecov
+      if: ${{ !cancelled() }}
+      uses: codecov/test-results-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
