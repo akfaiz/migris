@@ -35,7 +35,9 @@ func (s *schemaTestSuite) SetupSuite() {
 
 	s.db = db
 	schema.SetDebug(false)
-	schema.SetDialect("postgres")
+
+	err = schema.SetDialect("postgres")
+	s.Require().NoError(err)
 }
 
 func (s *schemaTestSuite) TearDownSuite() {
