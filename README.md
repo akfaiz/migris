@@ -1,4 +1,5 @@
 # Schema
+[![Go](https://github.com/ahmadfaizk/schema/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmadfaizk/schema/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ahmadfaizk/schema)](https://goreportcard.com/report/github.com/ahmadfaizk/schema)
 ![Coverage](https://img.shields.io/badge/Coverage-81.0%25-brightgreen)
 [![GoDoc](https://pkg.go.dev/badge/github.com/ahmadfaizk/schema)](https://pkg.go.dev/github.com/ahmadfaizk/schema)
