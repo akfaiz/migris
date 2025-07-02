@@ -93,6 +93,18 @@ func (s *postgresBuilderSuite) TestCreate() {
 		})
 		s.NoError(err, "expected no error when creating table with valid parameters")
 	})
+	s.Run("when use custom schema should create it successfully", func() {
+		_, err = tx.Exec("CREATE SCHEMA IF NOT EXISTS custom_publics")
+		s.NoError(err, "expected no error when creating custom schema")
+		err = builder.Create(context.Background(), tx, "custom_publics.users", func(table *schema.Blueprint) {
+			table.ID()
+			table.String("name", 255)
+			table.String("email", 255).Unique()
+			table.String("password", 255).Nullable()
+			table.TimestampsTz()
+		})
+		s.NoError(err, "expected no error when creating table with custom schema")
+	})
 	s.Run("when have composite primary key should create it successfully", func() {
 		err = builder.Create(context.Background(), tx, "user_roles", func(table *schema.Blueprint) {
 			table.Integer("user_id")
@@ -579,5 +591,26 @@ func (s *postgresBuilderSuite) TestHasTable() {
 		exists, err = builder.HasTable(s.ctx, tx, "non_existent_table")
 		s.NoError(err, "expected no error when checking non-existent table")
 		s.False(exists, "expected exists to be false for non-existent table")
+	})
+	s.Run("when checking table with custom schema, should return true if exists", func() {
+		_, err = tx.Exec("CREATE SCHEMA IF NOT EXISTS custom_publics")
+		s.NoError(err, "expected no error when creating custom schema")
+
+		err = builder.Create(s.ctx, tx, "custom_publics.users", func(table *schema.Blueprint) {
+			table.ID()
+			table.String("name", 255)
+			table.String("email", 255).Unique()
+			table.String("password", 255).Nullable()
+			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+		})
+		s.NoError(err, "expected no error when creating table with custom schema")
+
+		exists, err := builder.HasTable(s.ctx, tx, "custom_publics.users")
+		s.NoError(err, "expected no error when checking if table with custom schema exists")
+		s.True(exists, "expected exists to be true for existing table with custom schema")
+		exists, err = builder.HasTable(s.ctx, tx, "custom_publics.non_existent_table")
+		s.NoError(err, "expected no error when checking non-existent table with custom schema")
+		s.False(exists, "expected exists to be false for non-existent table with custom schema")
 	})
 }

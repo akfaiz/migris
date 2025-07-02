@@ -28,16 +28,23 @@ var debug = false
 
 // SetDialect sets the current dialect for the schema package.
 func SetDialect(d string) error {
-	switch d {
-	case "mysql", "mariadb":
-		dialectValue = dialectMySQL
-	case "postgres", "pgx":
-		dialectValue = dialectPostgres
-	default:
+	dialectValue = dialectFromString(d)
+	if dialectValue == dialectUnknown {
 		return fmt.Errorf("unknown dialect: %s", d)
 	}
 
 	return nil
+}
+
+func dialectFromString(d string) dialect {
+	switch d {
+	case "mysql", "mariadb":
+		return dialectMySQL
+	case "postgres", "pgx":
+		return dialectPostgres
+	default:
+		return dialectUnknown
+	}
 }
 
 // SetDebug enables or disables debug mode for the schema package.

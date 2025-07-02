@@ -1578,6 +1578,13 @@ func TestMysqlGrammar_GetType(t *testing.T) {
 			want: "INT AUTO_INCREMENT",
 		},
 		{
+			name: "integer unsigned auto increment",
+			blueprint: func(table *Blueprint) {
+				table.Increments("id")
+			},
+			want: "INT UNSIGNED AUTO_INCREMENT",
+		},
+		{
 			name: "small integer column type",
 			blueprint: func(table *Blueprint) {
 				table.SmallInteger("status")
@@ -1618,6 +1625,13 @@ func TestMysqlGrammar_GetType(t *testing.T) {
 				table.TinyInteger("id").AutoIncrement()
 			},
 			want: "TINYINT AUTO_INCREMENT",
+		},
+		{
+			name: "tiny integer unsigned auto increment",
+			blueprint: func(table *Blueprint) {
+				table.TinyIncrements("id")
+			},
+			want: "TINYINT UNSIGNED AUTO_INCREMENT",
 		},
 		{
 			name: "time column type",
@@ -1709,6 +1723,13 @@ func TestMysqlGrammar_GetType(t *testing.T) {
 				table.Text("description")
 			},
 			want: "TEXT",
+		},
+		{
+			name: "medium text column type",
+			blueprint: func(table *Blueprint) {
+				table.MediumText("summary")
+			},
+			want: "MEDIUMTEXT",
 		},
 		{
 			name: "tiny text column type",

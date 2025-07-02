@@ -16,7 +16,7 @@ func newPostgresBuilder() Builder {
 	grammar := newPgGrammar()
 
 	return &postgresBuilder{
-		baseBuilder: baseBuilder{grammar: grammar, dialect: "postgres"},
+		baseBuilder: baseBuilder{grammar: grammar},
 		grammar:     grammar,
 	}
 }

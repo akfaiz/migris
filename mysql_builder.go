@@ -13,12 +13,11 @@ type mysqlBuilder struct {
 }
 
 func newMysqlBuilder() Builder {
+	grammar := newMysqlGrammar()
+
 	return &mysqlBuilder{
-		baseBuilder: baseBuilder{
-			dialect: "mysql",
-			grammar: newMysqlGrammar(),
-		},
-		grammar: newMysqlGrammar(),
+		baseBuilder: baseBuilder{grammar: grammar},
+		grammar:     grammar,
 	}
 }
 
@@ -27,9 +26,8 @@ func (b *mysqlBuilder) getCurrentDatabase(ctx context.Context, tx *sql.Tx) (stri
 		return "", errors.New("transaction is nil")
 	}
 
-	query := "SELECT DATABASE()"
-	row := tx.QueryRowContext(ctx, query)
-
+	query := b.grammar.compileCurrentDatabase()
+	row := queryRowContext(ctx, tx, query)
 	var dbName string
 	if err := row.Scan(&dbName); err != nil {
 		return "", err

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"strings"
 )
 
 // Builder is an interface that defines methods for creating, dropping, and managing database tables.
@@ -42,18 +41,18 @@ type Builder interface {
 //
 // Supported dialects are "postgres", "pgx", "mysql", and "mariadb".
 func NewBuilder(dialect string) (Builder, error) {
-	switch dialect {
-	case "postgres", "pgx":
-		return newPostgresBuilder(), nil
-	case "mysql", "mariadb":
+	dialectVal := dialectFromString(dialect)
+	switch dialectVal {
+	case dialectMySQL:
 		return newMysqlBuilder(), nil
+	case dialectPostgres:
+		return newPostgresBuilder(), nil
 	default:
-		return nil, errors.New("unknown dialect: " + dialect)
+		return nil, errors.New("unsupported dialect: " + dialect)
 	}
 }
 
 type baseBuilder struct {
-	dialect string
 	grammar grammar
 }
 
@@ -70,17 +69,6 @@ func (b *baseBuilder) validateTxAndName(tx *sql.Tx, name string) error {
 func (b *baseBuilder) validateCreateAndAlter(tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
 	if name == "" {
 		return errors.New("table name is empty")
-	}
-	if b.dialect == "postgres" || b.dialect == "pgx" {
-		names := strings.Split(name, ".")
-		if len(names) > 2 {
-			return errors.New("invalid table name: " + name + ", it should be in the format 'schema.table' or just 'table'")
-		}
-		if len(names) == 2 {
-			if names[0] == "" || names[1] == "" {
-				return errors.New("invalid table name: " + name + ", schema and table name cannot be empty")
-			}
-		}
 	}
 	if blueprint == nil {
 		return errors.New("blueprint function is nil")

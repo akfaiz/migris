@@ -16,6 +16,10 @@ func newMysqlGrammar() *mysqlGrammar {
 	return &mysqlGrammar{}
 }
 
+func (g *mysqlGrammar) compileCurrentDatabase() string {
+	return "SELECT DATABASE()"
+}
+
 func (g *mysqlGrammar) compileTableExists(database string, table string) (string, error) {
 	return fmt.Sprintf(
 		"SELECT 1 FROM information_schema.tables WHERE table_schema = %s AND table_name = %s AND table_type = 'BASE TABLE'",
@@ -403,20 +407,25 @@ func (g *mysqlGrammar) getType(col *columnDefinition) string {
 	case columnTypeEnum:
 		return fmt.Sprintf("ENUM(%s)", g.quoteString(strings.Join(col.allowedEnums, "','")))
 	default:
-		return map[columnType]string{
-			columnTypeBoolean:  "BOOLEAN",
-			columnTypeLongText: "LONGTEXT",
-			columnTypeText:     "TEXT",
-			columnTypeTinyText: "TINYTEXT",
-			columnTypeDate:     "DATE",
-			columnTypeYear:     "YEAR",
-			columnTypeJSON:     "JSON",
-			columnTypeJSONB:    "JSON",
-			columnTypeUUID:     "UUID",
-			columnTypeBinary:   "BLOB",
-			columnTypeGeometry: "GEOMETRY",
-			columnTypePoint:    "POINT",
+		colType, ok := map[columnType]string{
+			columnTypeBoolean:    "BOOLEAN",
+			columnTypeLongText:   "LONGTEXT",
+			columnTypeText:       "TEXT",
+			columnTypeMediumText: "MEDIUMTEXT",
+			columnTypeTinyText:   "TINYTEXT",
+			columnTypeDate:       "DATE",
+			columnTypeYear:       "YEAR",
+			columnTypeJSON:       "JSON",
+			columnTypeJSONB:      "JSON",
+			columnTypeUUID:       "UUID",
+			columnTypeBinary:     "BLOB",
+			columnTypeGeometry:   "GEOMETRY",
+			columnTypePoint:      "POINT",
 		}[col.columnType]
+		if !ok {
+			return "ERROR: Unknown column type " + string(col.columnType)
+		}
+		return colType
 	}
 }
 

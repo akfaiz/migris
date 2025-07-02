@@ -415,7 +415,7 @@ func (g *pgGrammar) getType(col *columnDefinition) string {
 		}
 		return "VARCHAR(255) CHECK (" + col.name + " IN (" + strings.Join(enumValues, ", ") + "))"
 	default:
-		return map[columnType]string{
+		colType, ok := map[columnType]string{
 			columnTypeBoolean:    "BOOLEAN",
 			columnTypeLongText:   "TEXT",
 			columnTypeText:       "TEXT",
@@ -430,5 +430,9 @@ func (g *pgGrammar) getType(col *columnDefinition) string {
 			columnTypeUUID:       "UUID",
 			columnTypeBinary:     "BYTEA",
 		}[col.columnType]
+		if !ok {
+			return "ERROR: Unknown column type " + string(col.columnType)
+		}
+		return colType
 	}
 }

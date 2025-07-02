@@ -19,33 +19,33 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 		{
 			name:  "Create simple table",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.ID()
-				bp.String("name", 255)
-				bp.String("email", 255).Unique()
-				bp.String("password").Nullable()
-				bp.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-				bp.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+			blueprint: func(table *Blueprint) {
+				table.ID()
+				table.String("name", 255)
+				table.String("email", 255).Unique()
+				table.String("password").Nullable()
+				table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
+				table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
 			},
 			want: "CREATE TABLE users (id BIGSERIAL NOT NULL PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL UNIQUE, password VARCHAR NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL)",
 		},
 		{
 			name:  "Create table with foreign key",
 			table: "posts",
-			blueprint: func(bp *Blueprint) {
-				bp.ID()
-				bp.Integer("user_id")
-				bp.String("title", 255)
-				bp.Text("content").Nullable()
-				bp.Foreign("user_id").References("id").On("users").OnDelete("CASCADE").OnUpdate("CASCADE")
+			blueprint: func(table *Blueprint) {
+				table.ID()
+				table.Integer("user_id")
+				table.String("title", 255)
+				table.Text("content").Nullable()
+				table.Foreign("user_id").References("id").On("users").OnDelete("CASCADE").OnUpdate("CASCADE")
 			},
 			want: "CREATE TABLE posts (id BIGSERIAL NOT NULL PRIMARY KEY, user_id INTEGER NOT NULL, title VARCHAR(255) NOT NULL, content TEXT NULL)",
 		},
 		{
 			name:  "Create table with column name is empty",
 			table: "empty_column_table",
-			blueprint: func(bp *Blueprint) {
-				bp.String("", 255) // Intentionally empty column name
+			blueprint: func(table *Blueprint) {
+				table.String("", 255) // Intentionally empty column name
 			},
 			wantErr: true,
 		},
@@ -73,20 +73,20 @@ func TestPgGrammar_CompileCreateIfNotExists(t *testing.T) {
 	tests := []struct {
 		name      string
 		table     string
-		blueprint func(bp *Blueprint)
+		blueprint func(table *Blueprint)
 		want      string
 		wantErr   bool
 	}{
 		{
 			name:  "Create simple table if not exists",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.ID()
-				bp.String("name", 255)
-				bp.String("email", 255).Unique()
-				bp.String("password").Nullable()
-				bp.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-				bp.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+			blueprint: func(table *Blueprint) {
+				table.ID()
+				table.String("name", 255)
+				table.String("email", 255).Unique()
+				table.String("password").Nullable()
+				table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
+				table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
 			},
 			want:    "CREATE TABLE IF NOT EXISTS users (id BIGSERIAL NOT NULL PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL UNIQUE, password VARCHAR NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL)",
 			wantErr: false,
@@ -94,8 +94,8 @@ func TestPgGrammar_CompileCreateIfNotExists(t *testing.T) {
 		{
 			name:  "Create table with column name is empty",
 			table: "empty_column_table",
-			blueprint: func(bp *Blueprint) {
-				bp.String("", 255) // Intentionally empty column name
+			blueprint: func(table *Blueprint) {
+				table.String("", 255) // Intentionally empty column name
 			},
 			wantErr: true,
 		},
@@ -123,15 +123,15 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 	tests := []struct {
 		name      string
 		table     string
-		blueprint func(bp *Blueprint)
+		blueprint func(table *Blueprint)
 		want      string
 		wantErr   bool
 	}{
 		{
 			name:  "Add single column",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.String("phone", 20)
+			blueprint: func(table *Blueprint) {
+				table.String("phone", 20)
 			},
 			want:    "ALTER TABLE users ADD COLUMN phone VARCHAR(20) NOT NULL",
 			wantErr: false,
@@ -139,10 +139,10 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 		{
 			name:  "Add multiple columns",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.String("phone", 20)
-				bp.String("address", 255).Nullable()
-				bp.Integer("age")
+			blueprint: func(table *Blueprint) {
+				table.String("phone", 20)
+				table.String("address", 255).Nullable()
+				table.Integer("age")
 			},
 			want:    "ALTER TABLE users ADD COLUMN phone VARCHAR(20) NOT NULL, ADD COLUMN address VARCHAR(255) NULL, ADD COLUMN age INTEGER NOT NULL",
 			wantErr: false,
@@ -150,8 +150,8 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 		{
 			name:  "Add column with default value",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.Boolean("active").Default(true)
+			blueprint: func(table *Blueprint) {
+				table.Boolean("active").Default(true)
 			},
 			want:    "ALTER TABLE users ADD COLUMN active BOOLEAN DEFAULT true NOT NULL",
 			wantErr: false,
@@ -159,8 +159,8 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 		{
 			name:  "Add column with comment",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.String("notes", 500).Comment("User notes")
+			blueprint: func(table *Blueprint) {
+				table.String("notes", 500).Comment("User notes")
 			},
 			want:    "ALTER TABLE users ADD COLUMN notes VARCHAR(500) NOT NULL COMMENT 'User notes'",
 			wantErr: false,
@@ -168,8 +168,8 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 		{
 			name:  "Add unique column",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.String("username", 50).Unique()
+			blueprint: func(table *Blueprint) {
+				table.String("username", 50).Unique()
 			},
 			want:    "ALTER TABLE users ADD COLUMN username VARCHAR(50) NOT NULL UNIQUE",
 			wantErr: false,
@@ -177,8 +177,8 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 		{
 			name:  "Add primary key column",
 			table: "categories",
-			blueprint: func(bp *Blueprint) {
-				bp.Integer("id").Primary()
+			blueprint: func(table *Blueprint) {
+				table.Integer("id").Primary()
 			},
 			want:    "ALTER TABLE categories ADD COLUMN id INTEGER NOT NULL PRIMARY KEY",
 			wantErr: false,
@@ -186,8 +186,8 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 		{
 			name:  "Add auto increment column",
 			table: "logs",
-			blueprint: func(bp *Blueprint) {
-				bp.BigInteger("id").AutoIncrement()
+			blueprint: func(table *Blueprint) {
+				table.BigInteger("id").AutoIncrement()
 			},
 			want:    "ALTER TABLE logs ADD COLUMN id BIGSERIAL NOT NULL",
 			wantErr: false,
@@ -195,8 +195,8 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 		{
 			name:  "Add complex column with all attributes",
 			table: "products",
-			blueprint: func(bp *Blueprint) {
-				bp.Decimal("price", 10, 2).Default(0).Comment("Product price")
+			blueprint: func(table *Blueprint) {
+				table.Decimal("price", 10, 2).Default(0).Comment("Product price")
 			},
 			want:    "ALTER TABLE products ADD COLUMN price DECIMAL(10, 2) DEFAULT 0 NOT NULL COMMENT 'Product price'",
 			wantErr: false,
@@ -204,9 +204,9 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 		{
 			name:  "Add timestamp columns",
 			table: "orders",
-			blueprint: func(bp *Blueprint) {
-				bp.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-				bp.Timestamp("updated_at").Default("CURRENT_TIMESTAMP").Nullable()
+			blueprint: func(table *Blueprint) {
+				table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
+				table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP").Nullable()
 			},
 			want:    "ALTER TABLE orders ADD COLUMN created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, ADD COLUMN updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NULL",
 			wantErr: false,
@@ -214,11 +214,11 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 		{
 			name:  "Add different data types",
 			table: "mixed_table",
-			blueprint: func(bp *Blueprint) {
-				bp.Text("description")
-				bp.JSON("metadata").Nullable()
-				bp.UUID("reference_id")
-				bp.Date("event_date")
+			blueprint: func(table *Blueprint) {
+				table.Text("description")
+				table.JSON("metadata").Nullable()
+				table.UUID("reference_id")
+				table.Date("event_date")
 			},
 			want:    "ALTER TABLE mixed_table ADD COLUMN description TEXT NOT NULL, ADD COLUMN metadata JSON NULL, ADD COLUMN reference_id UUID NOT NULL, ADD COLUMN event_date DATE NOT NULL",
 			wantErr: false,
@@ -226,23 +226,23 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 		{
 			name:      "No columns to add",
 			table:     "users",
-			blueprint: func(bp *Blueprint) {},
+			blueprint: func(table *Blueprint) {},
 			want:      "",
 			wantErr:   false,
 		},
 		{
 			name:  "Error on empty column name",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.String("", 255) // Intentionally empty column name
+			blueprint: func(table *Blueprint) {
+				table.String("", 255) // Intentionally empty column name
 			},
 			wantErr: true,
 		},
 		{
 			name:  "Add enum column",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.Enum("status", []string{"active", "inactive", "pending"})
+			blueprint: func(table *Blueprint) {
+				table.Enum("status", []string{"active", "inactive", "pending"})
 			},
 			want:    "ALTER TABLE users ADD COLUMN status VARCHAR(255) CHECK (status IN ('active', 'inactive', 'pending')) NOT NULL",
 			wantErr: false,
@@ -250,8 +250,8 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 		{
 			name:  "Add geography column",
 			table: "locations",
-			blueprint: func(bp *Blueprint) {
-				bp.Geography("coordinates", "POINT", 4326)
+			blueprint: func(table *Blueprint) {
+				table.Geography("coordinates", "POINT", 4326)
 			},
 			want:    "ALTER TABLE locations ADD COLUMN coordinates GEOGRAPHY(POINT, 4326) NOT NULL",
 			wantErr: false,
@@ -287,25 +287,25 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 		{
 			name:  "Change single column type",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.String("email", 500).Nullable().Change()
+			blueprint: func(table *Blueprint) {
+				table.String("email", 500).Nullable().Change()
 			},
 			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email DROP NOT NULL"},
 		},
 		{
 			name:  "Change column with default value",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.String("email", 500).Default("user@mail.com").Change()
+			blueprint: func(table *Blueprint) {
+				table.String("email", 500).Default("user@mail.com").Change()
 			},
 			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email SET DEFAULT 'user@mail.com'"},
 		},
 		{
 			name:  "Change multiple columns",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.String("email", 500).Nullable().Change()
-				bp.String("name", 255).Default("Anonymous").Change()
+			blueprint: func(table *Blueprint) {
+				table.String("email", 500).Nullable().Change()
+				table.String("name", 255).Default("Anonymous").Change()
 			},
 			want: []string{
 				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email DROP NOT NULL",
@@ -315,16 +315,16 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 		{
 			name:  "Drop default value from column",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.String("email", 500).Default(nil).Change()
+			blueprint: func(table *Blueprint) {
+				table.String("email", 500).Default(nil).Change()
 			},
 			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email DROP DEFAULT"},
 		},
 		{
 			name:  "Add comment to column",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.String("email", 500).Comment("User email address").Change()
+			blueprint: func(table *Blueprint) {
+				table.String("email", 500).Comment("User email address").Change()
 			},
 			want: []string{
 				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500)",
@@ -334,31 +334,31 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 		{
 			name:  "Remove comment from column",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.String("email", 500).Comment("").Change()
+			blueprint: func(table *Blueprint) {
+				table.String("email", 500).Comment("").Change()
 			},
 			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500)", "COMMENT ON COLUMN users.email IS NULL"},
 		},
 		{
 			name:  "Set column to not nullable",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.String("email", 500).Nullable(false).Change()
+			blueprint: func(table *Blueprint) {
+				table.String("email", 500).Nullable(false).Change()
 			},
 			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email SET NOT NULL"},
 		},
 		{
 			name:  "Column name with empty string",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.String("", 255).Change() // Intentionally empty column name
+			blueprint: func(table *Blueprint) {
+				table.String("", 255).Change() // Intentionally empty column name
 			},
 			wantErr: true,
 		},
 		{
 			name:      "No changes",
 			table:     "users",
-			blueprint: func(bp *Blueprint) {},
+			blueprint: func(table *Blueprint) {},
 			wantErr:   false,
 		},
 	}
@@ -482,49 +482,49 @@ func TestPgGrammar_GetColumns(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		blueprint func(bp *Blueprint)
+		blueprint func(table *Blueprint)
 		want      []string
 		wantErr   bool
 	}{
 		{
 			name: "Simple column",
-			blueprint: func(bp *Blueprint) {
-				bp.String("name", 255)
+			blueprint: func(table *Blueprint) {
+				table.String("name", 255)
 			},
 			want: []string{"name VARCHAR(255) NOT NULL"},
 		},
 		{
 			name: "Nullable column",
-			blueprint: func(bp *Blueprint) {
-				bp.String("email", 255).Nullable()
+			blueprint: func(table *Blueprint) {
+				table.String("email", 255).Nullable()
 			},
 			want: []string{"email VARCHAR(255) NULL"},
 		},
 		{
 			name: "Column with default value",
-			blueprint: func(bp *Blueprint) {
-				bp.Boolean("active").Default(true)
+			blueprint: func(table *Blueprint) {
+				table.Boolean("active").Default(true)
 			},
 			want: []string{"active BOOLEAN DEFAULT true NOT NULL"},
 		},
 		{
 			name: "Column with comment",
-			blueprint: func(bp *Blueprint) {
-				bp.String("description", 500).Comment("User description")
+			blueprint: func(table *Blueprint) {
+				table.String("description", 500).Comment("User description")
 			},
 			want: []string{"description VARCHAR(500) NOT NULL COMMENT 'User description'"},
 		},
 		{
 			name: "Primary key column",
-			blueprint: func(bp *Blueprint) {
-				bp.Integer("id").Primary()
+			blueprint: func(table *Blueprint) {
+				table.Integer("id").Primary()
 			},
 			want: []string{"id INTEGER NOT NULL PRIMARY KEY"},
 		},
 		{
 			name: "Error on empty column",
-			blueprint: func(bp *Blueprint) {
-				bp.String("", 255) // Intentionally empty column name
+			blueprint: func(table *Blueprint) {
+				table.String("", 255) // Intentionally empty column name
 			},
 			wantErr: true,
 		},
@@ -550,15 +550,15 @@ func TestPgGrammar_CompileDropColumn(t *testing.T) {
 	tests := []struct {
 		name      string
 		table     string
-		blueprint func(bp *Blueprint)
+		blueprint func(table *Blueprint)
 		want      string
 		wantErr   bool
 	}{
 		{
 			name:  "Drop single column",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.DropColumn("email")
+			blueprint: func(table *Blueprint) {
+				table.DropColumn("email")
 			},
 			want:    "ALTER TABLE users DROP COLUMN email",
 			wantErr: false,
@@ -566,8 +566,8 @@ func TestPgGrammar_CompileDropColumn(t *testing.T) {
 		{
 			name:  "Drop multiple columns",
 			table: "users",
-			blueprint: func(bp *Blueprint) {
-				bp.DropColumn("email", "phone", "address")
+			blueprint: func(table *Blueprint) {
+				table.DropColumn("email", "phone", "address")
 			},
 			want:    "ALTER TABLE users DROP COLUMN email, DROP COLUMN phone, DROP COLUMN address",
 			wantErr: false,
@@ -575,7 +575,7 @@ func TestPgGrammar_CompileDropColumn(t *testing.T) {
 		{
 			name:      "No columns to drop",
 			table:     "users",
-			blueprint: func(bp *Blueprint) {},
+			blueprint: func(table *Blueprint) {},
 			want:      "",
 			wantErr:   false,
 		},
@@ -1520,7 +1520,7 @@ func TestPgGrammar_GetType(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		blueprint func(bp *Blueprint)
+		blueprint func(table *Blueprint)
 		want      string
 	}{
 		{
@@ -1805,36 +1805,36 @@ func TestPgGrammar_GetType(t *testing.T) {
 		},
 		{
 			name: "Geography type",
-			blueprint: func(bp *Blueprint) {
-				bp.Geography("location", "POINT", 4326)
+			blueprint: func(table *Blueprint) {
+				table.Geography("location", "POINT", 4326)
 			},
 			want: "GEOGRAPHY(POINT, 4326)",
 		},
 		{
 			name: "Geometry type with SRID",
-			blueprint: func(bp *Blueprint) {
-				bp.Geometry("shape", "POLYGON", 4326)
+			blueprint: func(table *Blueprint) {
+				table.Geometry("shape", "POLYGON", 4326)
 			},
 			want: "GEOMETRY(POLYGON, 4326)",
 		},
 		{
 			name: "Geometry type without SRID",
-			blueprint: func(bp *Blueprint) {
-				bp.Geometry("shape", "POLYGON")
+			blueprint: func(table *Blueprint) {
+				table.Geometry("shape", "POLYGON")
 			},
 			want: "GEOMETRY(POLYGON)",
 		},
 		{
 			name: "Enum type",
-			blueprint: func(bp *Blueprint) {
-				bp.Enum("status", []string{"active", "inactive"})
+			blueprint: func(table *Blueprint) {
+				table.Enum("status", []string{"active", "inactive"})
 			},
 			want: "VARCHAR(255) CHECK (status IN ('active', 'inactive'))",
 		},
 		{
 			name: "Enum with empty values",
-			blueprint: func(bp *Blueprint) {
-				bp.Enum("status", []string{})
+			blueprint: func(table *Blueprint) {
+				table.Enum("status", []string{})
 			},
 			want: "VARCHAR(255)",
 		},

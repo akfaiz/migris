@@ -36,9 +36,6 @@ func (g *baseGrammar) quoteString(s string) string {
 }
 
 func (g *baseGrammar) prefixArray(prefix string, items []string) []string {
-	if len(items) == 0 {
-		return nil
-	}
 	prefixed := make([]string, len(items))
 	for i, item := range items {
 		prefixed[i] = fmt.Sprintf("%s%s", prefix, item)
