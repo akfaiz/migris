@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -131,7 +132,7 @@ func (g *mysqlGrammar) compileChange(bp *Blueprint) ([]string, error) {
 			}
 		}
 		if col.hasCommand("default") {
-			if col.defaultVal != nil {
+			if col.defaultValue != nil {
 				sql += fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col))
 			} else {
 				sql += " DEFAULT NULL"
@@ -195,63 +196,64 @@ func (g *mysqlGrammar) compileRenameColumn(blueprint *Blueprint, oldName, newNam
 }
 
 func (g *mysqlGrammar) compileIndex(blueprint *Blueprint, index *indexDefinition) (string, error) {
-	if index == nil || len(index.columns) == 0 {
-		return "", fmt.Errorf("index definition cannot be nil or empty")
+	if slices.Contains(index.columns, "") {
+		return "", fmt.Errorf("index column cannot be empty")
 	}
 
 	indexName := index.name
 	if indexName == "" {
 		indexName = g.createIndexName(blueprint, index)
 	}
-	columns := strings.Join(index.columns, ", ")
 
-	sql := fmt.Sprintf("CREATE INDEX %s ON %s (%s)", indexName, blueprint.name, columns)
+	sql := fmt.Sprintf("CREATE INDEX %s ON %s (%s)", indexName, blueprint.name, g.columnize(index.columns))
 	if index.algorithm != "" {
 		sql += fmt.Sprintf(" USING %s", index.algorithm)
 	}
+
 	return sql, nil
 }
 
 func (g *mysqlGrammar) compileUnique(blueprint *Blueprint, index *indexDefinition) (string, error) {
-	if index == nil || len(index.columns) == 0 {
-		return "", fmt.Errorf("unique index definition cannot be nil or empty")
+	if slices.Contains(index.columns, "") {
+		return "", fmt.Errorf("unique column cannot be empty")
 	}
 
 	indexName := index.name
 	if indexName == "" {
 		indexName = g.createIndexName(blueprint, index)
 	}
-	columns := strings.Join(index.columns, ", ")
+	sql := fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (%s)", indexName, blueprint.name, g.columnize(index.columns))
+	if index.algorithm != "" {
+		sql += fmt.Sprintf(" USING %s", index.algorithm)
+	}
 
-	return fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (%s)", indexName, blueprint.name, columns), nil
+	return sql, nil
 }
 
 func (g *mysqlGrammar) compilePrimary(blueprint *Blueprint, index *indexDefinition) (string, error) {
-	if index == nil || len(index.columns) == 0 {
-		return "", fmt.Errorf("primary key index definition cannot be nil or empty")
+	if slices.Contains(index.columns, "") {
+		return "", fmt.Errorf("primary key column cannot be empty")
 	}
 
 	indexName := index.name
 	if indexName == "" {
 		indexName = g.createIndexName(blueprint, index)
 	}
-	columns := strings.Join(index.columns, ", ")
 
-	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, columns), nil
+	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, g.columnize(index.columns)), nil
 }
 
 func (g *mysqlGrammar) compileFullText(blueprint *Blueprint, index *indexDefinition) (string, error) {
-	if index == nil || len(index.columns) == 0 {
-		return "", fmt.Errorf("fulltext index definition cannot be nil or empty")
+	if slices.Contains(index.columns, "") {
+		return "", fmt.Errorf("fulltext index column cannot be empty")
 	}
 
 	indexName := index.name
 	if indexName == "" {
 		indexName = g.createIndexName(blueprint, index)
 	}
-	columns := strings.Join(index.columns, ", ")
 
-	return fmt.Sprintf("CREATE FULLTEXT INDEX %s ON %s (%s)", indexName, blueprint.name, columns), nil
+	return fmt.Sprintf("CREATE FULLTEXT INDEX %s ON %s (%s)", indexName, blueprint.name, g.columnize(index.columns)), nil
 }
 
 func (g *mysqlGrammar) compileDropIndex(indexName string) (string, error) {
@@ -301,10 +303,14 @@ func (g *mysqlGrammar) compileForeign(blueprint *Blueprint, foreignKey *foreignK
 	if foreignKey.onUpdate != "" {
 		onUpdate = fmt.Sprintf(" ON UPDATE %s", foreignKey.onUpdate)
 	}
+	constaintName := foreignKey.constaintName
+	if constaintName == "" {
+		constaintName = g.createForeignKeyName(blueprint, foreignKey)
+	}
 
 	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(%s)%s%s",
 		blueprint.name,
-		g.createForeignKeyName(blueprint, foreignKey),
+		constaintName,
 		foreignKey.column,
 		foreignKey.on,
 		foreignKey.references,
@@ -327,8 +333,11 @@ func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 			return nil, fmt.Errorf("column name cannot be empty")
 		}
 		sql := col.name + " " + g.getType(col)
-		if col.defaultVal != nil {
+		if col.defaultValue != nil {
 			sql += fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col))
+		}
+		if col.onUpdateValue != "" {
+			sql += fmt.Sprintf(" ON UPDATE %s", col.onUpdateValue)
 		}
 		if col.nullable {
 			sql += " NULL"

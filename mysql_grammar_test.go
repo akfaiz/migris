@@ -203,13 +203,11 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:  "no changed columns returns nil",
-			table: "users",
-			blueprint: func(table *Blueprint) {
-				// No changed columns
-			},
-			want:    nil,
-			wantErr: false,
+			name:      "no changed columns returns nil",
+			table:     "users",
+			blueprint: func(table *Blueprint) {},
+			want:      nil,
+			wantErr:   false,
 		},
 		{
 			name:  "change single column type",
@@ -618,19 +616,17 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 	g := newMysqlGrammar()
 
 	tests := []struct {
-		name       string
-		table      string
-		foreignKey *foreignKeyDefinition
-		want       string
-		wantErr    bool
+		name      string
+		table     string
+		blueprint func(table *Blueprint)
+		want      string
+		wantErr   bool
 	}{
 		{
 			name:  "basic foreign key",
 			table: "users",
-			foreignKey: &foreignKeyDefinition{
-				column:     "company_id",
-				on:         "companies",
-				references: "id",
+			blueprint: func(table *Blueprint) {
+				table.Foreign("company_id").References("id").On("companies")
 			},
 			want:    "ALTER TABLE users ADD CONSTRAINT fk_users_companies FOREIGN KEY (company_id) REFERENCES companies(id)",
 			wantErr: false,
@@ -638,11 +634,8 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 		{
 			name:  "foreign key with on delete cascade",
 			table: "users",
-			foreignKey: &foreignKeyDefinition{
-				column:     "company_id",
-				on:         "companies",
-				references: "id",
-				onDelete:   "CASCADE",
+			blueprint: func(table *Blueprint) {
+				table.Foreign("company_id").References("id").On("companies").CascadeOnDelete()
 			},
 			want:    "ALTER TABLE users ADD CONSTRAINT fk_users_companies FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE",
 			wantErr: false,
@@ -650,11 +643,8 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 		{
 			name:  "foreign key with on update cascade",
 			table: "users",
-			foreignKey: &foreignKeyDefinition{
-				column:     "company_id",
-				on:         "companies",
-				references: "id",
-				onUpdate:   "CASCADE",
+			blueprint: func(table *Blueprint) {
+				table.Foreign("company_id").References("id").On("companies").CascadeOnUpdate()
 			},
 			want:    "ALTER TABLE users ADD CONSTRAINT fk_users_companies FOREIGN KEY (company_id) REFERENCES companies(id) ON UPDATE CASCADE",
 			wantErr: false,
@@ -662,12 +652,9 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 		{
 			name:  "foreign key with both on delete and on update",
 			table: "users",
-			foreignKey: &foreignKeyDefinition{
-				column:     "company_id",
-				on:         "companies",
-				references: "id",
-				onDelete:   "CASCADE",
-				onUpdate:   "SET NULL",
+			blueprint: func(table *Blueprint) {
+				table.Foreign("company_id").References("id").On("companies").
+					CascadeOnDelete().NullOnUpdate()
 			},
 			want:    "ALTER TABLE users ADD CONSTRAINT fk_users_companies FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE ON UPDATE SET NULL",
 			wantErr: false,
@@ -675,11 +662,8 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 		{
 			name:  "foreign key with on delete restrict",
 			table: "orders",
-			foreignKey: &foreignKeyDefinition{
-				column:     "user_id",
-				on:         "users",
-				references: "id",
-				onDelete:   "RESTRICT",
+			blueprint: func(table *Blueprint) {
+				table.Foreign("user_id").References("id").On("users").RestrictOnDelete()
 			},
 			want:    "ALTER TABLE orders ADD CONSTRAINT fk_orders_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT",
 			wantErr: false,
@@ -687,11 +671,8 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 		{
 			name:  "foreign key with on delete set null",
 			table: "posts",
-			foreignKey: &foreignKeyDefinition{
-				column:     "author_id",
-				on:         "users",
-				references: "id",
-				onDelete:   "SET NULL",
+			blueprint: func(table *Blueprint) {
+				table.Foreign("author_id").References("id").On("users").NullOnDelete()
 			},
 			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL",
 			wantErr: false,
@@ -699,40 +680,32 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 		{
 			name:  "empty column should return error",
 			table: "users",
-			foreignKey: &foreignKeyDefinition{
-				column:     "",
-				on:         "companies",
-				references: "id",
+			blueprint: func(table *Blueprint) {
+				table.Foreign("").References("id").On("companies")
 			},
 			wantErr: true,
 		},
 		{
 			name:  "empty on table should return error",
 			table: "users",
-			foreignKey: &foreignKeyDefinition{
-				column:     "company_id",
-				on:         "",
-				references: "id",
+			blueprint: func(table *Blueprint) {
+				table.Foreign("company_id").References("id").On("")
 			},
 			wantErr: true,
 		},
 		{
 			name:  "empty references should return error",
 			table: "users",
-			foreignKey: &foreignKeyDefinition{
-				column:     "company_id",
-				on:         "companies",
-				references: "",
+			blueprint: func(table *Blueprint) {
+				table.Foreign("company_id").References("").On("companies")
 			},
 			wantErr: true,
 		},
 		{
 			name:  "all empty values should return error",
 			table: "users",
-			foreignKey: &foreignKeyDefinition{
-				column:     "",
-				on:         "",
-				references: "",
+			blueprint: func(table *Blueprint) {
+				table.Foreign("").References("").On("")
 			},
 			wantErr: true,
 		},
@@ -741,7 +714,8 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
-			got, err := g.compileForeign(bp, tt.foreignKey)
+			tt.blueprint(bp)
+			got, err := g.compileForeign(bp, bp.foreignKeys[0])
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -787,6 +761,1026 @@ func TestMysqlGrammar_CompileDropForeign(t *testing.T) {
 			}
 			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
+		})
+	}
+}
+
+func TestMysqlGrammar_CompileIndex(t *testing.T) {
+	g := newMysqlGrammar()
+
+	tests := []struct {
+		name      string
+		table     string
+		blueprint func(table *Blueprint)
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:  "basic index on single column",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.Index("email")
+			},
+			want:    "CREATE INDEX idx_users_email ON users (email)",
+			wantErr: false,
+		},
+		{
+			name:  "index on multiple columns",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.Index("first_name", "last_name")
+			},
+			want:    "CREATE INDEX idx_users_first_name_last_name ON users (first_name, last_name)",
+			wantErr: false,
+		},
+		{
+			name:  "index with custom name",
+			table: "products",
+			blueprint: func(table *Blueprint) {
+				table.Index("category_id").Name("idx_product_category")
+			},
+			want:    "CREATE INDEX idx_product_category ON products (category_id)",
+			wantErr: false,
+		},
+		{
+			name:  "index with algorithm",
+			table: "logs",
+			blueprint: func(table *Blueprint) {
+				table.Index("created_at").Algorithm("BTREE")
+			},
+			want:    "CREATE INDEX idx_logs_created_at ON logs (created_at) USING BTREE",
+			wantErr: false,
+		},
+		{
+			name:  "index with custom name and algorithm",
+			table: "orders",
+			blueprint: func(table *Blueprint) {
+				table.Index("status", "created_at").Name("idx_order_status_date").Algorithm("HASH")
+			},
+			want:    "CREATE INDEX idx_order_status_date ON orders (status, created_at) USING HASH",
+			wantErr: false,
+		},
+		{
+			name:  "empty columns should return error",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.Index("")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &Blueprint{name: tt.table}
+			tt.blueprint(bp)
+			got, err := g.compileIndex(bp, bp.indexes[0])
+			if tt.wantErr {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				return
+			}
+			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
+		})
+	}
+}
+
+func TestMysqlGrammar_CompileUnique(t *testing.T) {
+	g := newMysqlGrammar()
+
+	tests := []struct {
+		name      string
+		table     string
+		blueprint func(table *Blueprint)
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:  "basic unique index on single column",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.Unique("email")
+			},
+			want:    "CREATE UNIQUE INDEX uk_users_email ON users (email)",
+			wantErr: false,
+		},
+		{
+			name:  "unique index on multiple columns",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.Unique("first_name", "last_name")
+			},
+			want:    "CREATE UNIQUE INDEX uk_users_first_name_last_name ON users (first_name, last_name)",
+			wantErr: false,
+		},
+		{
+			name:  "unique index with custom name",
+			table: "products",
+			blueprint: func(table *Blueprint) {
+				table.Unique("sku").Name("unique_product_sku")
+			},
+			want:    "CREATE UNIQUE INDEX unique_product_sku ON products (sku)",
+			wantErr: false,
+		},
+		{
+			name:  "unique index with algorithm",
+			table: "logs",
+			blueprint: func(table *Blueprint) {
+				table.Unique("transaction_id").Algorithm("BTREE")
+			},
+			want:    "CREATE UNIQUE INDEX uk_logs_transaction_id ON logs (transaction_id) USING BTREE",
+			wantErr: false,
+		},
+		{
+			name:  "unique index with custom name and algorithm",
+			table: "orders",
+			blueprint: func(table *Blueprint) {
+				table.Unique("order_number", "customer_id").Name("unique_order_customer").Algorithm("HASH")
+			},
+			want:    "CREATE UNIQUE INDEX unique_order_customer ON orders (order_number, customer_id) USING HASH",
+			wantErr: false,
+		},
+		{
+			name:  "empty column should return error",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.Unique("")
+			},
+			wantErr: true,
+		},
+		{
+			name:  "one empty column among multiple should return error",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.Unique("email", "", "username")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &Blueprint{name: tt.table}
+			tt.blueprint(bp)
+			got, err := g.compileUnique(bp, bp.indexes[0])
+			if tt.wantErr {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				return
+			}
+			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
+		})
+	}
+}
+
+func TestMysqlGrammar_CompilePrimary(t *testing.T) {
+	g := newMysqlGrammar()
+
+	tests := []struct {
+		name      string
+		table     string
+		blueprint func(table *Blueprint)
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:  "basic primary key on single column",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.Primary("id")
+			},
+			want:    "ALTER TABLE users ADD CONSTRAINT pk_users PRIMARY KEY (id)",
+			wantErr: false,
+		},
+		{
+			name:  "composite primary key on multiple columns",
+			table: "order_items",
+			blueprint: func(table *Blueprint) {
+				table.Primary("order_id", "product_id")
+			},
+			want:    "ALTER TABLE order_items ADD CONSTRAINT pk_order_items PRIMARY KEY (order_id, product_id)",
+			wantErr: false,
+		},
+		{
+			name:  "primary key with custom name",
+			table: "products",
+			blueprint: func(table *Blueprint) {
+				table.Primary("sku").Name("primary_product_sku")
+			},
+			want:    "ALTER TABLE products ADD CONSTRAINT primary_product_sku PRIMARY KEY (sku)",
+			wantErr: false,
+		},
+		{
+			name:  "primary key on three columns",
+			table: "user_permissions",
+			blueprint: func(table *Blueprint) {
+				table.Primary("user_id", "resource_id", "permission_id")
+			},
+			want:    "ALTER TABLE user_permissions ADD CONSTRAINT pk_user_permissions PRIMARY KEY (user_id, resource_id, permission_id)",
+			wantErr: false,
+		},
+		{
+			name:  "primary key with custom name on multiple columns",
+			table: "audit_logs",
+			blueprint: func(table *Blueprint) {
+				table.Primary("timestamp", "user_id", "action").Name("pk_audit_composite")
+			},
+			want:    "ALTER TABLE audit_logs ADD CONSTRAINT pk_audit_composite PRIMARY KEY (timestamp, user_id, action)",
+			wantErr: false,
+		},
+		{
+			name:  "empty column should return error",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.Primary("")
+			},
+			wantErr: true,
+		},
+		{
+			name:  "one empty column among multiple should return error",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.Primary("id", "", "email")
+			},
+			wantErr: true,
+		},
+		{
+			name:  "empty column in the middle should return error",
+			table: "orders",
+			blueprint: func(table *Blueprint) {
+				table.Primary("user_id", "", "order_number")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &Blueprint{name: tt.table}
+			tt.blueprint(bp)
+			got, err := g.compilePrimary(bp, bp.indexes[0])
+			if tt.wantErr {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				return
+			}
+			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
+		})
+	}
+}
+
+func TestMysqlGrammar_CompileFullText(t *testing.T) {
+	g := newMysqlGrammar()
+
+	tests := []struct {
+		name      string
+		table     string
+		blueprint func(table *Blueprint)
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:  "basic fulltext index on single column",
+			table: "articles",
+			blueprint: func(table *Blueprint) {
+				table.Fulltext("content")
+			},
+			want:    "CREATE FULLTEXT INDEX idx_articles_content ON articles (content)",
+			wantErr: false,
+		},
+		{
+			name:  "fulltext index on multiple columns",
+			table: "posts",
+			blueprint: func(table *Blueprint) {
+				table.Fulltext("title", "content")
+			},
+			want:    "CREATE FULLTEXT INDEX idx_posts_title_content ON posts (title, content)",
+			wantErr: false,
+		},
+		{
+			name:  "fulltext index with custom name",
+			table: "documents",
+			blueprint: func(table *Blueprint) {
+				table.Fulltext("body").Name("fulltext_document_body")
+			},
+			want:    "CREATE FULLTEXT INDEX fulltext_document_body ON documents (body)",
+			wantErr: false,
+		},
+		{
+			name:  "fulltext index on three columns",
+			table: "news",
+			blueprint: func(table *Blueprint) {
+				table.Fulltext("title", "summary", "content")
+			},
+			want:    "CREATE FULLTEXT INDEX idx_news_title_summary_content ON news (title, summary, content)",
+			wantErr: false,
+		},
+		{
+			name:  "fulltext index with custom name on multiple columns",
+			table: "blog_posts",
+			blueprint: func(table *Blueprint) {
+				table.Fulltext("title", "excerpt", "body").Name("ft_blog_search")
+			},
+			want:    "CREATE FULLTEXT INDEX ft_blog_search ON blog_posts (title, excerpt, body)",
+			wantErr: false,
+		},
+		{
+			name:  "empty column should return error",
+			table: "articles",
+			blueprint: func(table *Blueprint) {
+				table.Fulltext("")
+			},
+			wantErr: true,
+		},
+		{
+			name:  "one empty column among multiple should return error",
+			table: "posts",
+			blueprint: func(table *Blueprint) {
+				table.Fulltext("title", "", "content")
+			},
+			wantErr: true,
+		},
+		{
+			name:  "empty column in the middle should return error",
+			table: "documents",
+			blueprint: func(table *Blueprint) {
+				table.Fulltext("title", "", "body")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &Blueprint{name: tt.table}
+			tt.blueprint(bp)
+			got, err := g.compileFullText(bp, bp.indexes[0])
+			if tt.wantErr {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				return
+			}
+			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
+		})
+	}
+}
+
+func TestMysqlGrammar_CompileDropIndex(t *testing.T) {
+	g := newMysqlGrammar()
+
+	tests := []struct {
+		name      string
+		indexName string
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:      "drop index with valid name",
+			indexName: "idx_users_email",
+			want:      "DROP INDEX idx_users_email",
+			wantErr:   false,
+		},
+		{
+			name:      "drop index with underscore name",
+			indexName: "idx_table_column_name",
+			want:      "DROP INDEX idx_table_column_name",
+			wantErr:   false,
+		},
+		{
+			name:      "drop index with numeric name",
+			indexName: "idx_123",
+			want:      "DROP INDEX idx_123",
+			wantErr:   false,
+		},
+		{
+			name:      "drop index with mixed case name",
+			indexName: "IdxUserEmail",
+			want:      "DROP INDEX IdxUserEmail",
+			wantErr:   false,
+		},
+		{
+			name:      "drop index with special characters",
+			indexName: "idx_user$email",
+			want:      "DROP INDEX idx_user$email",
+			wantErr:   false,
+		},
+		{
+			name:      "empty index name should return error",
+			indexName: "",
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := g.compileDropIndex(tt.indexName)
+			if tt.wantErr {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				return
+			}
+			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
+		})
+	}
+}
+
+func TestMysqlGrammar_CompileDropUnique(t *testing.T) {
+	g := newMysqlGrammar()
+
+	tests := []struct {
+		name      string
+		indexName string
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:      "drop unique index with valid name",
+			indexName: "uk_users_email",
+			want:      "DROP INDEX uk_users_email",
+			wantErr:   false,
+		},
+		{
+			name:      "drop unique index with underscore name",
+			indexName: "uk_table_column_name",
+			want:      "DROP INDEX uk_table_column_name",
+			wantErr:   false,
+		},
+		{
+			name:      "drop unique index with numeric name",
+			indexName: "uk_123",
+			want:      "DROP INDEX uk_123",
+			wantErr:   false,
+		},
+		{
+			name:      "drop unique index with mixed case name",
+			indexName: "UkUserEmail",
+			want:      "DROP INDEX UkUserEmail",
+			wantErr:   false,
+		},
+		{
+			name:      "drop unique index with special characters",
+			indexName: "uk_user$email",
+			want:      "DROP INDEX uk_user$email",
+			wantErr:   false,
+		},
+		{
+			name:      "empty unique index name should return error",
+			indexName: "",
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := g.compileDropUnique(tt.indexName)
+			if tt.wantErr {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				return
+			}
+			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
+		})
+	}
+}
+
+func TestMysqlGrammar_CompileDropFulltext(t *testing.T) {
+	g := newMysqlGrammar()
+
+	tests := []struct {
+		name      string
+		indexName string
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:      "drop fulltext index with valid name",
+			indexName: "ft_articles_content",
+			want:      "DROP INDEX ft_articles_content",
+			wantErr:   false,
+		},
+		{
+			name:      "drop fulltext index with underscore name",
+			indexName: "ft_table_column_name",
+			want:      "DROP INDEX ft_table_column_name",
+			wantErr:   false,
+		},
+		{
+			name:      "drop fulltext index with numeric name",
+			indexName: "ft_123",
+			want:      "DROP INDEX ft_123",
+			wantErr:   false,
+		},
+		{
+			name:      "drop fulltext index with mixed case name",
+			indexName: "FtArticleContent",
+			want:      "DROP INDEX FtArticleContent",
+			wantErr:   false,
+		},
+		{
+			name:      "drop fulltext index with special characters",
+			indexName: "ft_article$content",
+			want:      "DROP INDEX ft_article$content",
+			wantErr:   false,
+		},
+		{
+			name:      "empty fulltext index name should return error",
+			indexName: "",
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := g.compileDropFulltext(tt.indexName)
+			if tt.wantErr {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				return
+			}
+			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
+		})
+	}
+}
+
+func TestMysqlGrammar_CompileDropPrimary(t *testing.T) {
+	g := newMysqlGrammar()
+
+	tests := []struct {
+		name      string
+		table     string
+		indexName string
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:      "drop primary key with valid name",
+			table:     "users",
+			indexName: "pk_users",
+			want:      "ALTER TABLE users DROP PRIMARY KEY",
+			wantErr:   false,
+		},
+		{
+			name:      "drop primary key with underscore name",
+			table:     "user_profiles",
+			indexName: "pk_user_profiles",
+			want:      "ALTER TABLE user_profiles DROP PRIMARY KEY",
+			wantErr:   false,
+		},
+		{
+			name:      "drop primary key with numeric name",
+			table:     "table123",
+			indexName: "pk_123",
+			want:      "ALTER TABLE table123 DROP PRIMARY KEY",
+			wantErr:   false,
+		},
+		{
+			name:      "drop primary key with mixed case name",
+			table:     "UserTable",
+			indexName: "PkUserTable",
+			want:      "ALTER TABLE UserTable DROP PRIMARY KEY",
+			wantErr:   false,
+		},
+		{
+			name:      "drop primary key with special characters in name",
+			table:     "orders",
+			indexName: "pk_order$id",
+			want:      "ALTER TABLE orders DROP PRIMARY KEY",
+			wantErr:   false,
+		},
+		{
+			name:      "empty primary key index name should return error",
+			table:     "users",
+			indexName: "",
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &Blueprint{name: tt.table}
+			got, err := g.compileDropPrimary(bp, tt.indexName)
+			if tt.wantErr {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				return
+			}
+			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
+		})
+	}
+}
+
+func TestMysqlGrammar_CompileRenameIndex(t *testing.T) {
+	g := newMysqlGrammar()
+
+	tests := []struct {
+		name    string
+		table   string
+		oldName string
+		newName string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "rename index with valid names",
+			table:   "users",
+			oldName: "idx_users_email",
+			newName: "idx_users_email_address",
+			want:    "ALTER TABLE users RENAME INDEX idx_users_email TO idx_users_email_address",
+			wantErr: false,
+		},
+		{
+			name:    "rename index with underscore names",
+			table:   "user_profiles",
+			oldName: "idx_user_profiles_name",
+			newName: "idx_user_profiles_full_name",
+			want:    "ALTER TABLE user_profiles RENAME INDEX idx_user_profiles_name TO idx_user_profiles_full_name",
+			wantErr: false,
+		},
+		{
+			name:    "rename index with numeric names",
+			table:   "orders",
+			oldName: "idx_123",
+			newName: "idx_456",
+			want:    "ALTER TABLE orders RENAME INDEX idx_123 TO idx_456",
+			wantErr: false,
+		},
+		{
+			name:    "rename index with mixed case names",
+			table:   "Products",
+			oldName: "IdxProductSku",
+			newName: "IdxProductCode",
+			want:    "ALTER TABLE Products RENAME INDEX IdxProductSku TO IdxProductCode",
+			wantErr: false,
+		},
+		{
+			name:    "rename index with special characters",
+			table:   "logs",
+			oldName: "idx_log$date",
+			newName: "idx_log$timestamp",
+			want:    "ALTER TABLE logs RENAME INDEX idx_log$date TO idx_log$timestamp",
+			wantErr: false,
+		},
+		{
+			name:    "empty old name should return error",
+			table:   "users",
+			oldName: "",
+			newName: "new_index_name",
+			wantErr: true,
+		},
+		{
+			name:    "empty new name should return error",
+			table:   "users",
+			oldName: "old_index_name",
+			newName: "",
+			wantErr: true,
+		},
+		{
+			name:    "both empty names should return error",
+			table:   "users",
+			oldName: "",
+			newName: "",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &Blueprint{name: tt.table}
+			got, err := g.compileRenameIndex(bp, tt.oldName, tt.newName)
+			if tt.wantErr {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				return
+			}
+			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
+		})
+	}
+}
+
+func TestMysqlGrammar_GetType(t *testing.T) {
+	g := newMysqlGrammar()
+
+	tests := []struct {
+		name      string
+		blueprint func(table *Blueprint)
+		want      string
+	}{
+		{
+			name: "custom column type",
+			blueprint: func(table *Blueprint) {
+				table.Column("name", "CUSTOM_TYPE")
+			},
+			want: "CUSTOM_TYPE",
+		},
+		{
+			name: "boolean column type",
+			blueprint: func(table *Blueprint) {
+				table.Boolean("active")
+			},
+			want: "TINYINT(1)",
+		},
+		{
+			name: "char column type",
+			blueprint: func(table *Blueprint) {
+				table.Char("code", 10)
+			},
+			want: "CHAR(10)",
+		},
+		{
+			name: "string column type",
+			blueprint: func(table *Blueprint) {
+				table.String("name", 255)
+			},
+			want: "VARCHAR(255)",
+		},
+		{
+			name: "decimal column type",
+			blueprint: func(table *Blueprint) {
+				table.Decimal("price", 10, 2)
+			},
+			want: "DECIMAL(10, 2)",
+		},
+		{
+			name: "double column type with precision",
+			blueprint: func(table *Blueprint) {
+				table.Double("value", 8, 2)
+			},
+			want: "DOUBLE(8, 2)",
+		},
+		{
+			name: "double column type without precision",
+			blueprint: func(table *Blueprint) {
+				table.Double("value", 0, 0)
+			},
+			want: "DOUBLE",
+		},
+		{
+			name: "float column type with precision",
+			blueprint: func(table *Blueprint) {
+				table.Float("value", 6, 2)
+			},
+			want: "DOUBLE(6, 2)",
+		},
+		{
+			name: "float column type without precision",
+			blueprint: func(table *Blueprint) {
+				table.Float("value", 0, 0)
+			},
+			want: "DOUBLE",
+		},
+		{
+			name: "big integer column type",
+			blueprint: func(table *Blueprint) {
+				table.BigInteger("id")
+			},
+			want: "BIGINT",
+		},
+		{
+			name: "big integer unsigned",
+			blueprint: func(table *Blueprint) {
+				table.BigInteger("id").Unsigned()
+			},
+			want: "BIGINT UNSIGNED",
+		},
+		{
+			name: "big integer auto increment",
+			blueprint: func(table *Blueprint) {
+				table.BigInteger("id").AutoIncrement()
+			},
+			want: "BIGINT AUTO_INCREMENT",
+		},
+		{
+			name: "big integer unsigned auto increment",
+			blueprint: func(table *Blueprint) {
+				table.BigInteger("id").Unsigned().AutoIncrement()
+			},
+			want: "BIGINT UNSIGNED AUTO_INCREMENT",
+		},
+		{
+			name: "integer column type",
+			blueprint: func(table *Blueprint) {
+				table.Integer("count")
+			},
+			want: "INT",
+		},
+		{
+			name: "integer unsigned",
+			blueprint: func(table *Blueprint) {
+				table.Integer("count").Unsigned()
+			},
+			want: "INT UNSIGNED",
+		},
+		{
+			name: "integer auto increment",
+			blueprint: func(table *Blueprint) {
+				table.Integer("id").AutoIncrement()
+			},
+			want: "INT AUTO_INCREMENT",
+		},
+		{
+			name: "small integer column type",
+			blueprint: func(table *Blueprint) {
+				table.SmallInteger("status")
+			},
+			want: "SMALLINT",
+		},
+		{
+			name: "small integer unsigned auto increment",
+			blueprint: func(table *Blueprint) {
+				table.SmallInteger("id").Unsigned().AutoIncrement()
+			},
+			want: "SMALLINT UNSIGNED AUTO_INCREMENT",
+		},
+		{
+			name: "medium integer column type",
+			blueprint: func(table *Blueprint) {
+				table.MediumInteger("value")
+			},
+			want: "MEDIUMINT",
+		},
+		{
+			name: "medium integer unsigned",
+			blueprint: func(table *Blueprint) {
+				table.MediumInteger("value").Unsigned()
+			},
+			want: "MEDIUMINT UNSIGNED",
+		},
+		{
+			name: "tiny integer column type",
+			blueprint: func(table *Blueprint) {
+				table.TinyInteger("flag")
+			},
+			want: "TINYINT",
+		},
+		{
+			name: "tiny integer auto increment",
+			blueprint: func(table *Blueprint) {
+				table.TinyInteger("id").AutoIncrement()
+			},
+			want: "TINYINT AUTO_INCREMENT",
+		},
+		{
+			name: "time column type",
+			blueprint: func(table *Blueprint) {
+				table.Time("created_at")
+			},
+			want: "TIME(0)",
+		},
+		{
+			name: "datetime column type with precision",
+			blueprint: func(table *Blueprint) {
+				table.DateTime("created_at", 6)
+			},
+			want: "DATETIME(6)",
+		},
+		{
+			name: "datetime column type without precision",
+			blueprint: func(table *Blueprint) {
+				table.DateTime("created_at", 0)
+			},
+			want: "DATETIME",
+		},
+		{
+			name: "datetime tz column type with precision",
+			blueprint: func(table *Blueprint) {
+				table.DateTimeTz("created_at", 3)
+			},
+			want: "DATETIME(3)",
+		},
+		{
+			name: "datetime tz column type without precision",
+			blueprint: func(table *Blueprint) {
+				table.DateTimeTz("created_at", 0)
+			},
+			want: "DATETIME",
+		},
+		{
+			name: "timestamp column type with precision",
+			blueprint: func(table *Blueprint) {
+				table.Timestamp("created_at", 6)
+			},
+			want: "TIMESTAMP(6)",
+		},
+		{
+			name: "timestamp column type without precision",
+			blueprint: func(table *Blueprint) {
+				table.Timestamp("created_at", 0)
+			},
+			want: "TIMESTAMP",
+		},
+		{
+			name: "timestamp tz column type with precision",
+			blueprint: func(table *Blueprint) {
+				table.TimestampTz("created_at", 3)
+			},
+			want: "TIMESTAMP(3)",
+		},
+		{
+			name: "timestamp tz column type without precision",
+			blueprint: func(table *Blueprint) {
+				table.TimestampTz("created_at", 0)
+			},
+			want: "TIMESTAMP",
+		},
+		{
+			name: "geography column type",
+			blueprint: func(table *Blueprint) {
+				table.Geography("location", "POINT", 4326)
+			},
+			want: "GEOGRAPHY(POINT, 4326)",
+		},
+		{
+			name: "enum column type",
+			blueprint: func(table *Blueprint) {
+				table.Enum("status", []string{"active", "inactive", "pending"})
+			},
+			want: "ENUM('active','inactive','pending')",
+		},
+		{
+			name: "long text column type",
+			blueprint: func(table *Blueprint) {
+				table.LongText("content")
+			},
+			want: "LONGTEXT",
+		},
+		{
+			name: "text column type",
+			blueprint: func(table *Blueprint) {
+				table.Text("description")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "tiny text column type",
+			blueprint: func(table *Blueprint) {
+				table.TinyText("notes")
+			},
+			want: "TINYTEXT",
+		},
+		{
+			name: "date column type",
+			blueprint: func(table *Blueprint) {
+				table.Date("birth_date")
+			},
+			want: "DATE",
+		},
+		{
+			name: "year column type",
+			blueprint: func(table *Blueprint) {
+				table.Year("graduation_year")
+			},
+			want: "YEAR",
+		},
+		{
+			name: "json column type",
+			blueprint: func(table *Blueprint) {
+				table.JSON("metadata")
+			},
+			want: "JSON",
+		},
+		{
+			name: "jsonb column type",
+			blueprint: func(table *Blueprint) {
+				table.JSONB("data")
+			},
+			want: "JSON",
+		},
+		{
+			name: "uuid column type",
+			blueprint: func(table *Blueprint) {
+				table.UUID("uuid")
+			},
+			want: "UUID",
+		},
+		{
+			name: "binary column type",
+			blueprint: func(table *Blueprint) {
+				table.Binary("data")
+			},
+			want: "BLOB",
+		},
+		{
+			name: "geometry column type",
+			blueprint: func(table *Blueprint) {
+				table.Geometry("shape", "GEOMETRY", 4326)
+			},
+			want: "GEOMETRY",
+		},
+		{
+			name: "point column type",
+			blueprint: func(table *Blueprint) {
+				table.Point("location")
+			},
+			want: "POINT",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &Blueprint{name: "test_table"}
+			tt.blueprint(bp)
+			got := g.getType(bp.columns[0])
+			assert.Equal(t, tt.want, got, "Expected type to match for test case: %s", tt.name)
 		})
 	}
 }

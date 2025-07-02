@@ -6,21 +6,7 @@ import (
 	"log"
 )
 
-func optionalInt(defaultValue int, values ...int) int {
-	if len(values) > 0 {
-		return values[0]
-	}
-	return defaultValue
-}
-
-func optionalString(defaultValue string, values ...string) string {
-	if len(values) > 0 {
-		return values[0]
-	}
-	return defaultValue
-}
-
-func optionalBool(defaultValue bool, values ...bool) bool {
+func optional[T any](defaultValue T, values ...T) T {
 	if len(values) > 0 {
 		return values[0]
 	}
