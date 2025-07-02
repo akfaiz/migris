@@ -1,6 +1,7 @@
 # Schema
+[![Go](https://github.com/ahmadfaizk/schema/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmadfaizk/schema/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ahmadfaizk/schema)](https://goreportcard.com/report/github.com/ahmadfaizk/schema)
-![Coverage](https://img.shields.io/badge/Coverage-81.0%25-brightgreen)
+![Coverage](https://img.shields.io/badge/Coverage-84.8%25-brightgreen)
 [![GoDoc](https://pkg.go.dev/badge/github.com/ahmadfaizk/schema)](https://pkg.go.dev/github.com/ahmadfaizk/schema)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/ahmadfaizk/schema)](https://golang.org/doc/devel/release.html)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
