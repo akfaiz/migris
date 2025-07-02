@@ -1,4 +1,5 @@
 # Schema
+![Coverage](https://img.shields.io/badge/Coverage-81.0%25-brightgreen)
 
 Schema is a fluent, expressive Go library for generating and executing DDL SQL (e.g., `CREATE TABLE`) within Go code — ideal for use with migration tools like [Goose](https://github.com/pressly/goose).
 
