@@ -46,13 +46,20 @@ func (g *baseGrammar) prefixArray(prefix string, items []string) []string {
 	return prefixed
 }
 
+func (g *baseGrammar) columnize(columns []string) string {
+	if len(columns) == 0 {
+		return ""
+	}
+	return strings.Join(columns, ", ")
+}
+
 func (g *baseGrammar) getDefaultValue(col *columnDefinition) string {
-	if col.defaultVal == nil {
+	if col.defaultValue == nil {
 		return "NULL"
 	}
 	useQuote := slices.Contains([]columnType{columnTypeString, columnTypeChar, columnTypeEnum}, col.columnType)
 
-	switch v := col.defaultVal.(type) {
+	switch v := col.defaultValue.(type) {
 	case string:
 		if useQuote {
 			return g.quoteString(v)
@@ -79,7 +86,7 @@ func (g *baseGrammar) createIndexName(blueprint *Blueprint, index *indexDefiniti
 	case indexTypeIndex:
 		return fmt.Sprintf("idx_%s_%s", blueprint.name, strings.Join(index.columns, "_"))
 	case indexTypeFulltext:
-		return fmt.Sprintf("ft_%s_%s", blueprint.name, strings.Join(index.columns, "_"))
+		return fmt.Sprintf("idx_%s_%s", blueprint.name, strings.Join(index.columns, "_"))
 	default:
 		return ""
 	}

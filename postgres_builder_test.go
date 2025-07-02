@@ -57,7 +57,7 @@ func (s *postgresBuilderSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.db = db
-	schema.SetDebug(true)
+	schema.SetDebug(false)
 }
 
 func (s *postgresBuilderSuite) TearDownSuite() {
@@ -89,8 +89,7 @@ func (s *postgresBuilderSuite) TestCreate() {
 			table.String("name", 255)
 			table.String("email", 255).Unique()
 			table.String("password", 255).Nullable()
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamps()
 		})
 		s.NoError(err, "expected no error when creating table with valid parameters")
 	})
@@ -529,7 +528,7 @@ func (s *postgresBuilderSuite) TestHasIndex() {
 			table.Index("company_id", "user_id")
 			table.Unique("order_id").Name("uk_orders_order_id")
 		})
-		s.NoError(err, "expected no error when creating table with index")
+		s.Require().NoError(err, "expected no error when creating table with index")
 
 		exists, err := builder.HasIndex(s.ctx, tx, "orders", []string{"uk_orders_order_id"})
 		s.NoError(err, "expected no error when checking if index exists with valid parameters")
