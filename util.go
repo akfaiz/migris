@@ -19,9 +19,6 @@ func execContext(ctx context.Context, tx *sql.Tx, queries ...string) error {
 			log.Printf("Executing SQL: %s\n", query)
 		}
 		if _, err := tx.ExecContext(ctx, query); err != nil {
-			if debug {
-				log.Printf("Error executing SQL: %s\nError: %v\n", query, err)
-			}
 			return err
 		}
 	}
@@ -32,25 +29,12 @@ func queryRowContext(ctx context.Context, tx *sql.Tx, query string, args ...any)
 	if debug {
 		log.Printf("Executing Query: %s with args: %v\n", query, args)
 	}
-	row := tx.QueryRowContext(ctx, query, args...)
-	if row.Err() != nil {
-		if debug {
-			log.Printf("Error executing Query: %s\nError: %v\n", query, row.Err())
-		}
-	}
-	return row
+	return tx.QueryRowContext(ctx, query, args...)
 }
 
 func queryContext(ctx context.Context, tx *sql.Tx, query string, args ...any) (*sql.Rows, error) {
 	if debug {
 		log.Printf("Executing Query: %s with args: %v\n", query, args)
 	}
-	rows, err := tx.QueryContext(ctx, query, args...)
-	if err != nil {
-		if debug {
-			log.Printf("Error executing Query: %s\nError: %v\n", query, err)
-		}
-		return nil, err
-	}
-	return rows, nil
+	return tx.QueryContext(ctx, query, args...)
 }

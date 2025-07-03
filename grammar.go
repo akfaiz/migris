@@ -20,9 +20,9 @@ type grammar interface {
 	compileUnique(blueprint *Blueprint, index *indexDefinition) (string, error)
 	compilePrimary(blueprint *Blueprint, index *indexDefinition) (string, error)
 	compileFullText(blueprint *Blueprint, index *indexDefinition) (string, error)
-	compileDropIndex(indexName string) (string, error)
-	compileDropUnique(indexName string) (string, error)
-	compileDropFulltext(indexName string) (string, error)
+	compileDropIndex(blueprint *Blueprint, indexName string) (string, error)
+	compileDropUnique(blueprint *Blueprint, indexName string) (string, error)
+	compileDropFulltext(blueprint *Blueprint, indexName string) (string, error)
 	compileDropPrimary(blueprint *Blueprint, indexName string) (string, error)
 	compileRenameIndex(blueprint *Blueprint, oldName, newName string) (string, error)
 	compileForeign(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error)
@@ -36,9 +36,6 @@ func (g *baseGrammar) quoteString(s string) string {
 }
 
 func (g *baseGrammar) prefixArray(prefix string, items []string) []string {
-	if len(items) == 0 {
-		return nil
-	}
 	prefixed := make([]string, len(items))
 	for i, item := range items {
 		prefixed[i] = fmt.Sprintf("%s%s", prefix, item)
@@ -78,20 +75,36 @@ func (g *baseGrammar) getDefaultValue(col *columnDefinition) string {
 }
 
 func (g *baseGrammar) createIndexName(blueprint *Blueprint, index *indexDefinition) string {
+	tableName := blueprint.name
+	if strings.Contains(tableName, ".") {
+		parts := strings.Split(tableName, ".")
+		tableName = parts[len(parts)-1] // Use the last part as the table name
+	}
+
 	switch index.indexType {
 	case indexTypePrimary:
-		return fmt.Sprintf("pk_%s", blueprint.name)
+		return fmt.Sprintf("pk_%s", tableName)
 	case indexTypeUnique:
-		return fmt.Sprintf("uk_%s_%s", blueprint.name, strings.Join(index.columns, "_"))
+		return fmt.Sprintf("uk_%s_%s", tableName, strings.Join(index.columns, "_"))
 	case indexTypeIndex:
-		return fmt.Sprintf("idx_%s_%s", blueprint.name, strings.Join(index.columns, "_"))
+		return fmt.Sprintf("idx_%s_%s", tableName, strings.Join(index.columns, "_"))
 	case indexTypeFulltext:
-		return fmt.Sprintf("idx_%s_%s", blueprint.name, strings.Join(index.columns, "_"))
+		return fmt.Sprintf("idx_%s_%s", tableName, strings.Join(index.columns, "_"))
 	default:
 		return ""
 	}
 }
 
 func (g *baseGrammar) createForeignKeyName(blueprint *Blueprint, foreignKey *foreignKeyDefinition) string {
-	return fmt.Sprintf("fk_%s_%s", blueprint.name, foreignKey.on)
+	tableName := blueprint.name
+	if strings.Contains(tableName, ".") {
+		parts := strings.Split(tableName, ".")
+		tableName = parts[len(parts)-1] // Use the last part as the table name
+	}
+	on := foreignKey.on
+	if strings.Contains(on, ".") {
+		parts := strings.Split(on, ".")
+		on = parts[len(parts)-1] // Use the last part as the column name
+	}
+	return fmt.Sprintf("fk_%s_%s", tableName, on)
 }

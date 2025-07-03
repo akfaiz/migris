@@ -1,6 +1,7 @@
 COVERAGE_FILE := coverage.out
 COVERAGE_HTML := coverage.html
 MIN_COVERAGE  := 80
+JUNIT_FILE	  := junit.xml
 
 FORMAT ?= dots
 
@@ -29,7 +30,7 @@ install:
 .PHONY: test
 test:
 	@echo "Running tests..."
-	gotestsum --format $(FORMAT)  -- -tags musl -cover -race ./... -coverprofile=$(COVERAGE_FILE) -coverpkg=./...
+	gotestsum --format $(FORMAT) --junitfile $(JUNIT_FILE) -- -cover -race ./... -coverprofile=$(COVERAGE_FILE) -coverpkg=./...
 
 .PHONY: coverage
 coverage:

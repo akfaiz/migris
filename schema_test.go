@@ -21,7 +21,8 @@ type schemaTestSuite struct {
 }
 
 func (s *schemaTestSuite) SetupSuite() {
-	s.ctx = context.Background()
+	ctx := context.Background()
+	s.ctx = ctx
 
 	config := parseTestConfig()
 
@@ -36,8 +37,34 @@ func (s *schemaTestSuite) SetupSuite() {
 	s.db = db
 	schema.SetDebug(false)
 
-	err = schema.SetDialect("postgres")
-	s.Require().NoError(err)
+	s.Run("when dialect is not set should return error", func() {
+		err := schema.SetDialect("")
+		s.Error(err)
+		s.ErrorContains(err, "unknown dialect")
+
+		builderFuncs := []func() error{
+			func() error { return schema.Create(ctx, nil, "", nil) },
+			func() error { return schema.CreateIfNotExists(ctx, nil, "", nil) },
+			func() error { return schema.Drop(ctx, nil, "") },
+			func() error { return schema.DropIfExists(ctx, nil, "") },
+			func() error { _, err := schema.GetColumns(ctx, nil, ""); return err },
+			func() error { _, err := schema.GetIndexes(ctx, nil, ""); return err },
+			func() error { _, err := schema.GetTables(ctx, nil); return err },
+			func() error { _, err := schema.HasColumn(ctx, nil, "", ""); return err },
+			func() error { _, err := schema.HasColumns(ctx, nil, "", nil); return err },
+			func() error { _, err := schema.HasIndex(ctx, nil, "", nil); return err },
+			func() error { _, err := schema.HasTable(ctx, nil, ""); return err },
+			func() error { return schema.Rename(ctx, nil, "", "") },
+			func() error { return schema.Table(ctx, nil, "", nil) },
+		}
+		for _, fn := range builderFuncs {
+			s.Error(fn(), "Expected error when dialect is not set")
+		}
+	})
+	s.Run("when dialect is set to postgres should not return error", func() {
+		err = schema.SetDialect("postgres")
+		s.Require().NoError(err)
+	})
 }
 
 func (s *schemaTestSuite) TearDownSuite() {
@@ -108,7 +135,7 @@ func (s *schemaTestSuite) TestCreateIfNotExists() {
 		err := schema.CreateIfNotExists(s.ctx, tx, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name")
-			table.String("email").Unique()
+			table.String("email")
 			table.String("password")
 			table.Timestamp("created_at").UseCurrent()
 			table.Timestamp("updated_at").UseCurrent()

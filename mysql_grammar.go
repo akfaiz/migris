@@ -16,6 +16,10 @@ func newMysqlGrammar() *mysqlGrammar {
 	return &mysqlGrammar{}
 }
 
+func (g *mysqlGrammar) compileCurrentDatabase() string {
+	return "SELECT DATABASE()"
+}
+
 func (g *mysqlGrammar) compileTableExists(database string, table string) (string, error) {
 	return fmt.Sprintf(
 		"SELECT 1 FROM information_schema.tables WHERE table_schema = %s AND table_name = %s AND table_type = 'BASE TABLE'",
@@ -256,25 +260,25 @@ func (g *mysqlGrammar) compileFullText(blueprint *Blueprint, index *indexDefinit
 	return fmt.Sprintf("CREATE FULLTEXT INDEX %s ON %s (%s)", indexName, blueprint.name, g.columnize(index.columns)), nil
 }
 
-func (g *mysqlGrammar) compileDropIndex(indexName string) (string, error) {
+func (g *mysqlGrammar) compileDropIndex(blueprint *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
 		return "", fmt.Errorf("index name cannot be empty")
 	}
-	return fmt.Sprintf("DROP INDEX %s", indexName), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", blueprint.name, indexName), nil
 }
 
-func (g *mysqlGrammar) compileDropUnique(indexName string) (string, error) {
+func (g *mysqlGrammar) compileDropUnique(blueprint *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
 		return "", fmt.Errorf("unique index name cannot be empty")
 	}
-	return fmt.Sprintf("DROP INDEX %s", indexName), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", blueprint.name, indexName), nil
 }
 
-func (g *mysqlGrammar) compileDropFulltext(indexName string) (string, error) {
+func (g *mysqlGrammar) compileDropFulltext(blueprint *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
 		return "", fmt.Errorf("fulltext index name cannot be empty")
 	}
-	return fmt.Sprintf("DROP INDEX %s", indexName), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", blueprint.name, indexName), nil
 }
 
 func (g *mysqlGrammar) compileDropPrimary(blueprint *Blueprint, indexName string) (string, error) {
@@ -333,8 +337,12 @@ func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 			return nil, fmt.Errorf("column name cannot be empty")
 		}
 		sql := col.name + " " + g.getType(col)
-		if col.defaultValue != nil {
-			sql += fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col))
+		if col.hasCommand("default") {
+			if col.defaultValue != nil {
+				sql += fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col))
+			} else {
+				sql += " DEFAULT NULL"
+			}
 		}
 		if col.onUpdateValue != "" {
 			sql += fmt.Sprintf(" ON UPDATE %s", col.onUpdateValue)
@@ -349,9 +357,6 @@ func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 		}
 		if col.primary {
 			sql += " PRIMARY KEY"
-		}
-		if col.unique && col.uniqueIndexName == "" {
-			sql += " UNIQUE"
 		}
 		columns = append(columns, sql)
 	}
@@ -403,20 +408,25 @@ func (g *mysqlGrammar) getType(col *columnDefinition) string {
 	case columnTypeEnum:
 		return fmt.Sprintf("ENUM(%s)", g.quoteString(strings.Join(col.allowedEnums, "','")))
 	default:
-		return map[columnType]string{
-			columnTypeBoolean:  "BOOLEAN",
-			columnTypeLongText: "LONGTEXT",
-			columnTypeText:     "TEXT",
-			columnTypeTinyText: "TINYTEXT",
-			columnTypeDate:     "DATE",
-			columnTypeYear:     "YEAR",
-			columnTypeJSON:     "JSON",
-			columnTypeJSONB:    "JSON",
-			columnTypeUUID:     "UUID",
-			columnTypeBinary:   "BLOB",
-			columnTypeGeometry: "GEOMETRY",
-			columnTypePoint:    "POINT",
+		colType, ok := map[columnType]string{
+			columnTypeBoolean:    "BOOLEAN",
+			columnTypeLongText:   "LONGTEXT",
+			columnTypeText:       "TEXT",
+			columnTypeMediumText: "MEDIUMTEXT",
+			columnTypeTinyText:   "TINYTEXT",
+			columnTypeDate:       "DATE",
+			columnTypeYear:       "YEAR",
+			columnTypeJSON:       "JSON",
+			columnTypeJSONB:      "JSON",
+			columnTypeUUID:       "UUID",
+			columnTypeBinary:     "BLOB",
+			columnTypeGeometry:   "GEOMETRY",
+			columnTypePoint:      "POINT",
 		}[col.columnType]
+		if !ok {
+			return "ERROR: Unknown column type " + string(col.columnType)
+		}
+		return colType
 	}
 }
 

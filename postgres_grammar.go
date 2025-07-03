@@ -243,21 +243,21 @@ func (g *pgGrammar) compileFullText(blueprint *Blueprint, index *indexDefinition
 	return fmt.Sprintf("CREATE INDEX %s ON %s USING GIN (%s)", indexName, blueprint.name, strings.Join(columns, " || ")), nil
 }
 
-func (g *pgGrammar) compileDropIndex(indexName string) (string, error) {
+func (g *pgGrammar) compileDropIndex(_ *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
 		return "", fmt.Errorf("index name cannot be empty for drop operation")
 	}
 	return fmt.Sprintf("DROP INDEX %s", indexName), nil
 }
 
-func (g *pgGrammar) compileDropUnique(indexName string) (string, error) {
+func (g *pgGrammar) compileDropUnique(_ *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
 		return "", fmt.Errorf("index name cannot be empty for drop operation")
 	}
 	return fmt.Sprintf("DROP INDEX %s", indexName), nil
 }
 
-func (g *pgGrammar) compileDropFulltext(indexName string) (string, error) {
+func (g *pgGrammar) compileDropFulltext(_ *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
 		return "", fmt.Errorf("index name cannot be empty for drop operation")
 	}
@@ -336,8 +336,12 @@ func (g *pgGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 			return nil, fmt.Errorf("column name cannot be empty")
 		}
 		sql := col.name + " " + g.getType(col)
-		if col.defaultValue != nil {
-			sql += fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col))
+		if col.hasCommand("default") {
+			if col.defaultValue != nil {
+				sql += fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col))
+			} else {
+				sql += " DEFAULT NULL"
+			}
 		}
 		if col.nullable {
 			sql += " NULL"
@@ -349,9 +353,6 @@ func (g *pgGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 		}
 		if col.primary {
 			sql += " PRIMARY KEY"
-		}
-		if col.unique && col.uniqueIndexName == "" {
-			sql += " UNIQUE"
 		}
 		columns = append(columns, sql)
 	}
@@ -415,7 +416,7 @@ func (g *pgGrammar) getType(col *columnDefinition) string {
 		}
 		return "VARCHAR(255) CHECK (" + col.name + " IN (" + strings.Join(enumValues, ", ") + "))"
 	default:
-		return map[columnType]string{
+		colType, ok := map[columnType]string{
 			columnTypeBoolean:    "BOOLEAN",
 			columnTypeLongText:   "TEXT",
 			columnTypeText:       "TEXT",
@@ -430,5 +431,9 @@ func (g *pgGrammar) getType(col *columnDefinition) string {
 			columnTypeUUID:       "UUID",
 			columnTypeBinary:     "BYTEA",
 		}[col.columnType]
+		if !ok {
+			return "ERROR: Unknown column type " + string(col.columnType)
+		}
+		return colType
 	}
 }
