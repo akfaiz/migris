@@ -30,7 +30,7 @@ install:
 .PHONY: test
 test:
 	@echo "Running tests..."
-	gotestsum --format $(FORMAT) --junitfile $(JUNIT_FILE) -- -tags musl -cover -race ./... -coverprofile=$(COVERAGE_FILE) -coverpkg=./...
+	gotestsum --format $(FORMAT) --junitfile $(JUNIT_FILE) -- -cover -race ./... -coverprofile=$(COVERAGE_FILE) -coverpkg=./...
 
 .PHONY: coverage
 coverage:

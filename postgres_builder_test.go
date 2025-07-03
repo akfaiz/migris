@@ -181,7 +181,7 @@ func (s *postgresBuilderSuite) TestCreateIfNotExists() {
 		err = builder.CreateIfNotExists(s.ctx, tx, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
-			table.String("email", 255).Unique()
+			table.String("email", 255)
 		})
 		s.NoError(err, "expected no error when creating table that already exists")
 	})
@@ -309,20 +309,90 @@ func (s *postgresBuilderSuite) TestTable() {
 		err = builder.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
-			table.String("email", 255).Unique()
+			table.String("email", 255).Unique("uk_users_email")
 			table.String("password", 255).Nullable()
+			table.Text("bio").Nullable()
 			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
 			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+
+			table.Fulltext("bio")
 		})
-		err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
-			table.String("address", 255).Nullable()
-			table.String("phone", 20).Nullable().Unique("uk_users_phone")
-			table.DropColumn("password")
-			table.RenameColumn("name", "full_name")
-			table.String("email", 255).Nullable().Change()
-			table.Index("phone").Name("idx_users_phone").Algorithm("BTREE")
+		s.NoError(err, "expected no error when creating table before modifying it")
+
+		s.Run("should add new columns and modify existing ones", func() {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+				table.String("address", 255).Nullable()
+				table.String("phone", 20).Nullable().Unique("uk_users_phone")
+			})
+			s.NoError(err, "expected no error when modifying table with valid parameters")
 		})
-		s.NoError(err, "expected no error when creating table with valid parameters")
+		s.Run("should modify existing column", func() {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+				table.String("email", 255).Nullable().Change()
+			})
+			s.NoError(err, "expected no error when modifying existing column")
+		})
+		s.Run("should drop column and rename existing one", func() {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+				table.DropColumn("password")
+				table.RenameColumn("name", "full_name")
+			})
+			s.NoError(err, "expected no error when dropping column and renaming existing one")
+		})
+		s.Run("should add index", func() {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+				table.Index("phone").Name("idx_users_phone").Algorithm("BTREE")
+			})
+			s.NoError(err, "expected no error when adding index to table")
+		})
+		s.Run("should rename index", func() {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+				table.RenameIndex("idx_users_phone", "idx_users_contact")
+			})
+			s.NoError(err, "expected no error when renaming index in table")
+		})
+		s.Run("should drop index", func() {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+				table.DropIndex("idx_users_contact")
+			})
+			s.NoError(err, "expected no error when dropping index from table")
+		})
+		s.Run("should drop unique constraint", func() {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+				table.DropUnique("uk_users_email")
+			})
+			s.NoError(err, "expected no error when dropping unique constraint from table")
+		})
+		s.Run("should drop fulltext index", func() {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+				table.DropFulltext("idx_users_bio")
+			})
+			s.NoError(err, "expected no error when dropping fulltext index from table")
+		})
+		s.Run("should add foreign key", func() {
+			err = builder.Create(s.ctx, tx, "roles", func(table *schema.Blueprint) {
+				table.ID()
+				table.String("role_name", 255).Unique("uk_roles_role_name")
+			})
+			s.NoError(err, "expected no error when creating roles table before adding foreign key")
+			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+				table.Integer("role_id").Nullable()
+				table.Foreign("role_id").References("id").On("roles").OnDelete("SET NULL").OnUpdate("CASCADE")
+			})
+			s.NoError(err, "expected no error when adding foreign key to users table")
+		})
+		s.Run("should drop foreign key", func() {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+				table.DropForeign("fk_users_roles")
+			})
+			s.NoError(err, "expected no error when dropping foreign key from users table")
+		})
+		s.Run("should drop primary key", func() {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+				table.DropPrimary("users_pkey")
+			})
+			s.NoError(err, "expected no error when dropping primary key from users table")
+		})
 	})
 }
 

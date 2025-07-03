@@ -135,7 +135,7 @@ func (s *schemaTestSuite) TestCreateIfNotExists() {
 		err := schema.CreateIfNotExists(s.ctx, tx, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name")
-			table.String("email").Unique()
+			table.String("email")
 			table.String("password")
 			table.Timestamp("created_at").UseCurrent()
 			table.Timestamp("updated_at").UseCurrent()

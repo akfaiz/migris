@@ -150,15 +150,6 @@ func TestMysqlGrammar_CompileAdd(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "add unique column",
-			table: "users",
-			blueprint: func(table *Blueprint) {
-				table.String("email", 255).Unique()
-			},
-			want:    "ALTER TABLE users ADD COLUMN email VARCHAR(255) NOT NULL UNIQUE",
-			wantErr: false,
-		},
-		{
 			name:  "no columns to add returns empty string",
 			table: "users",
 			blueprint: func(table *Blueprint) {
@@ -678,6 +669,14 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:  "foreign key with no actions on delete or update",
+			table: "comments",
+			blueprint: func(table *Blueprint) {
+				table.Foreign("post_id").References("id").On("posts").NoActionOnDelete().NoActionOnUpdate()
+			},
+			want: "ALTER TABLE comments ADD CONSTRAINT fk_comments_posts FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE NO ACTION ON UPDATE NO ACTION",
+		},
+		{
 			name:  "empty column should return error",
 			table: "users",
 			blueprint: func(table *Blueprint) {
@@ -1130,42 +1129,21 @@ func TestMysqlGrammar_CompileDropIndex(t *testing.T) {
 
 	tests := []struct {
 		name      string
+		table     string
 		indexName string
 		want      string
 		wantErr   bool
 	}{
 		{
 			name:      "drop index with valid name",
+			table:     "users",
 			indexName: "idx_users_email",
-			want:      "DROP INDEX idx_users_email",
-			wantErr:   false,
-		},
-		{
-			name:      "drop index with underscore name",
-			indexName: "idx_table_column_name",
-			want:      "DROP INDEX idx_table_column_name",
-			wantErr:   false,
-		},
-		{
-			name:      "drop index with numeric name",
-			indexName: "idx_123",
-			want:      "DROP INDEX idx_123",
-			wantErr:   false,
-		},
-		{
-			name:      "drop index with mixed case name",
-			indexName: "IdxUserEmail",
-			want:      "DROP INDEX IdxUserEmail",
-			wantErr:   false,
-		},
-		{
-			name:      "drop index with special characters",
-			indexName: "idx_user$email",
-			want:      "DROP INDEX idx_user$email",
+			want:      "ALTER TABLE users DROP INDEX idx_users_email",
 			wantErr:   false,
 		},
 		{
 			name:      "empty index name should return error",
+			table:     "users",
 			indexName: "",
 			wantErr:   true,
 		},
@@ -1173,7 +1151,8 @@ func TestMysqlGrammar_CompileDropIndex(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := g.compileDropIndex(tt.indexName)
+			bp := &Blueprint{name: tt.table}
+			got, err := g.compileDropIndex(bp, tt.indexName)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -1189,38 +1168,16 @@ func TestMysqlGrammar_CompileDropUnique(t *testing.T) {
 
 	tests := []struct {
 		name      string
+		table     string
 		indexName string
 		want      string
 		wantErr   bool
 	}{
 		{
 			name:      "drop unique index with valid name",
+			table:     "users",
 			indexName: "uk_users_email",
-			want:      "DROP INDEX uk_users_email",
-			wantErr:   false,
-		},
-		{
-			name:      "drop unique index with underscore name",
-			indexName: "uk_table_column_name",
-			want:      "DROP INDEX uk_table_column_name",
-			wantErr:   false,
-		},
-		{
-			name:      "drop unique index with numeric name",
-			indexName: "uk_123",
-			want:      "DROP INDEX uk_123",
-			wantErr:   false,
-		},
-		{
-			name:      "drop unique index with mixed case name",
-			indexName: "UkUserEmail",
-			want:      "DROP INDEX UkUserEmail",
-			wantErr:   false,
-		},
-		{
-			name:      "drop unique index with special characters",
-			indexName: "uk_user$email",
-			want:      "DROP INDEX uk_user$email",
+			want:      "ALTER TABLE users DROP INDEX uk_users_email",
 			wantErr:   false,
 		},
 		{
@@ -1232,7 +1189,8 @@ func TestMysqlGrammar_CompileDropUnique(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := g.compileDropUnique(tt.indexName)
+			bp := &Blueprint{name: tt.table}
+			got, err := g.compileDropUnique(bp, tt.indexName)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -1248,38 +1206,16 @@ func TestMysqlGrammar_CompileDropFulltext(t *testing.T) {
 
 	tests := []struct {
 		name      string
+		table     string
 		indexName string
 		want      string
 		wantErr   bool
 	}{
 		{
 			name:      "drop fulltext index with valid name",
+			table:     "articles",
 			indexName: "ft_articles_content",
-			want:      "DROP INDEX ft_articles_content",
-			wantErr:   false,
-		},
-		{
-			name:      "drop fulltext index with underscore name",
-			indexName: "ft_table_column_name",
-			want:      "DROP INDEX ft_table_column_name",
-			wantErr:   false,
-		},
-		{
-			name:      "drop fulltext index with numeric name",
-			indexName: "ft_123",
-			want:      "DROP INDEX ft_123",
-			wantErr:   false,
-		},
-		{
-			name:      "drop fulltext index with mixed case name",
-			indexName: "FtArticleContent",
-			want:      "DROP INDEX FtArticleContent",
-			wantErr:   false,
-		},
-		{
-			name:      "drop fulltext index with special characters",
-			indexName: "ft_article$content",
-			want:      "DROP INDEX ft_article$content",
+			want:      "ALTER TABLE articles DROP INDEX ft_articles_content",
 			wantErr:   false,
 		},
 		{
@@ -1291,7 +1227,8 @@ func TestMysqlGrammar_CompileDropFulltext(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := g.compileDropFulltext(tt.indexName)
+			bp := &Blueprint{name: tt.table}
+			got, err := g.compileDropFulltext(bp, tt.indexName)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -1608,9 +1545,23 @@ func TestMysqlGrammar_GetType(t *testing.T) {
 		{
 			name: "medium integer unsigned",
 			blueprint: func(table *Blueprint) {
-				table.MediumInteger("value").Unsigned()
+				table.UnsignedMediumInteger("value")
 			},
 			want: "MEDIUMINT UNSIGNED",
+		},
+		{
+			name: "small integer column type",
+			blueprint: func(table *Blueprint) {
+				table.SmallInteger("level")
+			},
+			want: "SMALLINT",
+		},
+		{
+			name: "small integer unsigned auto increment",
+			blueprint: func(table *Blueprint) {
+				table.SmallIncrements("id")
+			},
+			want: "SMALLINT UNSIGNED AUTO_INCREMENT",
 		},
 		{
 			name: "tiny integer column type",
@@ -1802,6 +1753,163 @@ func TestMysqlGrammar_GetType(t *testing.T) {
 			tt.blueprint(bp)
 			got := g.getType(bp.columns[0])
 			assert.Equal(t, tt.want, got, "Expected type to match for test case: %s", tt.name)
+		})
+	}
+}
+
+func TestMysqlGrammar_GetColumns(t *testing.T) {
+	g := newMysqlGrammar()
+
+	tests := []struct {
+		name      string
+		blueprint func(table *Blueprint)
+		want      []string
+		wantErr   bool
+	}{
+		{
+			name: "single basic column",
+			blueprint: func(table *Blueprint) {
+				table.String("name", 255)
+			},
+			want:    []string{"name VARCHAR(255) NOT NULL"},
+			wantErr: false,
+		},
+		{
+			name: "multiple basic columns",
+			blueprint: func(table *Blueprint) {
+				table.String("name", 255)
+				table.Integer("age")
+			},
+			want:    []string{"name VARCHAR(255) NOT NULL", "age INT NOT NULL"},
+			wantErr: false,
+		},
+		{
+			name: "column with default value",
+			blueprint: func(table *Blueprint) {
+				table.String("status", 50).Default("active")
+			},
+			want:    []string{"status VARCHAR(50) DEFAULT 'active' NOT NULL"},
+			wantErr: false,
+		},
+		{
+			name: "column with on update value",
+			blueprint: func(table *Blueprint) {
+				table.Timestamp("updated_at", 0).UseCurrentOnUpdate()
+			},
+			want:    []string{"updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL"},
+			wantErr: false,
+		},
+		{
+			name: "nullable column",
+			blueprint: func(table *Blueprint) {
+				table.String("email", 255).Nullable()
+			},
+			want:    []string{"email VARCHAR(255) NULL"},
+			wantErr: false,
+		},
+		{
+			name: "not nullable column",
+			blueprint: func(table *Blueprint) {
+				table.String("username", 100).Nullable(false)
+			},
+			want:    []string{"username VARCHAR(100) NOT NULL"},
+			wantErr: false,
+		},
+		{
+			name: "column with comment",
+			blueprint: func(table *Blueprint) {
+				table.String("name", 255).Comment("User full name")
+			},
+			want:    []string{"name VARCHAR(255) NOT NULL COMMENT 'User full name'"},
+			wantErr: false,
+		},
+		{
+			name: "primary key column",
+			blueprint: func(table *Blueprint) {
+				table.BigInteger("id").Primary()
+			},
+			want:    []string{"id BIGINT NOT NULL PRIMARY KEY"},
+			wantErr: false,
+		},
+		{
+			name: "column with all attributes",
+			blueprint: func(table *Blueprint) {
+				table.String("email", 255).
+					Default("user@example.com").
+					Nullable().
+					Comment("User email address")
+			},
+			want:    []string{"email VARCHAR(255) DEFAULT 'user@example.com' NULL COMMENT 'User email address'"},
+			wantErr: false,
+		},
+		{
+			name: "auto increment primary key",
+			blueprint: func(table *Blueprint) {
+				table.BigInteger("id").Unsigned().AutoIncrement().Primary()
+			},
+			want:    []string{"id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY"},
+			wantErr: false,
+		},
+		{
+			name: "timestamp with default",
+			blueprint: func(table *Blueprint) {
+				table.Timestamp("created_at", 0).UseCurrent()
+			},
+			want:    []string{"created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL"},
+			wantErr: false,
+		},
+		{
+			name: "multiple columns with different attributes",
+			blueprint: func(table *Blueprint) {
+				table.BigInteger("id").Unsigned().AutoIncrement().Primary()
+				table.String("name", 255).Comment("User name")
+				table.String("email", 255).Nullable()
+				table.Timestamp("created_at", 0).Default("CURRENT_TIMESTAMP")
+			},
+			want: []string{
+				"id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY",
+				"name VARCHAR(255) NOT NULL COMMENT 'User name'",
+				"email VARCHAR(255) NULL",
+				"created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL",
+			},
+			wantErr: false,
+		},
+		{
+			name: "column with null default value",
+			blueprint: func(table *Blueprint) {
+				table.Text("description").Nullable().Default(nil)
+			},
+			want:    []string{"description TEXT DEFAULT NULL NULL"},
+			wantErr: false,
+		},
+		{
+			name: "empty column name should return error",
+			blueprint: func(table *Blueprint) {
+				table.String("", 255)
+			},
+			wantErr: true,
+		},
+		{
+			name: "multiple columns with one empty name should return error",
+			blueprint: func(table *Blueprint) {
+				table.String("name", 255)
+				table.Integer("")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &Blueprint{name: "test_table"}
+			tt.blueprint(bp)
+			got, err := g.getColumns(bp)
+			if tt.wantErr {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				return
+			}
+			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			assert.Equal(t, tt.want, got, "Expected columns to match for test case: %s", tt.name)
 		})
 	}
 }

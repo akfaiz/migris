@@ -260,25 +260,25 @@ func (g *mysqlGrammar) compileFullText(blueprint *Blueprint, index *indexDefinit
 	return fmt.Sprintf("CREATE FULLTEXT INDEX %s ON %s (%s)", indexName, blueprint.name, g.columnize(index.columns)), nil
 }
 
-func (g *mysqlGrammar) compileDropIndex(indexName string) (string, error) {
+func (g *mysqlGrammar) compileDropIndex(blueprint *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
 		return "", fmt.Errorf("index name cannot be empty")
 	}
-	return fmt.Sprintf("DROP INDEX %s", indexName), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", blueprint.name, indexName), nil
 }
 
-func (g *mysqlGrammar) compileDropUnique(indexName string) (string, error) {
+func (g *mysqlGrammar) compileDropUnique(blueprint *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
 		return "", fmt.Errorf("unique index name cannot be empty")
 	}
-	return fmt.Sprintf("DROP INDEX %s", indexName), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", blueprint.name, indexName), nil
 }
 
-func (g *mysqlGrammar) compileDropFulltext(indexName string) (string, error) {
+func (g *mysqlGrammar) compileDropFulltext(blueprint *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
 		return "", fmt.Errorf("fulltext index name cannot be empty")
 	}
-	return fmt.Sprintf("DROP INDEX %s", indexName), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", blueprint.name, indexName), nil
 }
 
 func (g *mysqlGrammar) compileDropPrimary(blueprint *Blueprint, indexName string) (string, error) {
@@ -337,8 +337,12 @@ func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 			return nil, fmt.Errorf("column name cannot be empty")
 		}
 		sql := col.name + " " + g.getType(col)
-		if col.defaultValue != nil {
-			sql += fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col))
+		if col.hasCommand("default") {
+			if col.defaultValue != nil {
+				sql += fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col))
+			} else {
+				sql += " DEFAULT NULL"
+			}
 		}
 		if col.onUpdateValue != "" {
 			sql += fmt.Sprintf(" ON UPDATE %s", col.onUpdateValue)
@@ -353,9 +357,6 @@ func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 		}
 		if col.primary {
 			sql += " PRIMARY KEY"
-		}
-		if col.unique && col.uniqueIndexName == "" {
-			sql += " UNIQUE"
 		}
 		columns = append(columns, sql)
 	}
