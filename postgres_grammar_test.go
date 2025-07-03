@@ -27,7 +27,7 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 				table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
 				table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
 			},
-			want: "CREATE TABLE users (id BIGSERIAL NOT NULL PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL, password VARCHAR NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL)",
+			want: "CREATE TABLE users (id BIGSERIAL NOT NULL, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL, password VARCHAR NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id))",
 		},
 		{
 			name:  "Create table with foreign key",
@@ -39,7 +39,7 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 				table.Text("content").Nullable()
 				table.Foreign("user_id").References("id").On("users").OnDelete("CASCADE").OnUpdate("CASCADE")
 			},
-			want: "CREATE TABLE posts (id BIGSERIAL NOT NULL PRIMARY KEY, user_id INTEGER NOT NULL, title VARCHAR(255) NOT NULL, content TEXT NULL)",
+			want: "CREATE TABLE posts (id BIGSERIAL NOT NULL, user_id INTEGER NOT NULL, title VARCHAR(255) NOT NULL, content TEXT NULL, CONSTRAINT pk_posts PRIMARY KEY (id))",
 		},
 		{
 			name:  "Create table with column name is empty",
@@ -88,7 +88,7 @@ func TestPgGrammar_CompileCreateIfNotExists(t *testing.T) {
 				table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
 				table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
 			},
-			want:    "CREATE TABLE IF NOT EXISTS users (id BIGSERIAL NOT NULL PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL, password VARCHAR NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL)",
+			want:    "CREATE TABLE IF NOT EXISTS users (id BIGSERIAL NOT NULL, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL, password VARCHAR NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id))",
 			wantErr: false,
 		},
 		{
@@ -171,7 +171,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Integer("id").Primary()
 			},
-			want:    "ALTER TABLE categories ADD COLUMN id INTEGER NOT NULL PRIMARY KEY",
+			want:    "ALTER TABLE categories ADD COLUMN id INTEGER NOT NULL, ADD CONSTRAINT pk_categories PRIMARY KEY (id)",
 			wantErr: false,
 		},
 		{
@@ -517,7 +517,7 @@ func TestPgGrammar_GetColumns(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Integer("id").Primary()
 			},
-			want: []string{"id INTEGER NOT NULL PRIMARY KEY"},
+			want: []string{"id INTEGER NOT NULL"},
 		},
 		{
 			name: "Error on empty column",
@@ -1348,19 +1348,19 @@ func TestPgGrammar_CompileDropUnique(t *testing.T) {
 		{
 			name:      "Drop unique index with valid name",
 			indexName: "users_email_unique",
-			want:      "DROP INDEX users_email_unique",
+			want:      "ALTER TABLE  DROP CONSTRAINT users_email_unique",
 			wantErr:   false,
 		},
 		{
 			name:      "Drop unique index with complex name",
 			indexName: "uk_users_email_name",
-			want:      "DROP INDEX uk_users_email_name",
+			want:      "ALTER TABLE  DROP CONSTRAINT uk_users_email_name",
 			wantErr:   false,
 		},
 		{
 			name:      "Drop unique index with numeric suffix",
 			indexName: "users_email_unique_2",
-			want:      "DROP INDEX users_email_unique_2",
+			want:      "ALTER TABLE  DROP CONSTRAINT users_email_unique_2",
 			wantErr:   false,
 		},
 		{

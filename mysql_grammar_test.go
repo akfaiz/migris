@@ -23,7 +23,7 @@ func TestMysqlGrammar_CompileCreate(t *testing.T) {
 				table.ID()
 				table.String("name", 255)
 			},
-			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, name VARCHAR(255) NOT NULL)",
+			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id))",
 			wantErr: false,
 		},
 		{
@@ -33,7 +33,7 @@ func TestMysqlGrammar_CompileCreate(t *testing.T) {
 				table.Charset("utf8mb4")
 				table.ID()
 			},
-			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY) DEFAULT CHARACTER SET utf8mb4",
+			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id)) DEFAULT CHARACTER SET utf8mb4",
 			wantErr: false,
 		},
 		{
@@ -43,7 +43,7 @@ func TestMysqlGrammar_CompileCreate(t *testing.T) {
 				table.Collation("utf8mb4_unicode_ci")
 				table.ID()
 			},
-			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY) COLLATE utf8mb4_unicode_ci",
+			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id)) COLLATE utf8mb4_unicode_ci",
 			wantErr: false,
 		},
 		{
@@ -53,7 +53,7 @@ func TestMysqlGrammar_CompileCreate(t *testing.T) {
 				table.Engine("InnoDB")
 				table.ID()
 			},
-			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY) ENGINE = InnoDB",
+			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id)) ENGINE = InnoDB",
 			wantErr: false,
 		},
 		{
@@ -65,7 +65,7 @@ func TestMysqlGrammar_CompileCreate(t *testing.T) {
 				table.Engine("InnoDB")
 				table.ID()
 			},
-			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ENGINE = InnoDB",
+			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ENGINE = InnoDB",
 			wantErr: false,
 		},
 		{
@@ -1828,7 +1828,7 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.BigInteger("id").Primary()
 			},
-			want:    []string{"id BIGINT NOT NULL PRIMARY KEY"},
+			want:    []string{"id BIGINT NOT NULL"},
 			wantErr: false,
 		},
 		{
@@ -1847,7 +1847,7 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.BigInteger("id").Unsigned().AutoIncrement().Primary()
 			},
-			want:    []string{"id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY"},
+			want:    []string{"id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL"},
 			wantErr: false,
 		},
 		{
@@ -1867,7 +1867,7 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 				table.Timestamp("created_at", 0).Default("CURRENT_TIMESTAMP")
 			},
 			want: []string{
-				"id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY",
+				"id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL",
 				"name VARCHAR(255) NOT NULL COMMENT 'User name'",
 				"email VARCHAR(255) NULL",
 				"created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL",

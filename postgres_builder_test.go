@@ -57,7 +57,7 @@ func (s *postgresBuilderSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.db = db
-	schema.SetDebug(false)
+	schema.SetDebug(true)
 }
 
 func (s *postgresBuilderSuite) TearDownSuite() {
@@ -389,7 +389,7 @@ func (s *postgresBuilderSuite) TestTable() {
 		})
 		s.Run("should drop primary key", func() {
 			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
-				table.DropPrimary("users_pkey")
+				table.DropPrimary("pk_users")
 			})
 			s.NoError(err, "expected no error when dropping primary key from users table")
 		})

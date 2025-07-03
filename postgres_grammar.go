@@ -69,6 +69,8 @@ func (g *pgGrammar) compileCreate(blueprint *Blueprint) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	constraints := g.getConstraints(blueprint)
+	columns = append(columns, constraints...)
 	return fmt.Sprintf("CREATE TABLE %s (%s)", blueprint.name, strings.Join(columns, ", ")), nil
 }
 
@@ -77,6 +79,8 @@ func (g *pgGrammar) compileCreateIfNotExists(blueprint *Blueprint) (string, erro
 	if err != nil {
 		return "", err
 	}
+	constraints := g.getConstraints(blueprint)
+	columns = append(columns, constraints...)
 	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", blueprint.name, strings.Join(columns, ", ")), nil
 }
 
@@ -89,9 +93,16 @@ func (g *pgGrammar) compileAdd(blueprint *Blueprint) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	columns = g.prefixArray("ADD COLUMN ", columns)
+
+	constraints := g.getConstraints(blueprint)
+	constraints = g.prefixArray("ADD ", constraints)
+
+	columns = append(columns, constraints...)
+
 	return fmt.Sprintf("ALTER TABLE %s %s",
 		blueprint.name,
-		strings.Join(g.prefixArray("ADD COLUMN ", columns), ", "),
+		strings.Join(columns, ", "),
 	), nil
 }
 
@@ -250,11 +261,11 @@ func (g *pgGrammar) compileDropIndex(_ *Blueprint, indexName string) (string, er
 	return fmt.Sprintf("DROP INDEX %s", indexName), nil
 }
 
-func (g *pgGrammar) compileDropUnique(_ *Blueprint, indexName string) (string, error) {
+func (g *pgGrammar) compileDropUnique(blueprint *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
 		return "", fmt.Errorf("index name cannot be empty for drop operation")
 	}
-	return fmt.Sprintf("DROP INDEX %s", indexName), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", blueprint.name, indexName), nil
 }
 
 func (g *pgGrammar) compileDropFulltext(_ *Blueprint, indexName string) (string, error) {
@@ -351,13 +362,35 @@ func (g *pgGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 		if col.comment != "" {
 			sql += fmt.Sprintf(" COMMENT '%s'", col.comment)
 		}
-		if col.primary {
-			sql += " PRIMARY KEY"
-		}
 		columns = append(columns, sql)
 	}
 
 	return columns, nil
+}
+
+func (g *pgGrammar) getConstraints(blueprint *Blueprint) []string {
+	var constrains []string
+	for _, col := range blueprint.getAddedColumns() {
+		if col.primary {
+			pkConstraintName := g.createIndexName(blueprint, &indexDefinition{indexType: indexTypePrimary})
+			sql := "CONSTRAINT " + pkConstraintName + " PRIMARY KEY (" + col.name + ")"
+			constrains = append(constrains, sql)
+			continue
+		}
+		if col.unique {
+			uniqueName := col.uniqueName
+			if uniqueName == "" {
+				uniqueName = g.createIndexName(blueprint, &indexDefinition{
+					indexType: indexTypeUnique,
+					columns:   []string{col.name},
+				})
+			}
+			sql := fmt.Sprintf("CONSTRAINT %s UNIQUE (%s)", uniqueName, col.name)
+			constrains = append(constrains, sql)
+		}
+	}
+
+	return constrains
 }
 
 func (g *pgGrammar) getType(col *columnDefinition) string {

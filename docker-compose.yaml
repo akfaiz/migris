@@ -3,6 +3,7 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: postgres_test
     ports:
       - "5432:5432"
     environment:
@@ -17,6 +18,7 @@ services:
 
   mysql:
     image: mysql:8.0.36
+    container_name: mysql_test
     ports:
       - "3306:3306"
     environment:

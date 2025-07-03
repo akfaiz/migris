@@ -76,6 +76,10 @@ func (g *mysqlGrammar) compileCreateTable(blueprint *Blueprint) (string, error) 
 	if err != nil {
 		return "", err
 	}
+
+	constraints := g.getConstraints(blueprint)
+	columns = append(columns, constraints...)
+
 	return fmt.Sprintf("CREATE TABLE %s (%s)", blueprint.name, strings.Join(columns, ", ")), nil
 }
 
@@ -110,9 +114,14 @@ func (g *mysqlGrammar) compileAdd(blueprint *Blueprint) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	columns = g.prefixArray("ADD COLUMN ", columns)
+	constraints := g.getConstraints(blueprint)
+	constraints = g.prefixArray("ADD  ", constraints)
+	columns = append(columns, constraints...)
+
 	return fmt.Sprintf("ALTER TABLE %s %s",
 		blueprint.name,
-		strings.Join(g.prefixArray("ADD COLUMN ", columns), ", "),
+		strings.Join(columns, ", "),
 	), nil
 }
 
@@ -355,13 +364,35 @@ func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 		if col.comment != "" {
 			sql += fmt.Sprintf(" COMMENT '%s'", col.comment)
 		}
-		if col.primary {
-			sql += " PRIMARY KEY"
-		}
 		columns = append(columns, sql)
 	}
 
 	return columns, nil
+}
+
+func (g *mysqlGrammar) getConstraints(blueprint *Blueprint) []string {
+	var constrains []string
+	for _, col := range blueprint.getAddedColumns() {
+		if col.primary {
+			pkConstraintName := g.createIndexName(blueprint, &indexDefinition{indexType: indexTypePrimary})
+			sql := "CONSTRAINT " + pkConstraintName + " PRIMARY KEY (" + col.name + ")"
+			constrains = append(constrains, sql)
+			continue
+		}
+		if col.unique {
+			uniqueName := col.uniqueName
+			if uniqueName == "" {
+				uniqueName = g.createIndexName(blueprint, &indexDefinition{
+					indexType: indexTypeUnique,
+					columns:   []string{col.name},
+				})
+			}
+			sql := fmt.Sprintf("CONSTRAINT %s UNIQUE (%s)", uniqueName, col.name)
+			constrains = append(constrains, sql)
+		}
+	}
+
+	return constrains
 }
 
 func (g *mysqlGrammar) getType(col *columnDefinition) string {
