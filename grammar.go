@@ -116,8 +116,8 @@ func (g *baseGrammar) createIndexName(blueprint *Blueprint, index *indexDefiniti
 		return fmt.Sprintf("uk_%s_%s", tableName, strings.Join(index.columns, "_"))
 	case indexTypeIndex:
 		return fmt.Sprintf("idx_%s_%s", tableName, strings.Join(index.columns, "_"))
-	case indexTypeFulltext:
-		return fmt.Sprintf("idx_%s_%s", tableName, strings.Join(index.columns, "_"))
+	case indexTypeFullText:
+		return fmt.Sprintf("ft_%s_%s", tableName, strings.Join(index.columns, "_"))
 	default:
 		return ""
 	}

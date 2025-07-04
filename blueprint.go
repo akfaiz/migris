@@ -47,7 +47,7 @@ const (
 	indexTypeIndex indexType = iota
 	indexTypeUnique
 	indexTypePrimary
-	indexTypeFulltext
+	indexTypeFullText
 )
 
 // Blueprint represents a schema blueprint for creating or altering a database table.
@@ -67,7 +67,7 @@ type Blueprint struct {
 	dropForeignKeys []string          // foreign keys to be dropped
 	dropPrimaryKeys []string          // primary keys to be dropped
 	dropUniqueKeys  []string          // unique keys to be dropped
-	dropFulltext    []string          // fulltext indexes to be dropped
+	dropFullText    []string          // fulltext indexes to be dropped
 	renameIndexes   map[string]string // old index name to new index name
 }
 
@@ -531,14 +531,14 @@ func (b *Blueprint) Primary(column string, otherColumns ...string) IndexDefiniti
 	return index
 }
 
-// Fulltext creates a new fulltext index definition in the blueprint.
-func (b *Blueprint) Fulltext(column string, otherColumns ...string) IndexDefinition {
+// FullText creates a new fulltext index definition in the blueprint.
+func (b *Blueprint) FullText(column string, otherColumns ...string) IndexDefinition {
 	index := &indexDefinition{
-		indexType: indexTypeFulltext,
+		indexType: indexTypeFullText,
 		columns:   append([]string{column}, otherColumns...),
 	}
 	b.indexes = append(b.indexes, index)
-	b.addCommand("fulltext")
+	b.addCommand("fullText")
 
 	return index
 }
@@ -606,9 +606,9 @@ func (b *Blueprint) DropUnique(uniqueKeyName string) {
 	b.addCommand("dropUnique")
 }
 
-func (b *Blueprint) DropFulltext(fulltextIndexName string) {
-	b.dropFulltext = append(b.dropFulltext, fulltextIndexName)
-	b.addCommand("dropFulltext")
+func (b *Blueprint) DropFulltext(indexName string) {
+	b.dropFullText = append(b.dropFullText, indexName)
+	b.addCommand("dropFullText")
 }
 
 // RenameIndex changes the name of an index in the blueprint.
@@ -746,8 +746,8 @@ func (b *Blueprint) toSql(grammar grammar) ([]string, error) {
 				return nil, err
 			}
 			statements = append(statements, primaryStatements...)
-		case "fulltext":
-			fulltextStatements, err := b.getIndexStatements(grammar, indexTypeFulltext)
+		case "fullText":
+			fulltextStatements, err := b.getIndexStatements(grammar, indexTypeFullText)
 			if err != nil {
 				return nil, err
 			}
@@ -800,9 +800,9 @@ func (b *Blueprint) toSql(grammar grammar) ([]string, error) {
 					statements = append(statements, sql)
 				}
 			}
-		case "dropFulltext":
-			for _, fulltextIndexName := range b.dropFulltext {
-				sql, err := grammar.compileDropFulltext(b, fulltextIndexName)
+		case "dropFullText":
+			for _, fullTextIndexName := range b.dropFullText {
+				sql, err := grammar.compileDropFulltext(b, fullTextIndexName)
 				if err != nil {
 					return nil, err
 				}
@@ -851,7 +851,7 @@ func (b *Blueprint) getIndexStatements(grammar grammar, idxType indexType) ([]st
 		indexTypeIndex:    grammar.compileIndex,
 		indexTypeUnique:   grammar.compileUnique,
 		indexTypePrimary:  grammar.compilePrimary,
-		indexTypeFulltext: grammar.compileFullText,
+		indexTypeFullText: grammar.compileFullText,
 	}
 	var statements []string
 	for _, index := range b.indexes {

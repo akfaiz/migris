@@ -1234,7 +1234,7 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			name:  "Basic fulltext index with single column",
 			table: "articles",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("title").Name("articles_title_fulltext").Language("english")
+				table.FullText("title").Name("articles_title_fulltext").Language("english")
 			},
 			want:    "CREATE INDEX articles_title_fulltext ON articles USING GIN (to_tsvector('english', title))",
 			wantErr: false,
@@ -1243,7 +1243,7 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			name:  "Fulltext index with multiple columns",
 			table: "documents",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("title", "content").Name("documents_title_content_fulltext").Language("english")
+				table.FullText("title", "content").Name("documents_title_content_fulltext").Language("english")
 			},
 			want:    "CREATE INDEX documents_title_content_fulltext ON documents USING GIN (to_tsvector('english', title) || to_tsvector('english', content))",
 			wantErr: false,
@@ -1252,7 +1252,7 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			name:  "Fulltext index with different language",
 			table: "posts",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("content").Name("posts_content_spanish_fulltext").Language("spanish")
+				table.FullText("content").Name("posts_content_spanish_fulltext").Language("spanish")
 			},
 			want:    "CREATE INDEX posts_content_spanish_fulltext ON posts USING GIN (to_tsvector('spanish', content))",
 			wantErr: false,
@@ -1261,7 +1261,7 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			name:  "Fulltext index without language (should use default english)",
 			table: "blogs",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("body").Name("blogs_body_fulltext")
+				table.FullText("body").Name("blogs_body_fulltext")
 			},
 			want:    "CREATE INDEX blogs_body_fulltext ON blogs USING GIN (to_tsvector('english', body))",
 			wantErr: false,
@@ -1270,16 +1270,16 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			name:  "Fulltext index without name (should use generated name)",
 			table: "news",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("headline")
+				table.FullText("headline")
 			},
-			want:    "CREATE INDEX idx_news_headline ON news USING GIN (to_tsvector('english', headline))",
+			want:    "CREATE INDEX ft_news_headline ON news USING GIN (to_tsvector('english', headline))",
 			wantErr: false,
 		},
 		{
 			name:  "Fulltext index with three columns",
 			table: "products",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("name", "description", "tags").Name("products_search_fulltext").Language("english")
+				table.FullText("name", "description", "tags").Name("products_search_fulltext").Language("english")
 			},
 			want:    "CREATE INDEX products_search_fulltext ON products USING GIN (to_tsvector('english', name) || to_tsvector('english', description) || to_tsvector('english', tags))",
 			wantErr: false,
@@ -1288,7 +1288,7 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			name:  "Fulltext index with empty column in list",
 			table: "articles",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("title", "", "content").Name("articles_invalid_fulltext")
+				table.FullText("title", "", "content").Name("articles_invalid_fulltext")
 			},
 			wantErr: true,
 		},
@@ -1296,7 +1296,7 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			name:  "Fulltext index with only empty column",
 			table: "articles",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("").Name("articles_empty_fulltext")
+				table.FullText("").Name("articles_empty_fulltext")
 			},
 			wantErr: true,
 		},

@@ -1042,25 +1042,25 @@ func TestMysqlGrammar_CompileFullText(t *testing.T) {
 			name:  "basic fulltext index on single column",
 			table: "articles",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("content")
+				table.FullText("content")
 			},
-			want:    "CREATE FULLTEXT INDEX idx_articles_content ON articles (content)",
+			want:    "CREATE FULLTEXT INDEX ft_articles_content ON articles (content)",
 			wantErr: false,
 		},
 		{
 			name:  "fulltext index on multiple columns",
 			table: "posts",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("title", "content")
+				table.FullText("title", "content")
 			},
-			want:    "CREATE FULLTEXT INDEX idx_posts_title_content ON posts (title, content)",
+			want:    "CREATE FULLTEXT INDEX ft_posts_title_content ON posts (title, content)",
 			wantErr: false,
 		},
 		{
 			name:  "fulltext index with custom name",
 			table: "documents",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("body").Name("fulltext_document_body")
+				table.FullText("body").Name("fulltext_document_body")
 			},
 			want:    "CREATE FULLTEXT INDEX fulltext_document_body ON documents (body)",
 			wantErr: false,
@@ -1069,16 +1069,16 @@ func TestMysqlGrammar_CompileFullText(t *testing.T) {
 			name:  "fulltext index on three columns",
 			table: "news",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("title", "summary", "content")
+				table.FullText("title", "summary", "content")
 			},
-			want:    "CREATE FULLTEXT INDEX idx_news_title_summary_content ON news (title, summary, content)",
+			want:    "CREATE FULLTEXT INDEX ft_news_title_summary_content ON news (title, summary, content)",
 			wantErr: false,
 		},
 		{
 			name:  "fulltext index with custom name on multiple columns",
 			table: "blog_posts",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("title", "excerpt", "body").Name("ft_blog_search")
+				table.FullText("title", "excerpt", "body").Name("ft_blog_search")
 			},
 			want:    "CREATE FULLTEXT INDEX ft_blog_search ON blog_posts (title, excerpt, body)",
 			wantErr: false,
@@ -1087,7 +1087,7 @@ func TestMysqlGrammar_CompileFullText(t *testing.T) {
 			name:  "empty column should return error",
 			table: "articles",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("")
+				table.FullText("")
 			},
 			wantErr: true,
 		},
@@ -1095,7 +1095,7 @@ func TestMysqlGrammar_CompileFullText(t *testing.T) {
 			name:  "one empty column among multiple should return error",
 			table: "posts",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("title", "", "content")
+				table.FullText("title", "", "content")
 			},
 			wantErr: true,
 		},
@@ -1103,7 +1103,7 @@ func TestMysqlGrammar_CompileFullText(t *testing.T) {
 			name:  "empty column in the middle should return error",
 			table: "documents",
 			blueprint: func(table *Blueprint) {
-				table.Fulltext("title", "", "body")
+				table.FullText("title", "", "body")
 			},
 			wantErr: true,
 		},
