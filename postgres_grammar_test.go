@@ -880,30 +880,30 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "Foreign key with deferrable false and initially immediate true",
+			name:  "Foreign key with deferrable true and initially immediate true",
+			table: "posts",
+			blueprint: func(table *Blueprint) {
+				table.Foreign("user_id").References("id").On("users").Deferrable().InitiallyImmediate(true)
+			},
+			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id) DEFERRABLE INITIALLY IMMEDIATE",
+			wantErr: false,
+		},
+		{
+			name:  "Foreign key with deferrable true and initially immediate false",
+			table: "posts",
+			blueprint: func(table *Blueprint) {
+				table.Foreign("user_id").References("id").On("users").Deferrable().InitiallyImmediate(false)
+			},
+			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id) DEFERRABLE INITIALLY DEFERRED",
+			wantErr: false,
+		},
+		{
+			name:  "Foreign key with deferrable false and initially immediate true (should be ignored)",
 			table: "posts",
 			blueprint: func(table *Blueprint) {
 				table.Foreign("user_id").References("id").On("users").Deferrable(false).InitiallyImmediate(true)
 			},
-			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id) NOT DEFERRABLE INITIALLY IMMEDIATE",
-			wantErr: false,
-		},
-		{
-			name:  "Foreign key with deferrable false and initially immediate false",
-			table: "posts",
-			blueprint: func(table *Blueprint) {
-				table.Foreign("user_id").References("id").On("users").Deferrable(false).InitiallyImmediate(false)
-			},
-			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id) NOT DEFERRABLE INITIALLY DEFERRED",
-			wantErr: false,
-		},
-		{
-			name:  "Foreign key with deferrable true and initially immediate (should ignore initially immediate)",
-			table: "posts",
-			blueprint: func(table *Blueprint) {
-				table.Foreign("user_id").References("id").On("users").Deferrable(true).InitiallyImmediate(true)
-			},
-			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id) DEFERRABLE",
+			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id) NOT DEFERRABLE",
 			wantErr: false,
 		},
 		{
@@ -912,9 +912,9 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("role_id").References("id").On("roles").
 					CascadeOnDelete().RestrictOnUpdate().
-					Deferrable(false).InitiallyImmediate(true)
+					Deferrable().InitiallyImmediate(true)
 			},
-			want:    "ALTER TABLE user_roles ADD CONSTRAINT fk_user_roles_roles FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE ON UPDATE RESTRICT NOT DEFERRABLE INITIALLY IMMEDIATE",
+			want:    "ALTER TABLE user_roles ADD CONSTRAINT fk_user_roles_roles FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE ON UPDATE RESTRICT DEFERRABLE INITIALLY IMMEDIATE",
 			wantErr: false,
 		},
 		{
@@ -1128,7 +1128,7 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("email").Name("users_email_unique")
 			},
-			want:    "CREATE UNIQUE INDEX users_email_unique ON users (email)",
+			want:    "ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email)",
 			wantErr: false,
 		},
 		{
@@ -1137,16 +1137,7 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("name", "email").Name("users_name_email_unique")
 			},
-			want:    "CREATE UNIQUE INDEX users_name_email_unique ON users (name, email)",
-			wantErr: false,
-		},
-		{
-			name:  "Unique index with algorithm",
-			table: "products",
-			blueprint: func(table *Blueprint) {
-				table.Unique("sku").Name("products_sku_unique").Algorithm("btree")
-			},
-			want:    "CREATE UNIQUE INDEX products_sku_unique ON products USING btree (sku)",
+			want:    "ALTER TABLE users ADD CONSTRAINT users_name_email_unique UNIQUE (name, email)",
 			wantErr: false,
 		},
 		{
@@ -1155,7 +1146,7 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("order_number")
 			},
-			want:    "CREATE UNIQUE INDEX uk_orders_order_number ON orders (order_number)",
+			want:    "ALTER TABLE orders ADD CONSTRAINT uk_orders_order_number UNIQUE (order_number)",
 			wantErr: false,
 		},
 		{
@@ -1164,7 +1155,7 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("email").Name("users_email_unique").Deferrable(true)
 			},
-			want:    "CREATE UNIQUE INDEX users_email_unique ON users (email) DEFERRABLE",
+			want:    "ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email) DEFERRABLE",
 			wantErr: false,
 		},
 		{
@@ -1173,43 +1164,34 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("email").Name("users_email_unique").Deferrable(false)
 			},
-			want:    "CREATE UNIQUE INDEX users_email_unique ON users (email) NOT DEFERRABLE",
+			want:    "ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email) NOT DEFERRABLE",
 			wantErr: false,
 		},
 		{
-			name:  "Unique index with deferrable false and initially immediate true",
+			name:  "Unique index with deferrable and initially immediate true",
 			table: "users",
 			blueprint: func(table *Blueprint) {
-				table.Unique("email").Name("users_email_unique").Deferrable(false).InitiallyImmediate(true)
+				table.Unique("email").Name("users_email_unique").Deferrable().InitiallyImmediate(true)
 			},
-			want:    "CREATE UNIQUE INDEX users_email_unique ON users (email) NOT DEFERRABLE INITIALLY IMMEDIATE",
+			want:    "ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email) DEFERRABLE INITIALLY IMMEDIATE",
 			wantErr: false,
 		},
 		{
 			name:  "Unique index with deferrable false and initially immediate false",
 			table: "users",
 			blueprint: func(table *Blueprint) {
-				table.Unique("email").Name("users_email_unique").Deferrable(false).InitiallyImmediate(false)
+				table.Unique("email").Name("users_email_unique").Deferrable().InitiallyImmediate(false)
 			},
-			want:    "CREATE UNIQUE INDEX users_email_unique ON users (email) NOT DEFERRABLE INITIALLY DEFERRED",
+			want:    "ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email) DEFERRABLE INITIALLY DEFERRED",
 			wantErr: false,
 		},
 		{
-			name:  "Unique index with deferrable true and initially immediate (should ignore initially immediate)",
+			name:  "Unique index with deferrable false and initially immediate true (should be ignored)",
 			table: "users",
 			blueprint: func(table *Blueprint) {
-				table.Unique("email").Name("users_email_unique").Deferrable(true).InitiallyImmediate(true)
+				table.Unique("email").Name("users_email_unique").Deferrable(false).InitiallyImmediate(true)
 			},
-			want:    "CREATE UNIQUE INDEX users_email_unique ON users (email) DEFERRABLE",
-			wantErr: false,
-		},
-		{
-			name:  "Unique index with algorithm and deferrable options",
-			table: "products",
-			blueprint: func(table *Blueprint) {
-				table.Unique("product_code").Name("products_code_unique").Algorithm("btree").Deferrable(false).InitiallyImmediate(true)
-			},
-			want:    "CREATE UNIQUE INDEX products_code_unique ON products USING btree (product_code) NOT DEFERRABLE INITIALLY IMMEDIATE",
+			want:    "ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email) NOT DEFERRABLE",
 			wantErr: false,
 		},
 		{

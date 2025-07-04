@@ -31,6 +31,34 @@ type grammar interface {
 
 type baseGrammar struct{}
 
+func (g *baseGrammar) compileForeign(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error) {
+	if foreignKey.column == "" || foreignKey.on == "" || foreignKey.references == "" {
+		return "", fmt.Errorf("foreign key definition is incomplete: column, on, and references must be set")
+	}
+	onDelete := ""
+	if foreignKey.onDelete != "" {
+		onDelete = fmt.Sprintf(" ON DELETE %s", foreignKey.onDelete)
+	}
+	onUpdate := ""
+	if foreignKey.onUpdate != "" {
+		onUpdate = fmt.Sprintf(" ON UPDATE %s", foreignKey.onUpdate)
+	}
+	containtName := foreignKey.constaintName
+	if containtName == "" {
+		containtName = g.createForeignKeyName(blueprint, foreignKey)
+	}
+
+	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(%s)%s%s",
+		blueprint.name,
+		containtName,
+		foreignKey.column,
+		foreignKey.on,
+		foreignKey.references,
+		onDelete,
+		onUpdate,
+	), nil
+}
+
 func (g *baseGrammar) quoteString(s string) string {
 	return "'" + s + "'"
 }

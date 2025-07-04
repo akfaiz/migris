@@ -243,19 +243,6 @@ func (g *mysqlGrammar) compileUnique(blueprint *Blueprint, index *indexDefinitio
 	return sql, nil
 }
 
-func (g *mysqlGrammar) compilePrimary(blueprint *Blueprint, index *indexDefinition) (string, error) {
-	if slices.Contains(index.columns, "") {
-		return "", fmt.Errorf("primary key column cannot be empty")
-	}
-
-	indexName := index.name
-	if indexName == "" {
-		indexName = g.createIndexName(blueprint, index)
-	}
-
-	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, g.columnize(index.columns)), nil
-}
-
 func (g *mysqlGrammar) compileFullText(blueprint *Blueprint, index *indexDefinition) (string, error) {
 	if slices.Contains(index.columns, "") {
 		return "", fmt.Errorf("fulltext index column cannot be empty")
@@ -267,6 +254,19 @@ func (g *mysqlGrammar) compileFullText(blueprint *Blueprint, index *indexDefinit
 	}
 
 	return fmt.Sprintf("CREATE FULLTEXT INDEX %s ON %s (%s)", indexName, blueprint.name, g.columnize(index.columns)), nil
+}
+
+func (g *mysqlGrammar) compilePrimary(blueprint *Blueprint, index *indexDefinition) (string, error) {
+	if slices.Contains(index.columns, "") {
+		return "", fmt.Errorf("primary key column cannot be empty")
+	}
+
+	indexName := index.name
+	if indexName == "" {
+		indexName = g.createIndexName(blueprint, index)
+	}
+
+	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, g.columnize(index.columns)), nil
 }
 
 func (g *mysqlGrammar) compileDropIndex(blueprint *Blueprint, indexName string) (string, error) {
@@ -284,10 +284,7 @@ func (g *mysqlGrammar) compileDropUnique(blueprint *Blueprint, indexName string)
 }
 
 func (g *mysqlGrammar) compileDropFulltext(blueprint *Blueprint, indexName string) (string, error) {
-	if indexName == "" {
-		return "", fmt.Errorf("fulltext index name cannot be empty")
-	}
-	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", blueprint.name, indexName), nil
+	return g.compileDropIndex(blueprint, indexName)
 }
 
 func (g *mysqlGrammar) compileDropPrimary(blueprint *Blueprint, indexName string) (string, error) {
@@ -302,34 +299,6 @@ func (g *mysqlGrammar) compileRenameIndex(blueprint *Blueprint, oldName, newName
 		return "", fmt.Errorf("old and new index names cannot be empty")
 	}
 	return fmt.Sprintf("ALTER TABLE %s RENAME INDEX %s TO %s", blueprint.name, oldName, newName), nil
-}
-
-func (g *mysqlGrammar) compileForeign(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error) {
-	if foreignKey.column == "" || foreignKey.on == "" || foreignKey.references == "" {
-		return "", fmt.Errorf("foreign key definition is incomplete: column, on, and references must be set")
-	}
-	onDelete := ""
-	if foreignKey.onDelete != "" {
-		onDelete = fmt.Sprintf(" ON DELETE %s", foreignKey.onDelete)
-	}
-	onUpdate := ""
-	if foreignKey.onUpdate != "" {
-		onUpdate = fmt.Sprintf(" ON UPDATE %s", foreignKey.onUpdate)
-	}
-	constaintName := foreignKey.constaintName
-	if constaintName == "" {
-		constaintName = g.createForeignKeyName(blueprint, foreignKey)
-	}
-
-	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(%s)%s%s",
-		blueprint.name,
-		constaintName,
-		foreignKey.column,
-		foreignKey.on,
-		foreignKey.references,
-		onDelete,
-		onUpdate,
-	), nil
 }
 
 func (g *mysqlGrammar) compileDropForeign(blueprint *Blueprint, foreignKeyName string) (string, error) {
