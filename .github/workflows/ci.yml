@@ -56,9 +56,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        persist-credentials: false
-        fetch-depth: 0
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -76,7 +73,7 @@ jobs:
         DB_PASSWORD: password
         DB_NAME: db_test
       run: |
-          gotestsum --format testdox --junitfile junit.xml -- -cover -race ./... -coverprofile=coverage.txt -coverpkg=./...
+          gotestsum --format testdox --junitfile junit.xml -- -cover -race ./... -coverprofile=coverage.txt
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5

@@ -57,7 +57,7 @@ func (s *postgresBuilderSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.db = db
-	schema.SetDebug(false)
+	schema.SetDebug(true)
 }
 
 func (s *postgresBuilderSuite) TearDownSuite() {
@@ -315,7 +315,7 @@ func (s *postgresBuilderSuite) TestTable() {
 			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
 			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
 
-			table.Fulltext("bio")
+			table.FullText("bio")
 		})
 		s.NoError(err, "expected no error when creating table before modifying it")
 
@@ -365,7 +365,7 @@ func (s *postgresBuilderSuite) TestTable() {
 		})
 		s.Run("should drop fulltext index", func() {
 			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
-				table.DropFulltext("idx_users_bio")
+				table.DropFulltext("ft_users_bio")
 			})
 			s.NoError(err, "expected no error when dropping fulltext index from table")
 		})
@@ -389,7 +389,7 @@ func (s *postgresBuilderSuite) TestTable() {
 		})
 		s.Run("should drop primary key", func() {
 			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
-				table.DropPrimary("users_pkey")
+				table.DropPrimary("pk_users")
 			})
 			s.NoError(err, "expected no error when dropping primary key from users table")
 		})

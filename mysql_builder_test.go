@@ -309,7 +309,7 @@ func (s *mysqlBuilderSuite) TestTable() {
 			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
 			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
 
-			table.Fulltext("bio")
+			table.FullText("bio")
 		})
 		s.NoError(err, "expected no error when creating table before modifying it")
 
@@ -359,7 +359,7 @@ func (s *mysqlBuilderSuite) TestTable() {
 		})
 		s.Run("should drop fulltext index", func() {
 			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
-				table.DropFulltext("idx_users_bio")
+				table.DropFulltext("ft_users_bio")
 			})
 			s.NoError(err, "expected no error when dropping fulltext index from table")
 		})

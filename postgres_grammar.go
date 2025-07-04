@@ -69,6 +69,8 @@ func (g *pgGrammar) compileCreate(blueprint *Blueprint) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	constraints := g.getConstraints(blueprint)
+	columns = append(columns, constraints...)
 	return fmt.Sprintf("CREATE TABLE %s (%s)", blueprint.name, strings.Join(columns, ", ")), nil
 }
 
@@ -77,6 +79,8 @@ func (g *pgGrammar) compileCreateIfNotExists(blueprint *Blueprint) (string, erro
 	if err != nil {
 		return "", err
 	}
+	constraints := g.getConstraints(blueprint)
+	columns = append(columns, constraints...)
 	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", blueprint.name, strings.Join(columns, ", ")), nil
 }
 
@@ -89,9 +93,16 @@ func (g *pgGrammar) compileAdd(blueprint *Blueprint) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	columns = g.prefixArray("ADD COLUMN ", columns)
+
+	constraints := g.getConstraints(blueprint)
+	constraints = g.prefixArray("ADD ", constraints)
+
+	columns = append(columns, constraints...)
+
 	return fmt.Sprintf("ALTER TABLE %s %s",
 		blueprint.name,
-		strings.Join(g.prefixArray("ADD COLUMN ", columns), ", "),
+		strings.Join(columns, ", "),
 	), nil
 }
 
@@ -189,11 +200,12 @@ func (g *pgGrammar) compileUnique(blueprint *Blueprint, index *indexDefinition) 
 	if indexName == "" {
 		indexName = g.createIndexName(blueprint, index)
 	}
-	sql := fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s", indexName, blueprint.name)
-	if index.algorithm != "" {
-		sql += fmt.Sprintf(" USING %s", index.algorithm)
-	}
-	sql += fmt.Sprintf(" (%s)", g.columnize(index.columns))
+	sql := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE (%s)",
+		blueprint.name,
+		indexName,
+		g.columnize(index.columns),
+	)
+
 	if index.deferrable != nil {
 		if *index.deferrable {
 			sql += " DEFERRABLE"
@@ -201,7 +213,7 @@ func (g *pgGrammar) compileUnique(blueprint *Blueprint, index *indexDefinition) 
 			sql += " NOT DEFERRABLE"
 		}
 	}
-	if index.deferrable != nil && !*index.deferrable && index.initiallyImmediate != nil {
+	if index.deferrable != nil && *index.deferrable && index.initiallyImmediate != nil {
 		if *index.initiallyImmediate {
 			sql += " INITIALLY IMMEDIATE"
 		} else {
@@ -250,18 +262,15 @@ func (g *pgGrammar) compileDropIndex(_ *Blueprint, indexName string) (string, er
 	return fmt.Sprintf("DROP INDEX %s", indexName), nil
 }
 
-func (g *pgGrammar) compileDropUnique(_ *Blueprint, indexName string) (string, error) {
+func (g *pgGrammar) compileDropUnique(blueprint *Blueprint, indexName string) (string, error) {
 	if indexName == "" {
 		return "", fmt.Errorf("index name cannot be empty for drop operation")
 	}
-	return fmt.Sprintf("DROP INDEX %s", indexName), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", blueprint.name, indexName), nil
 }
 
-func (g *pgGrammar) compileDropFulltext(_ *Blueprint, indexName string) (string, error) {
-	if indexName == "" {
-		return "", fmt.Errorf("index name cannot be empty for drop operation")
-	}
-	return fmt.Sprintf("DROP INDEX %s", indexName), nil
+func (g *pgGrammar) compileDropFulltext(blueprint *Blueprint, indexName string) (string, error) {
+	return g.compileDropIndex(blueprint, indexName)
 }
 
 func (g *pgGrammar) compileRenameIndex(_ *Blueprint, oldName, newName string) (string, error) {
@@ -279,31 +288,11 @@ func (g *pgGrammar) compileDropPrimary(blueprint *Blueprint, indexName string) (
 }
 
 func (g *pgGrammar) compileForeign(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error) {
-	if foreignKey.column == "" || foreignKey.on == "" || foreignKey.references == "" {
-		return "", fmt.Errorf("foreign key definition is incomplete: column, on, and references must be set")
-	}
-	onDelete := ""
-	if foreignKey.onDelete != "" {
-		onDelete = fmt.Sprintf(" ON DELETE %s", foreignKey.onDelete)
-	}
-	onUpdate := ""
-	if foreignKey.onUpdate != "" {
-		onUpdate = fmt.Sprintf(" ON UPDATE %s", foreignKey.onUpdate)
-	}
-	containtName := foreignKey.constaintName
-	if containtName == "" {
-		containtName = g.createForeignKeyName(blueprint, foreignKey)
+	sql, err := g.baseGrammar.compileForeign(blueprint, foreignKey)
+	if err != nil {
+		return "", err
 	}
 
-	sql := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(%s)%s%s",
-		blueprint.name,
-		containtName,
-		foreignKey.column,
-		foreignKey.on,
-		foreignKey.references,
-		onDelete,
-		onUpdate,
-	)
 	if foreignKey.deferrable != nil {
 		if *foreignKey.deferrable {
 			sql += " DEFERRABLE"
@@ -311,7 +300,7 @@ func (g *pgGrammar) compileForeign(blueprint *Blueprint, foreignKey *foreignKeyD
 			sql += " NOT DEFERRABLE"
 		}
 	}
-	if foreignKey.deferrable != nil && !*foreignKey.deferrable && foreignKey.initiallyImmediate != nil {
+	if foreignKey.deferrable != nil && *foreignKey.deferrable && foreignKey.initiallyImmediate != nil {
 		if *foreignKey.initiallyImmediate {
 			sql += " INITIALLY IMMEDIATE"
 		} else {
@@ -351,13 +340,35 @@ func (g *pgGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 		if col.comment != "" {
 			sql += fmt.Sprintf(" COMMENT '%s'", col.comment)
 		}
-		if col.primary {
-			sql += " PRIMARY KEY"
-		}
 		columns = append(columns, sql)
 	}
 
 	return columns, nil
+}
+
+func (g *pgGrammar) getConstraints(blueprint *Blueprint) []string {
+	var constrains []string
+	for _, col := range blueprint.getAddedColumns() {
+		if col.primary {
+			pkConstraintName := g.createIndexName(blueprint, &indexDefinition{indexType: indexTypePrimary})
+			sql := "CONSTRAINT " + pkConstraintName + " PRIMARY KEY (" + col.name + ")"
+			constrains = append(constrains, sql)
+			continue
+		}
+		if col.unique {
+			uniqueName := col.uniqueName
+			if uniqueName == "" {
+				uniqueName = g.createIndexName(blueprint, &indexDefinition{
+					indexType: indexTypeUnique,
+					columns:   []string{col.name},
+				})
+			}
+			sql := fmt.Sprintf("CONSTRAINT %s UNIQUE (%s)", uniqueName, col.name)
+			constrains = append(constrains, sql)
+		}
+	}
+
+	return constrains
 }
 
 func (g *pgGrammar) getType(col *columnDefinition) string {

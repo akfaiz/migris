@@ -7,8 +7,12 @@ import (
 )
 
 func optional[T any](defaultValue T, values ...T) T {
-	if len(values) > 0 {
-		return values[0]
+	return optionalAtIndex(0, defaultValue, values...)
+}
+
+func optionalAtIndex[T any](index int, defaultValue T, values ...T) T {
+	if index < len(values) {
+		return values[index]
 	}
 	return defaultValue
 }

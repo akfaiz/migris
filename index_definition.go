@@ -14,3 +14,42 @@ type IndexDefinition interface {
 	// Name sets the name of the index.
 	Name(name string) IndexDefinition
 }
+
+var _ IndexDefinition = &indexDefinition{}
+
+type indexDefinition struct {
+	name               string
+	indexType          indexType
+	algorithm          string
+	columns            []string
+	language           string
+	deferrable         *bool
+	initiallyImmediate *bool
+}
+
+func (id *indexDefinition) Algorithm(algorithm string) IndexDefinition {
+	id.algorithm = algorithm
+	return id
+}
+
+func (id *indexDefinition) Deferrable(value ...bool) IndexDefinition {
+	val := optional(true, value...)
+	id.deferrable = &val
+	return id
+}
+
+func (id *indexDefinition) InitiallyImmediate(value ...bool) IndexDefinition {
+	val := optional(true, value...)
+	id.initiallyImmediate = &val
+	return id
+}
+
+func (id *indexDefinition) Language(language string) IndexDefinition {
+	id.language = language
+	return id
+}
+
+func (id *indexDefinition) Name(name string) IndexDefinition {
+	id.name = name
+	return id
+}
