@@ -71,11 +71,6 @@ type Blueprint struct {
 	renameIndexes   map[string]string // old index name to new index name
 }
 
-func (b *Blueprint) addColumn(col *columnDefinition) *columnDefinition {
-	b.columns = append(b.columns, col)
-	return col
-}
-
 // Charset sets the character set for the table in the blueprint.
 func (b *Blueprint) Charset(charset string) {
 	b.charset = charset
@@ -677,15 +672,6 @@ func (b *Blueprint) rename() {
 	b.addCommand("rename")
 }
 
-func (b *Blueprint) addCommand(command string) {
-	if command == "" {
-		return
-	}
-	if !slices.Contains(b.commands, command) {
-		b.commands = append(b.commands, command)
-	}
-}
-
 func (b *Blueprint) addImpliedCommands() {
 	if len(b.getAddedColumns()) > 0 && !b.creating() {
 		b.commands = append([]string{"add"}, b.commands...)
@@ -886,233 +872,16 @@ func (b *Blueprint) getIndexStatements(grammar grammar, idxType indexType) ([]st
 	return statements, nil
 }
 
-type columnDefinition struct {
-	name             string
-	columnType       columnType
-	customColumnType string // for custom column types
-	commands         []string
-	comment          string
-	defaultValue     any
-	onUpdateValue    string
-	nullable         bool
-	autoIncrement    bool
-	unsigned         bool
-	primary          bool
-	index            bool
-	indexName        string
-	unique           bool
-	uniqueName       string
-	length           int
-	precision        int
-	total            int
-	places           int
-	changed          bool
-	allowedEnums     []string // for enum type columns
-	subType          string   // for geography and geometry types
-	srid             int      // for geography and geometry types
+func (b *Blueprint) addColumn(col *columnDefinition) *columnDefinition {
+	b.columns = append(b.columns, col)
+	return col
 }
 
-func (c *columnDefinition) addCommand(command string) {
+func (b *Blueprint) addCommand(command string) {
 	if command == "" {
 		return
 	}
-	if !slices.Contains(c.commands, command) {
-		c.commands = append(c.commands, command)
+	if !slices.Contains(b.commands, command) {
+		b.commands = append(b.commands, command)
 	}
-}
-
-func (c *columnDefinition) hasCommand(command string) bool {
-	return slices.Contains(c.commands, command)
-}
-
-func (c *columnDefinition) AutoIncrement() ColumnDefinition {
-	c.addCommand("autoIncrement")
-	c.autoIncrement = true
-	return c
-}
-
-func (c *columnDefinition) Comment(comment string) ColumnDefinition {
-	c.addCommand("comment")
-	c.comment = comment
-	return c
-}
-
-func (c *columnDefinition) Default(value any) ColumnDefinition {
-	c.addCommand("default")
-	c.defaultValue = value
-
-	return c
-}
-
-func (c *columnDefinition) Index(indexName ...string) ColumnDefinition {
-	c.index = true
-	c.indexName = optional("", indexName...)
-	c.addCommand("index")
-	return c
-}
-
-func (c *columnDefinition) Nullable(value ...bool) ColumnDefinition {
-	c.addCommand("nullable")
-	c.nullable = optional(true, value...)
-	return c
-}
-
-func (c *columnDefinition) Primary() ColumnDefinition {
-	c.addCommand("primary")
-	c.primary = true
-	return c
-}
-
-func (c *columnDefinition) Unique(indexName ...string) ColumnDefinition {
-	c.addCommand("unique")
-	c.unique = true
-	c.uniqueName = optional("", indexName...)
-	return c
-}
-
-func (c *columnDefinition) Change() ColumnDefinition {
-	c.addCommand("change")
-	c.changed = true
-	return c
-}
-
-func (c *columnDefinition) Unsigned() ColumnDefinition {
-	c.unsigned = true
-	return c
-}
-
-func (c *columnDefinition) UseCurrent() ColumnDefinition {
-	c.Default("CURRENT_TIMESTAMP")
-	return c
-}
-
-func (c *columnDefinition) UseCurrentOnUpdate() ColumnDefinition {
-	c.onUpdateValue = "CURRENT_TIMESTAMP"
-	return c
-}
-
-type indexDefinition struct {
-	name               string
-	indexType          indexType
-	algorithm          string
-	columns            []string
-	language           string
-	deferrable         *bool
-	initiallyImmediate *bool
-}
-
-func (id *indexDefinition) Algorithm(algorithm string) IndexDefinition {
-	id.algorithm = algorithm
-	return id
-}
-
-func (id *indexDefinition) Deferrable(value ...bool) IndexDefinition {
-	val := optional(true, value...)
-	id.deferrable = &val
-	return id
-}
-
-func (id *indexDefinition) InitiallyImmediate(value ...bool) IndexDefinition {
-	val := optional(true, value...)
-	id.initiallyImmediate = &val
-	return id
-}
-
-func (id *indexDefinition) Language(language string) IndexDefinition {
-	id.language = language
-	return id
-}
-
-func (id *indexDefinition) Name(name string) IndexDefinition {
-	id.name = name
-	return id
-}
-
-type foreignKeyDefinition struct {
-	tableName          string
-	column             string
-	constaintName      string // name of the foreign key constraint
-	references         string
-	on                 string
-	onDelete           string
-	onUpdate           string
-	deferrable         *bool
-	initiallyImmediate *bool
-}
-
-func (fk *foreignKeyDefinition) CascadeOnDelete() ForeignKeyDefinition {
-	fk.onDelete = "CASCADE"
-	return fk
-}
-
-func (fk *foreignKeyDefinition) CascadeOnUpdate() ForeignKeyDefinition {
-	fk.onUpdate = "CASCADE"
-	return fk
-}
-
-func (fk *foreignKeyDefinition) Deferrable(value ...bool) ForeignKeyDefinition {
-	val := optional(true, value...)
-	fk.deferrable = &val
-	return fk
-}
-
-func (fk *foreignKeyDefinition) InitiallyImmediate(value ...bool) ForeignKeyDefinition {
-	val := optional(true, value...)
-	fk.initiallyImmediate = &val
-	return fk
-}
-
-func (fk *foreignKeyDefinition) Name(name string) ForeignKeyDefinition {
-	fk.constaintName = name
-	return fk
-}
-
-func (fk *foreignKeyDefinition) NoActionOnDelete() ForeignKeyDefinition {
-	fk.onDelete = "NO ACTION"
-	return fk
-}
-
-func (fk *foreignKeyDefinition) NoActionOnUpdate() ForeignKeyDefinition {
-	fk.onUpdate = "NO ACTION"
-	return fk
-}
-
-func (fk *foreignKeyDefinition) NullOnDelete() ForeignKeyDefinition {
-	fk.onDelete = "SET NULL"
-	return fk
-}
-
-func (fk *foreignKeyDefinition) NullOnUpdate() ForeignKeyDefinition {
-	fk.onUpdate = "SET NULL"
-	return fk
-}
-
-func (fk *foreignKeyDefinition) On(table string) ForeignKeyDefinition {
-	fk.on = table
-	return fk
-}
-
-func (fk *foreignKeyDefinition) OnDelete(action string) ForeignKeyDefinition {
-	fk.onDelete = action
-	return fk
-}
-
-func (fk *foreignKeyDefinition) OnUpdate(action string) ForeignKeyDefinition {
-	fk.onUpdate = action
-	return fk
-}
-
-func (fk *foreignKeyDefinition) References(column string) ForeignKeyDefinition {
-	fk.references = column
-	return fk
-}
-
-func (fk *foreignKeyDefinition) RestrictOnDelete() ForeignKeyDefinition {
-	fk.onDelete = "RESTRICT"
-	return fk
-}
-
-func (fk *foreignKeyDefinition) RestrictOnUpdate() ForeignKeyDefinition {
-	fk.onUpdate = "RESTRICT"
-	return fk
 }
