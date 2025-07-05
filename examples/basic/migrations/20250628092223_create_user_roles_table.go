@@ -23,5 +23,5 @@ func upCreateUserRolesTable(ctx context.Context, tx *sql.Tx) error {
 }
 
 func downCreateUserRolesTable(ctx context.Context, tx *sql.Tx) error {
-	return schema.Drop(ctx, tx, "user_roles")
+	return schema.DropIfExists(ctx, tx, "user_roles")
 }

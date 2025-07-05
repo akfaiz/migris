@@ -25,5 +25,5 @@ func upCreateUsersTable(ctx context.Context, tx *sql.Tx) error {
 }
 
 func downCreateUsersTable(ctx context.Context, tx *sql.Tx) error {
-	return schema.Drop(ctx, tx, "users")
+	return schema.DropIfExists(ctx, tx, "users")
 }

@@ -15,7 +15,7 @@
 - ⚙️ Auto-generates `CREATE TABLE`, `ALTER TABLE`, index and foreign key SQL
 - 🔀 Designed to work with database transactions
 - 🧪 Built-in types and functions make migration code clear and testable
-- 🔍 Provides helper functions to list tables, columns, and indexes
+- 🔍 Provides helper functions to get list tables, columns, and indexes
 
 ## Supported Databases
 
