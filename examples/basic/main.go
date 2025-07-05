@@ -15,8 +15,9 @@ func main() {
 		Usage: "A simple schema example",
 		Commands: []*cli.Command{
 			{
-				Name:  "migrate",
-				Usage: "Run database migrations",
+				Name:    "migrate",
+				Aliases: []string{"m"},
+				Usage:   "Run database migrations",
 				Commands: []*cli.Command{
 					{
 						Name:  "create",
@@ -34,15 +35,17 @@ func main() {
 						},
 					},
 					{
-						Name:  "up",
-						Usage: "Run all pending migrations",
+						Name:    "up",
+						Aliases: []string{"u"},
+						Usage:   "Run all pending migrations",
 						Action: func(ctx context.Context, c *cli.Command) error {
 							return migrate.Up()
 						},
 					},
 					{
-						Name:  "down",
-						Usage: "Reset the database by rolling back all migrations",
+						Name:    "down",
+						Aliases: []string{"d"},
+						Usage:   "Down all migrations",
 						Action: func(ctx context.Context, c *cli.Command) error {
 							return migrate.Down()
 						},

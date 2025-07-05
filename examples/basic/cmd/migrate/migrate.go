@@ -77,7 +77,6 @@ func newDatabase(cfg config.Database) (*sql.DB, error) {
 }
 
 func (m *migrator) init() error {
-	goose.SetDialect(m.dialect)
 	goose.SetTableName(m.tableName)
 	if err := goose.SetDialect(m.dialect); err != nil {
 		return err
