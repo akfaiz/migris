@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/ahmadfaizk/schema/examples/basic/cmd/migrate"
+	"github.com/afkdevs/go-schema/examples/basic/cmd/migrate"
 	"github.com/urfave/cli/v3"
 )
 

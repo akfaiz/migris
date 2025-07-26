@@ -1,9 +1,9 @@
 # Schema
-[![Go](https://github.com/ahmadfaizk/schema/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmadfaizk/schema/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ahmadfaizk/schema)](https://goreportcard.com/report/github.com/ahmadfaizk/schema)
-[![codecov](https://codecov.io/gh/ahmadfaizk/schema/graph/badge.svg?token=7tbSVRaD4b)](https://codecov.io/gh/ahmadfaizk/schema)
-[![GoDoc](https://pkg.go.dev/badge/github.com/ahmadfaizk/schema)](https://pkg.go.dev/github.com/ahmadfaizk/schema)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/ahmadfaizk/schema)](https://golang.org/doc/devel/release.html)
+[![Go](https://github.com/afkdevs/go-schema/actions/workflows/ci.yml/badge.svg)](https://github.com/afkdevs/go-schema/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/afkdevs/go-schema)](https://goreportcard.com/report/github.com/afkdevs/go-schema)
+[![codecov](https://codecov.io/gh/afkdevs/go-schema/graph/badge.svg?token=7tbSVRaD4b)](https://codecov.io/gh/afkdevs/go-schema)
+[![GoDoc](https://pkg.go.dev/badge/github.com/afkdevs/go-schema)](https://pkg.go.dev/github.com/afkdevs/go-schema)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/afkdevs/go-schema)](https://golang.org/doc/devel/release.html)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 `Schema` is a simple Go library for building and running SQL schema (DDL) code in a clean, readable, and migration-friendly way. Inspired by Laravel's Schema Builder, it helps you easily create or change database tables—and works well with tools like [`goose`](https://github.com/pressly/goose).
@@ -28,7 +28,7 @@ Currently, `schema` is tested and optimized for:
 ## Installation
 
 ```bash
-go get github.com/ahmadfaizk/schema
+go get github.com/afkdevs/schema
 ```
 
 ## Integration Example (with goose)
@@ -39,7 +39,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/ahmadfaizk/schema"
+	"github.com/afkdevs/schema"
 	"github.com/pressly/goose/v3"
 )
 
@@ -65,7 +65,7 @@ func downCreateUsersTable(ctx context.Context, tx *sql.Tx) error {
 For more examples, check out the [examples](examples/basic) directory.
 
 ## Documentation
-For detailed documentation, please refer to the [GoDoc](https://pkg.go.dev/github.com/ahmadfaizk/schema) page.
+For detailed documentation, please refer to the [GoDoc](https://pkg.go.dev/github.com/afkdevs/schema) page.
 
 ## Contributing
 Contributions are welcome! Please read the [contributing guidelines](CONTRIBUTING.md) and submit a pull request.

@@ -1,7 +1,6 @@
 COVERAGE_FILE := coverage.out
 COVERAGE_HTML := coverage.html
 MIN_COVERAGE  := 80
-JUNIT_FILE	  := junit.xml
 
 FORMAT ?= dots
 
@@ -23,14 +22,12 @@ install:
 	@echo "Installing dependencies..."
 	@go mod download
 	@go mod tidy
-	@echo "Installing tools..."
-	@go install gotest.tools/gotestsum@latest
 
 # Run tests
 .PHONY: test
 test:
 	@echo "Running tests..."
-	gotestsum --format $(FORMAT) --junitfile $(JUNIT_FILE) -- -cover -race ./... -coverprofile=$(COVERAGE_FILE) -coverpkg=./...
+	go test -v -cover -race ./... -coverprofile=$(COVERAGE_FILE) -coverpkg=./...
 
 .PHONY: coverage
 coverage:

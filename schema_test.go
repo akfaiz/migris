@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ahmadfaizk/schema"
+	"github.com/afkdevs/go-schema"
 	"github.com/stretchr/testify/suite"
 )
 
