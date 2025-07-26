@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/ahmadfaizk/schema"
+	"github.com/afkdevs/go-schema"
 	"github.com/pressly/goose/v3"
 )
 

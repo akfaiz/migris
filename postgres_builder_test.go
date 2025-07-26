@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ahmadfaizk/schema"
+	"github.com/afkdevs/go-schema"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/suite"
 )

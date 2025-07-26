@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/ahmadfaizk/schema"
-	"github.com/ahmadfaizk/schema/examples/basic/config"
-	_ "github.com/ahmadfaizk/schema/examples/basic/migrations"
+	"github.com/afkdevs/go-schema"
+	"github.com/afkdevs/go-schema/examples/basic/config"
+	_ "github.com/afkdevs/go-schema/examples/basic/migrations"
 	_ "github.com/lib/pq" // PostgreSQL driver
 	"github.com/pressly/goose/v3"
 )

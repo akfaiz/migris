@@ -1,15 +1,15 @@
-module github.com/ahmadfaizk/schema/examples/basic
+module github.com/afkdevs/go-schema/examples/basic
 
 go 1.23.0
 
 require (
-	github.com/ahmadfaizk/schema v0.1.0
+	github.com/afkdevs/go-schema v0.0.0-000000000000-00010101000000
 	github.com/lib/pq v1.10.9
 	github.com/pressly/goose/v3 v3.24.3
 	github.com/urfave/cli/v3 v3.3.8
 )
 
-replace github.com/ahmadfaizk/schema => ../..
+replace github.com/afkdevs/go-schema => ../..
 
 require (
 	github.com/mfridman/interpolate v0.0.2 // indirect

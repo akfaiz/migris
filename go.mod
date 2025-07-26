@@ -1,4 +1,4 @@
-module github.com/ahmadfaizk/schema
+module github.com/afkdevs/go-schema
 
 go 1.23
 
