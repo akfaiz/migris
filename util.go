@@ -1,44 +1,33 @@
 package schema
 
-import (
-	"context"
-	"database/sql"
-	"log"
-)
-
 func optional[T any](defaultValue T, values ...T) T {
-	return optionalAtIndex(0, defaultValue, values...)
-}
-
-func optionalAtIndex[T any](index int, defaultValue T, values ...T) T {
-	if index < len(values) {
-		return values[index]
+	if len(values) > 0 {
+		return values[0]
 	}
 	return defaultValue
 }
 
-func execContext(ctx context.Context, tx *sql.Tx, queries ...string) error {
-	for _, query := range queries {
-		if debug {
-			log.Printf("Executing SQL: %s\n", query)
-		}
-		if _, err := tx.ExecContext(ctx, query); err != nil {
-			return err
-		}
+func optionalPtr[T any](defaultValue T, values ...T) *T {
+	if len(values) > 0 {
+		return &values[0]
+	}
+	return &defaultValue
+}
+
+func optionalNil[T any](values ...T) *T {
+	if len(values) > 0 {
+		return &values[0]
 	}
 	return nil
 }
 
-func queryRowContext(ctx context.Context, tx *sql.Tx, query string, args ...any) *sql.Row {
-	if debug {
-		log.Printf("Executing Query: %s with args: %v\n", query, args)
-	}
-	return tx.QueryRowContext(ctx, query, args...)
+func ptrOf[T any](value T) *T {
+	return &value
 }
 
-func queryContext(ctx context.Context, tx *sql.Tx, query string, args ...any) (*sql.Rows, error) {
-	if debug {
-		log.Printf("Executing Query: %s with args: %v\n", query, args)
+func ternary[T any](condition bool, trueValue, falseValue T) T {
+	if condition {
+		return trueValue
 	}
-	return tx.QueryContext(ctx, query, args...)
+	return falseValue
 }

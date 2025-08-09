@@ -10,50 +10,53 @@ type grammar interface {
 	compileCreate(bp *Blueprint) (string, error)
 	compileCreateIfNotExists(bp *Blueprint) (string, error)
 	compileAdd(bp *Blueprint) (string, error)
-	compileChange(bp *Blueprint) ([]string, error)
+	compileChange(bp *Blueprint, command *command) (string, error)
 	compileDrop(bp *Blueprint) (string, error)
 	compileDropIfExists(bp *Blueprint) (string, error)
-	compileRename(bp *Blueprint) (string, error)
-	compileDropColumn(blueprint *Blueprint) (string, error)
-	compileRenameColumn(blueprint *Blueprint, oldName, newName string) (string, error)
-	compileIndex(blueprint *Blueprint, index *indexDefinition) (string, error)
-	compileUnique(blueprint *Blueprint, index *indexDefinition) (string, error)
-	compilePrimary(blueprint *Blueprint, index *indexDefinition) (string, error)
-	compileFullText(blueprint *Blueprint, index *indexDefinition) (string, error)
-	compileDropIndex(blueprint *Blueprint, indexName string) (string, error)
-	compileDropUnique(blueprint *Blueprint, indexName string) (string, error)
-	compileDropFulltext(blueprint *Blueprint, indexName string) (string, error)
-	compileDropPrimary(blueprint *Blueprint, indexName string) (string, error)
-	compileRenameIndex(blueprint *Blueprint, oldName, newName string) (string, error)
-	compileForeign(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error)
-	compileDropForeign(blueprint *Blueprint, foreignKeyName string) (string, error)
+	compileRename(bp *Blueprint, command *command) (string, error)
+	compileDropColumn(blueprint *Blueprint, command *command) (string, error)
+	compileRenameColumn(blueprint *Blueprint, command *command) (string, error)
+	compileIndex(blueprint *Blueprint, command *command) (string, error)
+	compileUnique(blueprint *Blueprint, command *command) (string, error)
+	compilePrimary(blueprint *Blueprint, command *command) (string, error)
+	compileFullText(blueprint *Blueprint, command *command) (string, error)
+	compileDropIndex(blueprint *Blueprint, command *command) (string, error)
+	compileDropUnique(blueprint *Blueprint, command *command) (string, error)
+	compileDropFulltext(blueprint *Blueprint, command *command) (string, error)
+	compileDropPrimary(blueprint *Blueprint, command *command) (string, error)
+	compileRenameIndex(blueprint *Blueprint, command *command) (string, error)
+	compileForeign(blueprint *Blueprint, command *command) (string, error)
+	compileDropForeign(blueprint *Blueprint, command *command) (string, error)
+	getFluentCommands() []func(blueprint *Blueprint, command *command) string
+	createIndexName(blueprint *Blueprint, idxType string, columns ...string) string
 }
 
 type baseGrammar struct{}
 
-func (g *baseGrammar) compileForeign(blueprint *Blueprint, foreignKey *foreignKeyDefinition) (string, error) {
-	if foreignKey.column == "" || foreignKey.on == "" || foreignKey.references == "" {
+func (g *baseGrammar) compileForeign(blueprint *Blueprint, command *command) (string, error) {
+	if len(command.columns) == 0 || slices.Contains(command.columns, "") || command.on == "" ||
+		len(command.references) == 0 || slices.Contains(command.references, "") {
 		return "", fmt.Errorf("foreign key definition is incomplete: column, on, and references must be set")
 	}
 	onDelete := ""
-	if foreignKey.onDelete != "" {
-		onDelete = fmt.Sprintf(" ON DELETE %s", foreignKey.onDelete)
+	if command.onDelete != "" {
+		onDelete = fmt.Sprintf(" ON DELETE %s", command.onDelete)
 	}
 	onUpdate := ""
-	if foreignKey.onUpdate != "" {
-		onUpdate = fmt.Sprintf(" ON UPDATE %s", foreignKey.onUpdate)
+	if command.onUpdate != "" {
+		onUpdate = fmt.Sprintf(" ON UPDATE %s", command.onUpdate)
 	}
-	containtName := foreignKey.constaintName
-	if containtName == "" {
-		containtName = g.createForeignKeyName(blueprint, foreignKey)
+	index := command.index
+	if index == "" {
+		index = g.createForeignKeyName(blueprint, command)
 	}
 
 	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(%s)%s%s",
 		blueprint.name,
-		containtName,
-		foreignKey.column,
-		foreignKey.on,
-		foreignKey.references,
+		index,
+		command.columns[0],
+		command.on,
+		command.references[0],
 		onDelete,
 		onUpdate,
 	), nil
@@ -78,58 +81,57 @@ func (g *baseGrammar) columnize(columns []string) string {
 	return strings.Join(columns, ", ")
 }
 
-func (g *baseGrammar) getDefaultValue(col *columnDefinition) string {
-	if col.defaultValue == nil {
-		return "NULL"
-	}
-	useQuote := slices.Contains([]columnType{columnTypeString, columnTypeChar, columnTypeEnum}, col.columnType)
-
-	switch v := col.defaultValue.(type) {
-	case string:
-		if useQuote {
-			return g.quoteString(v)
-		}
-		return v
-	case int, int64, float64:
-		return fmt.Sprintf("%v", v)
-	case bool:
-		if v {
-			return "true"
-		}
-		return "false"
+func (g *baseGrammar) getValue(value any) string {
+	switch v := value.(type) {
+	case Expression:
+		return v.String()
 	default:
-		return fmt.Sprintf("'%v'", v) // Fallback for other types
+		return fmt.Sprintf("'%v'", v)
 	}
 }
 
-func (g *baseGrammar) createIndexName(blueprint *Blueprint, index *indexDefinition) string {
+func (g *baseGrammar) getDefaultValue(value any) string {
+	if value == nil {
+		return "NULL"
+	}
+	switch v := value.(type) {
+	case Expression:
+		return v.String()
+	case bool:
+		return ternary(v, "'1'", "'0'")
+	default:
+		return fmt.Sprintf("'%v'", v)
+	}
+}
+
+func (g *baseGrammar) createIndexName(blueprint *Blueprint, idxType string, columns ...string) string {
 	tableName := blueprint.name
 	if strings.Contains(tableName, ".") {
 		parts := strings.Split(tableName, ".")
 		tableName = parts[len(parts)-1] // Use the last part as the table name
 	}
 
-	switch index.indexType {
-	case indexTypePrimary:
+	switch idxType {
+	case commandPrimary:
 		return fmt.Sprintf("pk_%s", tableName)
-	case indexTypeUnique:
-		return fmt.Sprintf("uk_%s_%s", tableName, strings.Join(index.columns, "_"))
-	case indexTypeIndex:
-		return fmt.Sprintf("idx_%s_%s", tableName, strings.Join(index.columns, "_"))
-	case indexTypeFullText:
-		return fmt.Sprintf("ft_%s_%s", tableName, strings.Join(index.columns, "_"))
+	case commandUnique:
+		return fmt.Sprintf("uk_%s_%s", tableName, strings.Join(columns, "_"))
+	case commandIndex:
+		return fmt.Sprintf("idx_%s_%s", tableName, strings.Join(columns, "_"))
+	case commandFullText:
+		return fmt.Sprintf("ft_%s_%s", tableName, strings.Join(columns, "_"))
 	default:
 		return ""
 	}
 }
 
-func (g *baseGrammar) createForeignKeyName(blueprint *Blueprint, foreignKey *foreignKeyDefinition) string {
+func (g *baseGrammar) createForeignKeyName(blueprint *Blueprint, command *command) string {
 	tableName := blueprint.name
 	if strings.Contains(tableName, ".") {
 		parts := strings.Split(tableName, ".")
 		tableName = parts[len(parts)-1] // Use the last part as the table name
 	}
-	on := foreignKey.on
+	on := command.on
 	if strings.Contains(on, ".") {
 		parts := strings.Split(on, ".")
 		on = parts[len(parts)-1] // Use the last part as the column name

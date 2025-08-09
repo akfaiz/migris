@@ -40,20 +40,25 @@ type Builder interface {
 // It returns an error if the dialect is not supported.
 //
 // Supported dialects are "postgres", "pgx", "mysql", and "mariadb".
-func NewBuilder(dialect string) (Builder, error) {
+func NewBuilder(dialect string, options ...Option) (Builder, error) {
 	dialectVal := dialectFromString(dialect)
 	switch dialectVal {
 	case dialectMySQL:
-		return newMysqlBuilder(), nil
+		return newMysqlBuilder(options...), nil
 	case dialectPostgres:
-		return newPostgresBuilder(), nil
+		return newPostgresBuilder(options...), nil
 	default:
 		return nil, errors.New("unsupported dialect: " + dialect)
 	}
 }
 
 type baseBuilder struct {
+	debug   bool
 	grammar grammar
+}
+
+func (b *baseBuilder) newBlueprint(name string) *Blueprint {
+	return &Blueprint{name: name, grammar: b.grammar, debug: b.debug}
 }
 
 func (b *baseBuilder) validateTxAndName(tx *sql.Tx, name string) error {
@@ -84,16 +89,15 @@ func (b *baseBuilder) Create(ctx context.Context, tx *sql.Tx, name string, bluep
 		return err
 	}
 
-	bp := &Blueprint{name: name}
+	bp := b.newBlueprint(name)
 	bp.create()
 	blueprint(bp)
 
-	statements, err := bp.toSql(b.grammar)
-	if err != nil {
+	if err := bp.build(ctx, tx); err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, statements...)
+	return nil
 }
 
 func (b *baseBuilder) CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
@@ -101,16 +105,15 @@ func (b *baseBuilder) CreateIfNotExists(ctx context.Context, tx *sql.Tx, name st
 		return err
 	}
 
-	bp := &Blueprint{name: name}
+	bp := b.newBlueprint(name)
 	bp.createIfNotExists()
 	blueprint(bp)
 
-	statements, err := bp.toSql(b.grammar)
-	if err != nil {
+	if err := bp.build(ctx, tx); err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, statements...)
+	return nil
 }
 
 func (b *baseBuilder) Drop(ctx context.Context, tx *sql.Tx, name string) error {
@@ -118,14 +121,14 @@ func (b *baseBuilder) Drop(ctx context.Context, tx *sql.Tx, name string) error {
 		return err
 	}
 
-	bp := &Blueprint{name: name}
+	bp := b.newBlueprint(name)
 	bp.drop()
-	statements, err := bp.toSql(b.grammar)
-	if err != nil {
+
+	if err := bp.build(ctx, tx); err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, statements...)
+	return nil
 }
 
 func (b *baseBuilder) DropIfExists(ctx context.Context, tx *sql.Tx, name string) error {
@@ -133,14 +136,14 @@ func (b *baseBuilder) DropIfExists(ctx context.Context, tx *sql.Tx, name string)
 		return err
 	}
 
-	bp := &Blueprint{name: name}
+	bp := b.newBlueprint(name)
 	bp.dropIfExists()
-	statements, err := bp.toSql(b.grammar)
-	if err != nil {
+
+	if err := bp.build(ctx, tx); err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, statements...)
+	return nil
 }
 
 func (b *baseBuilder) Rename(ctx context.Context, tx *sql.Tx, oldName string, newName string) error {
@@ -150,14 +153,14 @@ func (b *baseBuilder) Rename(ctx context.Context, tx *sql.Tx, oldName string, ne
 	if tx == nil {
 		return errors.New("transaction is nil")
 	}
-	bp := &Blueprint{name: oldName, newName: newName}
-	bp.rename()
-	statements, err := bp.toSql(b.grammar)
-	if err != nil {
+	bp := b.newBlueprint(oldName)
+	bp.rename(newName)
+
+	if err := bp.build(ctx, tx); err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, statements...)
+	return nil
 }
 
 func (b *baseBuilder) Table(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
@@ -165,13 +168,12 @@ func (b *baseBuilder) Table(ctx context.Context, tx *sql.Tx, name string, bluepr
 		return err
 	}
 
-	bp := &Blueprint{name: name}
+	bp := b.newBlueprint(name)
 	blueprint(bp)
 
-	statements, err := bp.toSql(b.grammar)
-	if err != nil {
+	if err := bp.build(ctx, tx); err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, statements...)
+	return nil
 }

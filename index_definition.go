@@ -15,16 +15,8 @@ type IndexDefinition interface {
 	Name(name string) IndexDefinition
 }
 
-var _ IndexDefinition = &indexDefinition{}
-
 type indexDefinition struct {
-	name               string
-	indexType          indexType
-	algorithm          string
-	columns            []string
-	language           string
-	deferrable         *bool
-	initiallyImmediate *bool
+	*command
 }
 
 func (id *indexDefinition) Algorithm(algorithm string) IndexDefinition {
@@ -50,6 +42,6 @@ func (id *indexDefinition) Language(language string) IndexDefinition {
 }
 
 func (id *indexDefinition) Name(name string) IndexDefinition {
-	id.name = name
+	id.index = name
 	return id
 }

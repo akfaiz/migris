@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -8,12 +9,19 @@ import (
 
 type mysqlGrammar struct {
 	baseGrammar
+
+	serials []string
 }
 
 var _ grammar = (*mysqlGrammar)(nil)
 
 func newMysqlGrammar() *mysqlGrammar {
-	return &mysqlGrammar{}
+	return &mysqlGrammar{
+		serials: []string{
+			columnTypeBigInteger, columnTypeInteger, columnTypeMediumInteger, columnTypeSmallInteger,
+			columnTypeTinyInteger,
+		},
+	}
 }
 
 func (g *mysqlGrammar) compileCurrentDatabase() string {
@@ -102,7 +110,7 @@ func (g *mysqlGrammar) compileCreateEngine(sql string, blueprint *Blueprint) str
 }
 
 func (g *mysqlGrammar) compileCreateIfNotExists(blueprint *Blueprint) (string, error) {
-	return g.compileCreate(blueprint)
+	return "", errors.New("MySQL does not support CREATE TABLE IF NOT EXISTS with custom options")
 }
 
 func (g *mysqlGrammar) compileAdd(blueprint *Blueprint) (string, error) {
@@ -125,51 +133,22 @@ func (g *mysqlGrammar) compileAdd(blueprint *Blueprint) (string, error) {
 	), nil
 }
 
-func (g *mysqlGrammar) compileChange(bp *Blueprint) ([]string, error) {
-	if len(bp.getChangedColumns()) == 0 {
-		return nil, nil
+func (g *mysqlGrammar) compileChange(bp *Blueprint, command *command) (string, error) {
+	column := command.column
+	if column.name == "" {
+		return "", fmt.Errorf("column name cannot be empty for change operation")
 	}
 
-	var sqls []string
-	for _, col := range bp.getChangedColumns() {
-		if col.name == "" {
-			return nil, fmt.Errorf("column name cannot be empty for change operation")
-		}
-		sql := fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s %s", bp.name, col.name, g.getType(col))
-
-		if col.hasCommand("nullable") {
-			if col.nullable {
-				sql += " NULL"
-			} else {
-				sql += " NOT NULL"
-			}
-		}
-		if col.hasCommand("default") {
-			if col.defaultValue != nil {
-				sql += fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col))
-			} else {
-				sql += " DEFAULT NULL"
-			}
-		}
-		if col.hasCommand("comment") {
-			if col.comment != "" {
-				sql += fmt.Sprintf(" COMMENT '%s'", col.comment)
-			} else {
-				sql += " COMMENT ''"
-			}
-		}
-
-		sqls = append(sqls, sql)
+	sql := fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s %s", bp.name, column.name, g.getType(column))
+	for _, modifier := range g.modifiers() {
+		sql += modifier(column)
 	}
 
-	return sqls, nil
+	return sql, nil
 }
 
-func (g *mysqlGrammar) compileRename(blueprint *Blueprint) (string, error) {
-	if blueprint.newName == "" {
-		return "", fmt.Errorf("new table name cannot be empty")
-	}
-	return fmt.Sprintf("ALTER TABLE %s RENAME TO %s", blueprint.name, blueprint.newName), nil
+func (g *mysqlGrammar) compileRename(blueprint *Blueprint, command *command) (string, error) {
+	return fmt.Sprintf("ALTER TABLE %s RENAME TO %s", blueprint.name, command.to), nil
 }
 
 func (g *mysqlGrammar) compileDrop(blueprint *Blueprint) (string, error) {
@@ -186,12 +165,12 @@ func (g *mysqlGrammar) compileDropIfExists(blueprint *Blueprint) (string, error)
 	return fmt.Sprintf("DROP TABLE IF EXISTS %s", blueprint.name), nil
 }
 
-func (g *mysqlGrammar) compileDropColumn(blueprint *Blueprint) (string, error) {
-	if len(blueprint.dropColumns) == 0 {
+func (g *mysqlGrammar) compileDropColumn(blueprint *Blueprint, command *command) (string, error) {
+	if len(command.columns) == 0 {
 		return "", fmt.Errorf("no columns to drop")
 	}
-	columns := make([]string, len(blueprint.dropColumns))
-	for i, col := range blueprint.dropColumns {
+	columns := make([]string, len(command.columns))
+	for i, col := range command.columns {
 		if col == "" {
 			return "", fmt.Errorf("column name cannot be empty")
 		}
@@ -201,111 +180,112 @@ func (g *mysqlGrammar) compileDropColumn(blueprint *Blueprint) (string, error) {
 	return fmt.Sprintf("ALTER TABLE %s %s", blueprint.name, strings.Join(columns, ", ")), nil
 }
 
-func (g *mysqlGrammar) compileRenameColumn(blueprint *Blueprint, oldName, newName string) (string, error) {
-	if oldName == "" || newName == "" {
+func (g *mysqlGrammar) compileRenameColumn(blueprint *Blueprint, command *command) (string, error) {
+	if command.from == "" || command.to == "" {
 		return "", fmt.Errorf("old and new column names cannot be empty")
 	}
-	return fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", blueprint.name, oldName, newName), nil
+	return fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", blueprint.name, command.from, command.to), nil
 }
 
-func (g *mysqlGrammar) compileIndex(blueprint *Blueprint, index *indexDefinition) (string, error) {
-	if slices.Contains(index.columns, "") {
+func (g *mysqlGrammar) compileIndex(blueprint *Blueprint, command *command) (string, error) {
+	if slices.Contains(command.columns, "") {
 		return "", fmt.Errorf("index column cannot be empty")
 	}
 
-	indexName := index.name
+	indexName := command.index
 	if indexName == "" {
-		indexName = g.createIndexName(blueprint, index)
+		indexName = g.createIndexName(blueprint, commandIndex, command.columns...)
 	}
 
-	sql := fmt.Sprintf("CREATE INDEX %s ON %s (%s)", indexName, blueprint.name, g.columnize(index.columns))
-	if index.algorithm != "" {
-		sql += fmt.Sprintf(" USING %s", index.algorithm)
+	sql := fmt.Sprintf("CREATE INDEX %s ON %s (%s)", indexName, blueprint.name, g.columnize(command.columns))
+	if command.algorithm != "" {
+		sql += fmt.Sprintf(" USING %s", command.algorithm)
 	}
 
 	return sql, nil
 }
 
-func (g *mysqlGrammar) compileUnique(blueprint *Blueprint, index *indexDefinition) (string, error) {
-	if slices.Contains(index.columns, "") {
+func (g *mysqlGrammar) compileUnique(blueprint *Blueprint, command *command) (string, error) {
+	if slices.Contains(command.columns, "") {
 		return "", fmt.Errorf("unique column cannot be empty")
 	}
 
-	indexName := index.name
+	indexName := command.index
 	if indexName == "" {
-		indexName = g.createIndexName(blueprint, index)
+		indexName = g.createIndexName(blueprint, commandUnique, command.columns...)
 	}
-	sql := fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (%s)", indexName, blueprint.name, g.columnize(index.columns))
-	if index.algorithm != "" {
-		sql += fmt.Sprintf(" USING %s", index.algorithm)
+	sql := fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (%s)", indexName, blueprint.name, g.columnize(command.columns))
+	if command.algorithm != "" {
+		sql += fmt.Sprintf(" USING %s", command.algorithm)
 	}
 
 	return sql, nil
 }
 
-func (g *mysqlGrammar) compileFullText(blueprint *Blueprint, index *indexDefinition) (string, error) {
-	if slices.Contains(index.columns, "") {
+func (g *mysqlGrammar) compileFullText(blueprint *Blueprint, command *command) (string, error) {
+	if slices.Contains(command.columns, "") {
 		return "", fmt.Errorf("fulltext index column cannot be empty")
 	}
 
-	indexName := index.name
+	indexName := command.index
 	if indexName == "" {
-		indexName = g.createIndexName(blueprint, index)
+		indexName = g.createIndexName(blueprint, commandFullText, command.columns...)
 	}
 
-	return fmt.Sprintf("CREATE FULLTEXT INDEX %s ON %s (%s)", indexName, blueprint.name, g.columnize(index.columns)), nil
+	return fmt.Sprintf("CREATE FULLTEXT INDEX %s ON %s (%s)", indexName, blueprint.name, g.columnize(command.columns)), nil
 }
 
-func (g *mysqlGrammar) compilePrimary(blueprint *Blueprint, index *indexDefinition) (string, error) {
-	if slices.Contains(index.columns, "") {
+func (g *mysqlGrammar) compilePrimary(blueprint *Blueprint, command *command) (string, error) {
+	if slices.Contains(command.columns, "") {
 		return "", fmt.Errorf("primary key column cannot be empty")
 	}
 
-	indexName := index.name
+	indexName := command.index
 	if indexName == "" {
-		indexName = g.createIndexName(blueprint, index)
+		indexName = g.createIndexName(blueprint, commandPrimary)
 	}
 
-	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, g.columnize(index.columns)), nil
+	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, g.columnize(command.columns)), nil
 }
 
-func (g *mysqlGrammar) compileDropIndex(blueprint *Blueprint, indexName string) (string, error) {
-	if indexName == "" {
+func (g *mysqlGrammar) compileDropIndex(blueprint *Blueprint, command *command) (string, error) {
+	if command.index == "" {
 		return "", fmt.Errorf("index name cannot be empty")
 	}
-	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", blueprint.name, indexName), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", blueprint.name, command.index), nil
 }
 
-func (g *mysqlGrammar) compileDropUnique(blueprint *Blueprint, indexName string) (string, error) {
-	if indexName == "" {
+func (g *mysqlGrammar) compileDropUnique(blueprint *Blueprint, command *command) (string, error) {
+	if command.index == "" {
 		return "", fmt.Errorf("unique index name cannot be empty")
 	}
-	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", blueprint.name, indexName), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", blueprint.name, command.index), nil
 }
 
-func (g *mysqlGrammar) compileDropFulltext(blueprint *Blueprint, indexName string) (string, error) {
-	return g.compileDropIndex(blueprint, indexName)
+func (g *mysqlGrammar) compileDropFulltext(blueprint *Blueprint, command *command) (string, error) {
+	return g.compileDropIndex(blueprint, command)
 }
 
-func (g *mysqlGrammar) compileDropPrimary(blueprint *Blueprint, indexName string) (string, error) {
-	if indexName == "" {
-		return "", fmt.Errorf("primary key index name cannot be empty")
-	}
+func (g *mysqlGrammar) compileDropPrimary(blueprint *Blueprint, _ *command) (string, error) {
 	return fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY", blueprint.name), nil
 }
 
-func (g *mysqlGrammar) compileRenameIndex(blueprint *Blueprint, oldName, newName string) (string, error) {
-	if oldName == "" || newName == "" {
+func (g *mysqlGrammar) compileRenameIndex(blueprint *Blueprint, command *command) (string, error) {
+	if command.from == "" || command.to == "" {
 		return "", fmt.Errorf("old and new index names cannot be empty")
 	}
-	return fmt.Sprintf("ALTER TABLE %s RENAME INDEX %s TO %s", blueprint.name, oldName, newName), nil
+	return fmt.Sprintf("ALTER TABLE %s RENAME INDEX %s TO %s", blueprint.name, command.from, command.to), nil
 }
 
-func (g *mysqlGrammar) compileDropForeign(blueprint *Blueprint, foreignKeyName string) (string, error) {
-	if foreignKeyName == "" {
+func (g *mysqlGrammar) compileDropForeign(blueprint *Blueprint, command *command) (string, error) {
+	if command.index == "" {
 		return "", fmt.Errorf("foreign key name cannot be empty")
 	}
-	return fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s", blueprint.name, foreignKeyName), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s", blueprint.name, command.index), nil
+}
+
+func (g *mysqlGrammar) getFluentCommands() []func(*Blueprint, *command) string {
+	return []func(*Blueprint, *command) string{}
 }
 
 func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
@@ -315,24 +295,20 @@ func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 			return nil, fmt.Errorf("column name cannot be empty")
 		}
 		sql := col.name + " " + g.getType(col)
-		if col.hasCommand("default") {
-			if col.defaultValue != nil {
-				sql += fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col))
-			} else {
-				sql += " DEFAULT NULL"
-			}
+		sql += g.modifyUnsigned(col)
+		sql += g.modifyIncrement(col)
+
+		if col.defaultValue != nil {
+			sql += g.modifyDefault(col)
 		}
-		if col.onUpdateValue != "" {
-			sql += fmt.Sprintf(" ON UPDATE %s", col.onUpdateValue)
+		if col.onUpdateValue != nil {
+			sql += g.modifyOnUpdate(col)
 		}
-		if col.nullable {
-			sql += " NULL"
-		} else {
-			sql += " NOT NULL"
-		}
-		if col.comment != "" {
-			sql += fmt.Sprintf(" COMMENT '%s'", col.comment)
-		}
+		sql += g.modifyCharset(col)
+		sql += g.modifyCollate(col)
+		sql += g.modifyNullable(col)
+		sql += g.modifyComment(col)
+
 		columns = append(columns, sql)
 	}
 
@@ -342,22 +318,11 @@ func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 func (g *mysqlGrammar) getConstraints(blueprint *Blueprint) []string {
 	var constrains []string
 	for _, col := range blueprint.getAddedColumns() {
-		if col.primary {
-			pkConstraintName := g.createIndexName(blueprint, &indexDefinition{indexType: indexTypePrimary})
+		if col.primary != nil && *col.primary {
+			pkConstraintName := g.createIndexName(blueprint, commandPrimary)
 			sql := "CONSTRAINT " + pkConstraintName + " PRIMARY KEY (" + col.name + ")"
 			constrains = append(constrains, sql)
 			continue
-		}
-		if col.unique {
-			uniqueName := col.uniqueName
-			if uniqueName == "" {
-				uniqueName = g.createIndexName(blueprint, &indexDefinition{
-					indexType: indexTypeUnique,
-					columns:   []string{col.name},
-				})
-			}
-			sql := fmt.Sprintf("CONSTRAINT %s UNIQUE (%s)", uniqueName, col.name)
-			constrains = append(constrains, sql)
 		}
 	}
 
@@ -365,77 +330,289 @@ func (g *mysqlGrammar) getConstraints(blueprint *Blueprint) []string {
 }
 
 func (g *mysqlGrammar) getType(col *columnDefinition) string {
-	switch col.columnType {
-	case columnTypeCustom:
-		return col.customColumnType
-	case columnTypeBoolean:
-		return "TINYINT(1)"
-	case columnTypeChar:
-		return fmt.Sprintf("CHAR(%d)", col.length)
-	case columnTypeString:
-		return fmt.Sprintf("VARCHAR(%d)", col.length)
-	case columnTypeDecimal:
-		return fmt.Sprintf("DECIMAL(%d, %d)", col.total, col.places)
-	case columnTypeDouble, columnTypeFloat:
-		if col.total > 0 && col.places > 0 {
-			return fmt.Sprintf("DOUBLE(%d, %d)", col.total, col.places)
+	typeFuncMap := map[string]func(*columnDefinition) string{
+		columnTypeChar:          g.typeChar,
+		columnTypeString:        g.typeString,
+		columnTypeTinyText:      g.typeTinyText,
+		columnTypeText:          g.typeText,
+		columnTypeMediumText:    g.typeMediumText,
+		columnTypeLongText:      g.typeLongText,
+		columnTypeInteger:       g.typeInteger,
+		columnTypeBigInteger:    g.typeBigInteger,
+		columnTypeMediumInteger: g.typeMediumInteger,
+		columnTypeSmallInteger:  g.typeSmallInteger,
+		columnTypeTinyInteger:   g.typeTinyInteger,
+		columnTypeFloat:         g.typeFloat,
+		columnTypeDouble:        g.typeDouble,
+		columnTypeDecimal:       g.typeDecimal,
+		columnTypeBoolean:       g.typeBoolean,
+		columnTypeEnum:          g.typeEnum,
+		columnTypeJSON:          g.typeJson,
+		columnTypeJSONB:         g.typeJsonb,
+		columnTypeDate:          g.typeDate,
+		columnTypeDateTime:      g.typeDateTime,
+		columnTypeDateTimeTz:    g.typeDateTimeTz,
+		columnTypeTime:          g.typeTime,
+		columnTypeTimeTz:        g.typeTimeTz,
+		columnTypeTimestamp:     g.typeTimestamp,
+		columnTypeTimestampTz:   g.typeTimestampTz,
+		columnTypeYear:          g.typeYear,
+		columnTypeBinary:        g.typeBinary,
+		columnTypeUUID:          g.typeUUID,
+		columnTypeGeography:     g.typeGeography,
+		columnTypeGeometry:      g.typeGeometry,
+		columnTypePoint:         g.typePoint,
+	}
+	if fn, ok := typeFuncMap[col.columnType]; ok {
+		return fn(col)
+	}
+	return col.columnType
+}
+
+func (g *mysqlGrammar) typeChar(col *columnDefinition) string {
+	return fmt.Sprintf("CHAR(%d)", *col.length)
+}
+
+func (g *mysqlGrammar) typeString(col *columnDefinition) string {
+	return fmt.Sprintf("VARCHAR(%d)", *col.length)
+}
+
+func (g *mysqlGrammar) typeTinyText(col *columnDefinition) string {
+	return "TINYTEXT"
+}
+
+func (g *mysqlGrammar) typeText(col *columnDefinition) string {
+	return "TEXT"
+}
+
+func (g *mysqlGrammar) typeMediumText(col *columnDefinition) string {
+	return "MEDIUMTEXT"
+}
+
+func (g *mysqlGrammar) typeLongText(col *columnDefinition) string {
+	return "LONGTEXT"
+}
+
+func (g *mysqlGrammar) typeBigInteger(col *columnDefinition) string {
+	return "BIGINT"
+}
+
+func (g *mysqlGrammar) typeInteger(col *columnDefinition) string {
+	return "INT"
+}
+
+func (g *mysqlGrammar) typeMediumInteger(col *columnDefinition) string {
+	return "MEDIUMINT"
+}
+
+func (g *mysqlGrammar) typeSmallInteger(col *columnDefinition) string {
+	return "SMALLINT"
+}
+
+func (g *mysqlGrammar) typeTinyInteger(col *columnDefinition) string {
+	return "TINYINT"
+}
+
+func (g *mysqlGrammar) typeFloat(col *columnDefinition) string {
+	if col.precision != nil && *col.precision > 0 {
+		return fmt.Sprintf("FLOAT(%d)", *col.precision)
+	}
+	return "FLOAT"
+}
+
+func (g *mysqlGrammar) typeDouble(col *columnDefinition) string {
+	return "DOUBLE"
+}
+
+func (g *mysqlGrammar) typeDecimal(col *columnDefinition) string {
+	return fmt.Sprintf("DECIMAL(%d, %d)", *col.total, *col.places)
+}
+
+func (g *mysqlGrammar) typeBoolean(col *columnDefinition) string {
+	return "TINYINT(1)"
+}
+
+func (g *mysqlGrammar) typeEnum(col *columnDefinition) string {
+	allowedValues := make([]string, len(col.allowed))
+	for i, e := range col.allowed {
+		allowedValues[i] = g.quoteString(e)
+	}
+	return fmt.Sprintf("ENUM(%s)", strings.Join(allowedValues, ", "))
+}
+
+func (g *mysqlGrammar) typeJson(col *columnDefinition) string {
+	return "JSON"
+}
+
+func (g *mysqlGrammar) typeJsonb(col *columnDefinition) string {
+	return "JSON"
+}
+
+func (g *mysqlGrammar) typeDate(col *columnDefinition) string {
+	return "DATE"
+}
+
+func (g *mysqlGrammar) typeDateTime(col *columnDefinition) string {
+	current := "CURRENT_TIMESTAMP"
+	if col.precision != nil && *col.precision > 0 {
+		current = fmt.Sprintf("CURRENT_TIMESTAMP(%d)", *col.precision)
+	}
+	if col.useCurrent != nil && *col.useCurrent {
+		col.Default(Expression(current))
+	}
+	if col.useCurrentOnUpdate != nil && *col.useCurrentOnUpdate {
+		col.OnUpdate(Expression(current))
+	}
+	if col.precision != nil && *col.precision > 0 {
+		return fmt.Sprintf("DATETIME(%d)", *col.precision)
+	}
+	return "DATETIME"
+}
+
+func (g *mysqlGrammar) typeDateTimeTz(col *columnDefinition) string {
+	return g.typeDateTime(col)
+}
+
+func (g *mysqlGrammar) typeTime(col *columnDefinition) string {
+	if col.precision != nil && *col.precision > 0 {
+		return fmt.Sprintf("TIME(%d)", *col.precision)
+	}
+	return "TIME"
+}
+
+func (g *mysqlGrammar) typeTimeTz(col *columnDefinition) string {
+	return g.typeTime(col)
+}
+
+func (g *mysqlGrammar) typeTimestamp(col *columnDefinition) string {
+	current := "CURRENT_TIMESTAMP"
+	if col.precision != nil && *col.precision > 0 {
+		current = fmt.Sprintf("CURRENT_TIMESTAMP(%d)", *col.precision)
+	}
+	if col.useCurrent != nil && *col.useCurrent {
+		col.Default(Expression(current))
+	}
+	if col.useCurrentOnUpdate != nil && *col.useCurrentOnUpdate {
+		col.OnUpdate(Expression(current))
+	}
+	if col.precision != nil && *col.precision > 0 {
+		return fmt.Sprintf("TIMESTAMP(%d)", *col.precision)
+	}
+	return "TIMESTAMP"
+}
+
+func (g *mysqlGrammar) typeTimestampTz(col *columnDefinition) string {
+	return g.typeTimestamp(col)
+}
+
+func (g *mysqlGrammar) typeYear(col *columnDefinition) string {
+	return "YEAR"
+}
+
+func (g *mysqlGrammar) typeBinary(col *columnDefinition) string {
+	if col.length != nil && *col.length > 0 {
+		return fmt.Sprintf("BINARY(%d)", *col.length)
+	}
+	return "BLOB"
+}
+
+func (g *mysqlGrammar) typeUUID(col *columnDefinition) string {
+	return "CHAR(36)" // Default UUID length
+}
+
+func (g *mysqlGrammar) typeGeometry(col *columnDefinition) string {
+	subtype := ternary(col.subtype != nil, ptrOf(strings.ToUpper(*col.subtype)), nil)
+	if subtype != nil {
+		if !slices.Contains([]string{"POINT", "LINESTRING", "POLYGON", "GEOMETRYCOLLECTION", "MULTIPOINT", "MULTILINESTRING"}, *subtype) {
+			subtype = nil
 		}
-		return "DOUBLE"
-	case columnTypeBigInteger:
-		return g.modifyUnsignedAndAutoIncrement("BIGINT", col)
-	case columnTypeInteger:
-		return g.modifyUnsignedAndAutoIncrement("INT", col)
-	case columnTypeSmallInteger:
-		return g.modifyUnsignedAndAutoIncrement("SMALLINT", col)
-	case columnTypeMediumInteger:
-		return g.modifyUnsignedAndAutoIncrement("MEDIUMINT", col)
-	case columnTypeTinyInteger:
-		return g.modifyUnsignedAndAutoIncrement("TINYINT", col)
-	case columnTypeTime:
-		return fmt.Sprintf("TIME(%d)", col.precision)
-	case columnTypeDateTime, columnTypeDateTimeTz:
-		if col.precision > 0 {
-			return fmt.Sprintf("DATETIME(%d)", col.precision)
-		}
-		return "DATETIME"
-	case columnTypeTimestamp, columnTypeTimestampTz:
-		if col.precision > 0 {
-			return fmt.Sprintf("TIMESTAMP(%d)", col.precision)
-		}
-		return "TIMESTAMP"
-	case columnTypeGeography:
-		return fmt.Sprintf("GEOGRAPHY(%s, %d)", col.subType, col.srid)
-	case columnTypeEnum:
-		return fmt.Sprintf("ENUM(%s)", g.quoteString(strings.Join(col.allowedEnums, "','")))
-	default:
-		colType, ok := map[columnType]string{
-			columnTypeBoolean:    "BOOLEAN",
-			columnTypeLongText:   "LONGTEXT",
-			columnTypeText:       "TEXT",
-			columnTypeMediumText: "MEDIUMTEXT",
-			columnTypeTinyText:   "TINYTEXT",
-			columnTypeDate:       "DATE",
-			columnTypeYear:       "YEAR",
-			columnTypeJSON:       "JSON",
-			columnTypeJSONB:      "JSON",
-			columnTypeUUID:       "UUID",
-			columnTypeBinary:     "BLOB",
-			columnTypeGeometry:   "GEOMETRY",
-			columnTypePoint:      "POINT",
-		}[col.columnType]
-		if !ok {
-			return "ERROR: Unknown column type " + string(col.columnType)
-		}
-		return colType
+	}
+
+	if subtype == nil {
+		subtype = ptrOf("GEOMETRY")
+	}
+	if col.srid != nil && *col.srid > 0 {
+		return fmt.Sprintf("%s SRID %d", *subtype, *col.srid)
+	}
+	return *subtype
+}
+
+func (g *mysqlGrammar) typeGeography(col *columnDefinition) string {
+	return g.typeGeometry(col)
+}
+
+func (g *mysqlGrammar) typePoint(col *columnDefinition) string {
+	col.subtype = ptrOf("POINT")
+	return g.typeGeometry(col)
+}
+
+func (g *mysqlGrammar) modifiers() []func(*columnDefinition) string {
+	return []func(*columnDefinition) string{
+		g.modifyUnsigned,
+		g.modifyCharset,
+		g.modifyCollate,
+		g.modifyNullable,
+		g.modifyDefault,
+		g.modifyOnUpdate,
+		g.modifyIncrement,
+		g.modifyComment,
 	}
 }
 
-func (g *mysqlGrammar) modifyUnsignedAndAutoIncrement(sql string, col *columnDefinition) string {
-	if col.unsigned {
-		sql += " UNSIGNED"
+func (g *mysqlGrammar) modifyCharset(col *columnDefinition) string {
+	if col.charset != nil && *col.charset != "" {
+		return fmt.Sprintf(" CHARACTER SET %s", *col.charset)
 	}
-	if col.autoIncrement {
-		sql += " AUTO_INCREMENT"
+	return ""
+}
+
+func (g *mysqlGrammar) modifyCollate(col *columnDefinition) string {
+	if col.collation != nil && *col.collation != "" {
+		return fmt.Sprintf(" COLLATE %s", *col.collation)
 	}
-	return sql
+	return ""
+}
+
+func (g *mysqlGrammar) modifyComment(col *columnDefinition) string {
+	if col.comment != nil && *col.comment != "" {
+		return fmt.Sprintf(" COMMENT '%s'", *col.comment)
+	}
+	return ""
+}
+
+func (g *mysqlGrammar) modifyDefault(col *columnDefinition) string {
+	if col.defaultValue != nil {
+		return fmt.Sprintf(" DEFAULT %s", g.getDefaultValue(col.defaultValue))
+	}
+	return ""
+}
+
+func (g *mysqlGrammar) modifyIncrement(col *columnDefinition) string {
+	if slices.Contains(g.serials, col.columnType) &&
+		col.autoIncrement != nil && *col.autoIncrement &&
+		col.primary != nil && *col.primary {
+		return " AUTO_INCREMENT"
+	}
+	return ""
+}
+
+func (g *mysqlGrammar) modifyNullable(col *columnDefinition) string {
+	if col.nullable != nil && *col.nullable {
+		return " NULL"
+	}
+	return " NOT NULL"
+}
+
+func (g *mysqlGrammar) modifyOnUpdate(col *columnDefinition) string {
+	if col.onUpdateValue != nil {
+		return fmt.Sprintf(" ON UPDATE %s", g.getValue(col.onUpdateValue))
+	}
+	return ""
+}
+
+func (g *mysqlGrammar) modifyUnsigned(col *columnDefinition) string {
+	if col.unsigned != nil && *col.unsigned {
+		return " UNSIGNED"
+	}
+	return ""
 }

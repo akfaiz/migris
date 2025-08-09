@@ -81,7 +81,7 @@ func (m *migrator) init() error {
 	if err := goose.SetDialect(m.dialect); err != nil {
 		return err
 	}
-	if err := schema.SetDialect(m.dialect); err != nil {
+	if err := schema.Init(m.dialect); err != nil {
 		return err
 	}
 	return nil

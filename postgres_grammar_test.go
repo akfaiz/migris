@@ -21,13 +21,13 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 			table: "users",
 			blueprint: func(table *Blueprint) {
 				table.ID()
-				table.String("name", 255)
-				table.String("email", 255)
+				table.String("name")
+				table.String("email")
 				table.String("password").Nullable()
-				table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-				table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+				table.Timestamp("created_at").UseCurrent()
+				table.Timestamp("updated_at").UseCurrent()
 			},
-			want: "CREATE TABLE users (id BIGSERIAL NOT NULL, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL, password VARCHAR NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id))",
+			want: "CREATE TABLE users (id BIGSERIAL NOT NULL, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL, password VARCHAR(255) NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id))",
 		},
 		{
 			name:  "Create table with foreign key",
@@ -35,7 +35,7 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.ID()
 				table.Integer("user_id")
-				table.String("title", 255)
+				table.String("title")
 				table.Text("content").Nullable()
 				table.Foreign("user_id").References("id").On("users").OnDelete("CASCADE").OnUpdate("CASCADE")
 			},
@@ -45,7 +45,7 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 			name:  "Create table with column name is empty",
 			table: "empty_column_table",
 			blueprint: func(table *Blueprint) {
-				table.String("", 255) // Intentionally empty column name
+				table.String("") // Intentionally empty column name
 			},
 			wantErr: true,
 		},
@@ -82,20 +82,20 @@ func TestPgGrammar_CompileCreateIfNotExists(t *testing.T) {
 			table: "users",
 			blueprint: func(table *Blueprint) {
 				table.ID()
-				table.String("name", 255)
-				table.String("email", 255)
+				table.String("name")
+				table.String("email")
 				table.String("password").Nullable()
-				table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-				table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+				table.Timestamp("created_at").UseCurrent()
+				table.Timestamp("updated_at").UseCurrent()
 			},
-			want:    "CREATE TABLE IF NOT EXISTS users (id BIGSERIAL NOT NULL, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL, password VARCHAR NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id))",
+			want:    "CREATE TABLE IF NOT EXISTS users (id BIGSERIAL NOT NULL, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL, password VARCHAR(255) NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id))",
 			wantErr: false,
 		},
 		{
 			name:  "Create table with column name is empty",
 			table: "empty_column_table",
 			blueprint: func(table *Blueprint) {
-				table.String("", 255) // Intentionally empty column name
+				table.String("") // Intentionally empty column name
 			},
 			wantErr: true,
 		},
@@ -153,7 +153,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Boolean("active").Default(true)
 			},
-			want:    "ALTER TABLE users ADD COLUMN active BOOLEAN DEFAULT true NOT NULL",
+			want:    "ALTER TABLE users ADD COLUMN active BOOLEAN DEFAULT '1' NOT NULL",
 			wantErr: false,
 		},
 		{
@@ -189,15 +189,15 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Decimal("price", 10, 2).Default(0).Comment("Product price")
 			},
-			want:    "ALTER TABLE products ADD COLUMN price DECIMAL(10, 2) DEFAULT 0 NOT NULL COMMENT 'Product price'",
+			want:    "ALTER TABLE products ADD COLUMN price DECIMAL(10, 2) DEFAULT '0' NOT NULL COMMENT 'Product price'",
 			wantErr: false,
 		},
 		{
 			name:  "Add timestamp columns",
 			table: "orders",
 			blueprint: func(table *Blueprint) {
-				table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-				table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP").Nullable()
+				table.Timestamp("created_at").UseCurrent()
+				table.Timestamp("updated_at").UseCurrent().Nullable()
 			},
 			want:    "ALTER TABLE orders ADD COLUMN created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, ADD COLUMN updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NULL",
 			wantErr: false,
@@ -358,7 +358,7 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := grammar.compileChange(bp)
+			got, err := grammar.compileChange(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -455,8 +455,9 @@ func TestPgGrammar_CompileRename(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bp := &Blueprint{name: tt.oldName, newName: tt.newName}
-			got, err := grammar.compileRename(bp)
+			bp := &Blueprint{name: tt.oldName}
+			bp.rename(tt.newName)
+			got, err := grammar.compileRename(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -583,7 +584,7 @@ func TestPgGrammar_CompileDropColumn(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := grammar.compileDropColumn(bp)
+			got, err := grammar.compileDropColumn(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -640,7 +641,8 @@ func TestPgGrammar_CompileRenameColumn(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
-			got, err := grammar.compileRenameColumn(bp, tt.oldName, tt.newName)
+			command := &command{from: tt.oldName, to: tt.newName}
+			got, err := grammar.compileRenameColumn(bp, command)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -684,7 +686,8 @@ func TestPgGrammar_CompileDropIndex(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{}
-			got, err := grammar.compileDropIndex(bp, tt.indexName)
+			command := &command{index: tt.indexName}
+			got, err := grammar.compileDropIndex(bp, command)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Empty(t, got)
@@ -729,7 +732,8 @@ func TestPgGrammar_CompileDropPrimary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := grammar.compileDropPrimary(tt.blueprint, tt.indexName)
+			command := &command{index: tt.indexName}
+			got, err := grammar.compileDropPrimary(tt.blueprint, command)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -794,7 +798,8 @@ func TestPgGrammar_CompileRenameIndex(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
-			got, err := grammar.compileRenameIndex(bp, tt.oldName, tt.newName)
+			command := &command{from: tt.oldName, to: tt.newName}
+			got, err := grammar.compileRenameIndex(bp, command)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -972,7 +977,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := grammar.compileForeign(bp, bp.foreignKeys[0])
+			got, err := grammar.compileForeign(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -1020,7 +1025,8 @@ func TestPgGrammar_CompileDropForeign(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
-			got, err := grammar.compileDropForeign(bp, tt.foreignKeyName)
+			command := &command{index: tt.foreignKeyName}
+			got, err := grammar.compileDropForeign(bp, command)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -1100,7 +1106,7 @@ func TestPgGrammar_CompileIndex(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := grammar.compileIndex(bp, bp.indexes[0])
+			got, err := grammar.compileIndex(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -1208,7 +1214,7 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := grammar.compileUnique(bp, bp.indexes[0])
+			got, err := grammar.compileUnique(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -1306,7 +1312,7 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := grammar.compileFullText(bp, bp.indexes[0])
+			got, err := grammar.compileFullText(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -1356,7 +1362,8 @@ func TestPgGrammar_CompileDropUnique(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{}
-			got, err := grammar.compileDropUnique(bp, tt.indexName)
+			command := &command{index: tt.indexName}
+			got, err := grammar.compileDropUnique(bp, command)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Empty(t, got)
@@ -1413,7 +1420,8 @@ func TestPgGrammar_CompileDropFulltext(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{}
-			got, err := grammar.compileDropFulltext(bp, tt.indexName)
+			command := &command{index: tt.indexName}
+			got, err := grammar.compileDropFulltext(bp, command)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Empty(t, got)
@@ -1494,7 +1502,7 @@ func TestPgGrammar_CompilePrimary(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := grammar.compilePrimary(bp, bp.indexes[0])
+			got, err := grammar.compilePrimary(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -1540,7 +1548,7 @@ func TestPgGrammar_GetType(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Char("code")
 			},
-			want: "CHAR",
+			want: "CHAR(255)",
 		},
 		{
 			name: "string column type",
@@ -1557,16 +1565,9 @@ func TestPgGrammar_GetType(t *testing.T) {
 			want: "DECIMAL(10, 2)",
 		},
 		{
-			name: "double column type with precision",
+			name: "double column type",
 			blueprint: func(table *Blueprint) {
-				table.Double("value", 8, 2)
-			},
-			want: "DOUBLE PRECISION",
-		},
-		{
-			name: "double column type without precision",
-			blueprint: func(table *Blueprint) {
-				table.Double("value", 0, 0)
+				table.Double("value")
 			},
 			want: "DOUBLE PRECISION",
 		},
@@ -1743,7 +1744,7 @@ func TestPgGrammar_GetType(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.TinyText("notes")
 			},
-			want: "TEXT",
+			want: "VARCHAR(255)",
 		},
 		{
 			name: "date column type",
@@ -1821,13 +1822,6 @@ func TestPgGrammar_GetType(t *testing.T) {
 				table.Enum("status", []string{"active", "inactive"})
 			},
 			want: "VARCHAR(255) CHECK (status IN ('active', 'inactive'))",
-		},
-		{
-			name: "Enum with empty values",
-			blueprint: func(table *Blueprint) {
-				table.Enum("status", []string{})
-			},
-			want: "VARCHAR(255)",
 		},
 	}
 

@@ -23,15 +23,18 @@ func (d dialect) String() string {
 	}
 }
 
-var dialectValue dialect = dialectUnknown
-var debug = false
+var dialectValue = dialectUnknown
+var cfg = &config{
+	debug: false, // default value
+}
 
-// SetDialect sets the current dialect for the schema package.
-func SetDialect(d string) error {
-	dialectValue = dialectFromString(d)
+// Init initializes the schema package with the given dialect and options.
+func Init(dialect string, options ...Option) error {
+	dialectValue = dialectFromString(dialect)
 	if dialectValue == dialectUnknown {
-		return fmt.Errorf("unknown dialect: %s", d)
+		return fmt.Errorf("unknown dialect: %s", dialect)
 	}
+	cfg = applyOptions(options...)
 
 	return nil
 }
@@ -45,9 +48,4 @@ func dialectFromString(d string) dialect {
 	default:
 		return dialectUnknown
 	}
-}
-
-// SetDebug enables or disables debug mode for the schema package.
-func SetDebug(d bool) {
-	debug = d
 }

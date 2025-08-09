@@ -12,11 +12,12 @@ type postgresBuilder struct {
 	grammar *pgGrammar
 }
 
-func newPostgresBuilder() Builder {
+func newPostgresBuilder(options ...Option) Builder {
 	grammar := newPgGrammar()
+	cfg := applyOptions(options...)
 
 	return &postgresBuilder{
-		baseBuilder: baseBuilder{grammar: grammar},
+		baseBuilder: baseBuilder{grammar: grammar, debug: cfg.debug},
 		grammar:     grammar,
 	}
 }
@@ -43,7 +44,7 @@ func (b *postgresBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName 
 		return nil, err
 	}
 
-	rows, err := queryContext(ctx, tx, query)
+	rows, err := tx.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +77,7 @@ func (b *postgresBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName 
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queryContext(ctx, tx, query)
+	rows, err := tx.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +107,7 @@ func (b *postgresBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableIn
 		return nil, err
 	}
 
-	rows, err := queryContext(ctx, tx, query)
+	rows, err := tx.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +217,7 @@ func (b *postgresBuilder) HasTable(ctx context.Context, tx *sql.Tx, name string)
 	}
 
 	var exists bool
-	if err := queryRowContext(ctx, tx, query).Scan(&exists); err != nil {
+	if err := tx.QueryRowContext(ctx, query).Scan(&exists); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil // Table does not exist
 		}

@@ -43,7 +43,9 @@ func newBuilder() (Builder, error) {
 		return nil, errors.New("schema dialect is not set, please call schema.SetDialect() before using schema functions")
 	}
 
-	builder, err := NewBuilder(dialectValue.String())
+	builder, err := NewBuilder(dialectValue.String(),
+		WithDebug(cfg.debug),
+	)
 	if err != nil {
 		return nil, err
 	}

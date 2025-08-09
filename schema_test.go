@@ -35,10 +35,9 @@ func (s *schemaTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.db = db
-	schema.SetDebug(false)
 
 	s.Run("when dialect is not set should return error", func() {
-		err := schema.SetDialect("")
+		err := schema.Init("")
 		s.Error(err)
 		s.ErrorContains(err, "unknown dialect")
 
@@ -62,7 +61,7 @@ func (s *schemaTestSuite) SetupSuite() {
 		}
 	})
 	s.Run("when dialect is set to postgres should not return error", func() {
-		err = schema.SetDialect("postgres")
+		err = schema.Init("postgres")
 		s.Require().NoError(err)
 	})
 }

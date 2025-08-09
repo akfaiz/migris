@@ -17,8 +17,9 @@ func TestMysqlBuilderSuite(t *testing.T) {
 
 type mysqlBuilderSuite struct {
 	suite.Suite
-	ctx context.Context
-	db  *sql.DB
+	ctx     context.Context
+	db      *sql.DB
+	builder schema.Builder
 }
 
 func (s *mysqlBuilderSuite) SetupSuite() {
@@ -42,7 +43,8 @@ func (s *mysqlBuilderSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.db = db
-	schema.SetDebug(false)
+	s.builder, err = schema.NewBuilder("mysql", schema.WithDebug())
+	s.Require().NoError(err)
 }
 
 func (s *mysqlBuilderSuite) TearDownSuite() {
@@ -50,7 +52,7 @@ func (s *mysqlBuilderSuite) TearDownSuite() {
 }
 
 func (s *mysqlBuilderSuite) AfterTest(_, _ string) {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	tables, err := builder.GetTables(s.ctx, tx)
@@ -66,7 +68,7 @@ func (s *mysqlBuilderSuite) AfterTest(_, _ string) {
 }
 
 func (s *mysqlBuilderSuite) TestCreate() {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
@@ -112,7 +114,7 @@ func (s *mysqlBuilderSuite) TestCreate() {
 			table.UnsignedBigInteger("user_id")
 			table.String("order_id", 255).Unique()
 			table.Decimal("amount", 10, 2)
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamp("created_at").UseCurrent()
 
 			table.Foreign("user_id").References("id").On("users").OnDelete("CASCADE").OnUpdate("CASCADE")
 		})
@@ -123,7 +125,7 @@ func (s *mysqlBuilderSuite) TestCreate() {
 			table.ID()
 			table.String("order_id", 255).Unique("uk_orders_2_order_id")
 			table.Decimal("amount", 10, 2)
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamp("created_at").UseCurrent()
 
 			table.Index("created_at").Name("idx_orders_created_at").Algorithm("BTREE")
 		})
@@ -140,7 +142,7 @@ func (s *mysqlBuilderSuite) TestCreate() {
 }
 
 func (s *mysqlBuilderSuite) TestCreateIfNotExists() {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
@@ -161,7 +163,7 @@ func (s *mysqlBuilderSuite) TestCreateIfNotExists() {
 		err := builder.CreateIfNotExists(s.ctx, tx, "test_table", nil)
 		s.Error(err)
 	})
-	s.Run("when all parameters are valid, should create table successfully", func() {
+	s.Run("when all parameters are valid, should error", func() {
 		err = builder.CreateIfNotExists(context.Background(), tx, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name", 255)
@@ -170,20 +172,12 @@ func (s *mysqlBuilderSuite) TestCreateIfNotExists() {
 			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
 			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
 		})
-		s.NoError(err, "expected no error when creating table with valid parameters")
-	})
-	s.Run("when table already exists, should not return error", func() {
-		err = builder.CreateIfNotExists(context.Background(), tx, "users", func(table *schema.Blueprint) {
-			table.ID()
-			table.String("name", 255)
-			table.String("email", 255).Unique()
-		})
-		s.NoError(err, "expected no error when creating table that already exists with CreateIfNotExists")
+		s.Error(err)
 	})
 }
 
 func (s *mysqlBuilderSuite) TestDrop() {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
@@ -202,8 +196,7 @@ func (s *mysqlBuilderSuite) TestDrop() {
 			table.String("name", 255)
 			table.String("email", 255).Unique()
 			table.String("password", 255).Nullable()
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamps()
 		})
 		s.NoError(err, "expected no error when creating table before dropping it")
 		err = builder.Drop(context.Background(), tx, "users")
@@ -216,7 +209,7 @@ func (s *mysqlBuilderSuite) TestDrop() {
 }
 
 func (s *mysqlBuilderSuite) TestDropIfExists() {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
@@ -235,8 +228,7 @@ func (s *mysqlBuilderSuite) TestDropIfExists() {
 			table.String("name", 255)
 			table.String("email", 255).Unique()
 			table.String("password", 255).Nullable()
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamps()
 		})
 		s.NoError(err, "expected no error when creating table before dropping it")
 		err = builder.DropIfExists(context.Background(), tx, "users")
@@ -249,7 +241,7 @@ func (s *mysqlBuilderSuite) TestDropIfExists() {
 }
 
 func (s *mysqlBuilderSuite) TestRename() {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
@@ -278,7 +270,7 @@ func (s *mysqlBuilderSuite) TestRename() {
 }
 
 func (s *mysqlBuilderSuite) TestTable() {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
@@ -306,8 +298,7 @@ func (s *mysqlBuilderSuite) TestTable() {
 			table.String("email", 255).Unique("uk_users_email")
 			table.String("password", 255).Nullable()
 			table.Text("bio").Nullable()
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamps()
 
 			table.FullText("bio")
 		})
@@ -392,7 +383,7 @@ func (s *mysqlBuilderSuite) TestTable() {
 }
 
 func (s *mysqlBuilderSuite) TestGetColumns() {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
@@ -418,8 +409,7 @@ func (s *mysqlBuilderSuite) TestGetColumns() {
 			table.String("name", 255)
 			table.String("email", 255).Unique()
 			table.String("password", 255).Nullable()
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamps()
 		})
 		s.NoError(err, "expected no error when creating table before getting columns")
 
@@ -431,7 +421,7 @@ func (s *mysqlBuilderSuite) TestGetColumns() {
 }
 
 func (s *mysqlBuilderSuite) TestGetIndexes() {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
@@ -450,8 +440,7 @@ func (s *mysqlBuilderSuite) TestGetIndexes() {
 			table.String("name", 255)
 			table.String("email", 255).Unique()
 			table.String("password", 255).Nullable()
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamps()
 
 			table.Index("name").Name("idx_users_name")
 		})
@@ -470,7 +459,7 @@ func (s *mysqlBuilderSuite) TestGetIndexes() {
 }
 
 func (s *mysqlBuilderSuite) TestGetTables() {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
@@ -486,8 +475,7 @@ func (s *mysqlBuilderSuite) TestGetTables() {
 			table.String("name", 255)
 			table.String("email", 255).Unique()
 			table.String("password", 255).Nullable()
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamps()
 		})
 		s.NoError(err, "expected no error when creating table before getting tables")
 
@@ -506,7 +494,7 @@ func (s *mysqlBuilderSuite) TestGetTables() {
 }
 
 func (s *mysqlBuilderSuite) TestHasColumn() {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
@@ -532,8 +520,7 @@ func (s *mysqlBuilderSuite) TestHasColumn() {
 			table.String("name", 255)
 			table.String("email", 255).Unique()
 			table.String("password", 255).Nullable()
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamps()
 		})
 		s.NoError(err, "expected no error when creating table before checking for column existence")
 
@@ -548,7 +535,7 @@ func (s *mysqlBuilderSuite) TestHasColumn() {
 }
 
 func (s *mysqlBuilderSuite) TestHasColumns() {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
@@ -574,8 +561,7 @@ func (s *mysqlBuilderSuite) TestHasColumns() {
 			table.String("name", 255)
 			table.String("email", 255).Unique()
 			table.String("password", 255).Nullable()
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamps()
 		})
 		s.NoError(err, "expected no error when creating table before checking for columns existence")
 
@@ -590,7 +576,7 @@ func (s *mysqlBuilderSuite) TestHasColumns() {
 }
 
 func (s *mysqlBuilderSuite) TestHasIndex() {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
@@ -612,7 +598,7 @@ func (s *mysqlBuilderSuite) TestHasIndex() {
 			table.Integer("user_id")
 			table.String("order_id", 255)
 			table.Decimal("amount", 10, 2)
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamps()
 
 			table.Index("company_id", "user_id")
 			table.Unique("order_id").Name("uk_orders3_order_id").Algorithm("BTREE")
@@ -634,7 +620,7 @@ func (s *mysqlBuilderSuite) TestHasIndex() {
 }
 
 func (s *mysqlBuilderSuite) TestHasTable() {
-	builder, _ := schema.NewBuilder("mysql")
+	builder := s.builder
 	tx, err := s.db.BeginTx(s.ctx, nil)
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
@@ -655,8 +641,7 @@ func (s *mysqlBuilderSuite) TestHasTable() {
 			table.String("name", 255)
 			table.String("email", 255).Unique()
 			table.String("password", 255).Nullable()
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+			table.Timestamps()
 		})
 		s.NoError(err, "expected no error when creating table before checking if it exists")
 

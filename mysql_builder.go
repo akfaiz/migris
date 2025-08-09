@@ -12,11 +12,12 @@ type mysqlBuilder struct {
 	grammar *mysqlGrammar
 }
 
-func newMysqlBuilder() Builder {
+func newMysqlBuilder(options ...Option) Builder {
 	grammar := newMysqlGrammar()
+	cfg := applyOptions(options...)
 
 	return &mysqlBuilder{
-		baseBuilder: baseBuilder{grammar: grammar},
+		baseBuilder: baseBuilder{grammar: grammar, debug: cfg.debug},
 		grammar:     grammar,
 	}
 }
@@ -27,7 +28,7 @@ func (b *mysqlBuilder) getCurrentDatabase(ctx context.Context, tx *sql.Tx) (stri
 	}
 
 	query := b.grammar.compileCurrentDatabase()
-	row := queryRowContext(ctx, tx, query)
+	row := tx.QueryRowContext(ctx, query)
 	var dbName string
 	if err := row.Scan(&dbName); err != nil {
 		return "", err
@@ -48,16 +49,15 @@ func (b *mysqlBuilder) CreateIfNotExists(ctx context.Context, tx *sql.Tx, name s
 		return nil // Table already exists, no need to create it
 	}
 
-	bp := &Blueprint{name: name}
+	bp := &Blueprint{name: name, grammar: b.grammar}
 	bp.createIfNotExists()
 	blueprint(bp)
 
-	statements, err := bp.toSql(b.grammar)
-	if err != nil {
+	if err := bp.build(ctx, tx); err != nil {
 		return err
 	}
 
-	return execContext(ctx, tx, statements...)
+	return nil
 }
 
 func (b *mysqlBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, error) {
@@ -75,7 +75,7 @@ func (b *mysqlBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName str
 		return nil, err
 	}
 
-	rows, err := queryContext(ctx, tx, query)
+	rows, err := tx.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (b *mysqlBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName str
 		return nil, err
 	}
 
-	rows, err := queryContext(ctx, tx, query)
+	rows, err := tx.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (b *mysqlBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo,
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queryContext(ctx, tx, query)
+	rows, err := tx.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func (b *mysqlBuilder) HasTable(ctx context.Context, tx *sql.Tx, name string) (b
 		return false, err
 	}
 
-	row := queryRowContext(ctx, tx, query)
+	row := tx.QueryRowContext(ctx, query)
 	var exists bool
 	if err := row.Scan(&exists); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
