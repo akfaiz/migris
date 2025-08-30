@@ -19,8 +19,7 @@ func upCreateUsersTable(ctx context.Context, tx *sql.Tx) error {
 		table.String("email")
 		table.Timestamp("email_verified_at").Nullable()
 		table.String("password")
-		table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-		table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
+		table.Timestamps()
 	})
 }
 

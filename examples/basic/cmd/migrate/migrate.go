@@ -11,55 +11,49 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-func Up() error {
-	m, err := newMigrator()
+const (
+	directory = "migrations"
+	tableName = "schema_migrations"
+)
+
+func Up(dryRun bool) error {
+	db, err := initMigrator()
 	if err != nil {
 		return err
 	}
-	return goose.Up(m.db, m.dir)
+	return goose.Up(db, directory)
 }
 
 func Create(name string) error {
-	m, err := newMigrator()
+	tmpl := schema.GooseMigrationTemplate(name)
+	return goose.CreateWithTemplate(nil, directory, tmpl, name, "go")
+}
+
+func Reset(dryRun bool) error {
+	db, err := initMigrator()
 	if err != nil {
 		return err
 	}
-	return goose.Create(m.db, m.dir, name, m.migrationType)
+	return goose.Reset(db, directory)
 }
 
-func Down() error {
-	m, err := newMigrator()
-	if err != nil {
-		return err
+func initMigrator() (*sql.DB, error) {
+	if err := goose.SetDialect("postgres"); err != nil {
+		return nil, fmt.Errorf("failed to set dialect: %w", err)
 	}
-	return goose.Reset(m.db, m.dir)
-}
-
-type migrator struct {
-	dir           string
-	dialect       string
-	tableName     string
-	migrationType string
-	db            *sql.DB
-}
-
-func newMigrator() (*migrator, error) {
-	db, err := newDatabase(config.GetDatabase())
+	goose.SetTableName(tableName)
+	if err := schema.SetDialect("postgres"); err != nil {
+		return nil, fmt.Errorf("failed to set schema dialect: %w", err)
+	}
+	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
-	m := &migrator{
-		dir:           "migrations",
-		dialect:       "postgres",
-		tableName:     "schema_migrations",
-		migrationType: "go",
-		db:            db,
-	}
-	if err := m.init(); err != nil {
+	db, err := newDatabase(cfg.Database)
+	if err != nil {
 		return nil, err
 	}
-
-	return m, nil
+	return db, nil
 }
 
 func newDatabase(cfg config.Database) (*sql.DB, error) {
@@ -74,15 +68,4 @@ func newDatabase(cfg config.Database) (*sql.DB, error) {
 	}
 
 	return db, nil
-}
-
-func (m *migrator) init() error {
-	goose.SetTableName(m.tableName)
-	if err := goose.SetDialect(m.dialect); err != nil {
-		return err
-	}
-	if err := schema.Init(m.dialect); err != nil {
-		return err
-	}
-	return nil
 }

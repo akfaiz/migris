@@ -4,14 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
+	"github.com/afkdevs/go-schema/internal/dialect"
 )
 
 // Builder is an interface that defines methods for creating, dropping, and managing database tables.
 type Builder interface {
 	// Create creates a new table with the given name and applies the provided blueprint.
 	Create(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error
-	// CreateIfNotExists creates a new table with the given name and applies the provided blueprint if it does not already exist.
-	CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error
 	// Drop removes the table with the given name.
 	Drop(ctx context.Context, tx *sql.Tx, name string) error
 	// DropIfExists removes the table with the given name if it exists.
@@ -40,53 +40,30 @@ type Builder interface {
 // It returns an error if the dialect is not supported.
 //
 // Supported dialects are "postgres", "pgx", "mysql", and "mariadb".
-func NewBuilder(dialect string, options ...Option) (Builder, error) {
-	dialectVal := dialectFromString(dialect)
+func NewBuilder(dialectValue string) (Builder, error) {
+	dialectVal := dialect.FromString(dialectValue)
 	switch dialectVal {
-	case dialectMySQL:
-		return newMysqlBuilder(options...), nil
-	case dialectPostgres:
-		return newPostgresBuilder(options...), nil
+	case dialect.MySQL:
+		return newMysqlBuilder(), nil
+	case dialect.Postgres:
+		return newPostgresBuilder(), nil
 	default:
-		return nil, errors.New("unsupported dialect: " + dialect)
+		return nil, errors.New("unsupported dialect: " + dialectValue)
 	}
 }
 
 type baseBuilder struct {
-	debug   bool
 	grammar grammar
+	verbose bool
 }
 
 func (b *baseBuilder) newBlueprint(name string) *Blueprint {
-	return &Blueprint{name: name, grammar: b.grammar, debug: b.debug}
-}
-
-func (b *baseBuilder) validateTxAndName(tx *sql.Tx, name string) error {
-	if name == "" {
-		return errors.New("table name is empty")
-	}
-	if tx == nil {
-		return errors.New("transaction is nil")
-	}
-	return nil
-}
-
-func (b *baseBuilder) validateCreateAndAlter(tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
-	if name == "" {
-		return errors.New("table name is empty")
-	}
-	if blueprint == nil {
-		return errors.New("blueprint function is nil")
-	}
-	if tx == nil {
-		return errors.New("transaction is nil")
-	}
-	return nil
+	return &Blueprint{name: name, grammar: b.grammar, verbose: b.verbose}
 }
 
 func (b *baseBuilder) Create(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
-	if err := b.validateCreateAndAlter(tx, name, blueprint); err != nil {
-		return err
+	if tx == nil || name == "" || blueprint == nil {
+		return errors.New("invalid arguments: transaction, name, or blueprint is nil/empty")
 	}
 
 	bp := b.newBlueprint(name)
@@ -100,25 +77,9 @@ func (b *baseBuilder) Create(ctx context.Context, tx *sql.Tx, name string, bluep
 	return nil
 }
 
-func (b *baseBuilder) CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
-	if err := b.validateCreateAndAlter(tx, name, blueprint); err != nil {
-		return err
-	}
-
-	bp := b.newBlueprint(name)
-	bp.createIfNotExists()
-	blueprint(bp)
-
-	if err := bp.build(ctx, tx); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (b *baseBuilder) Drop(ctx context.Context, tx *sql.Tx, name string) error {
-	if err := b.validateTxAndName(tx, name); err != nil {
-		return err
+	if tx == nil || name == "" {
+		return errors.New("invalid arguments: transaction is nil or name is empty")
 	}
 
 	bp := b.newBlueprint(name)
@@ -132,8 +93,8 @@ func (b *baseBuilder) Drop(ctx context.Context, tx *sql.Tx, name string) error {
 }
 
 func (b *baseBuilder) DropIfExists(ctx context.Context, tx *sql.Tx, name string) error {
-	if err := b.validateTxAndName(tx, name); err != nil {
-		return err
+	if tx == nil || name == "" {
+		return errors.New("invalid arguments: transaction is nil or name is empty")
 	}
 
 	bp := b.newBlueprint(name)
@@ -147,12 +108,10 @@ func (b *baseBuilder) DropIfExists(ctx context.Context, tx *sql.Tx, name string)
 }
 
 func (b *baseBuilder) Rename(ctx context.Context, tx *sql.Tx, oldName string, newName string) error {
-	if oldName == "" || newName == "" {
-		return errors.New("old or new table name is empty")
+	if tx == nil || oldName == "" || newName == "" {
+		return errors.New("invalid arguments: transaction is nil or old/new table name is empty")
 	}
-	if tx == nil {
-		return errors.New("transaction is nil")
-	}
+
 	bp := b.newBlueprint(oldName)
 	bp.rename(newName)
 
@@ -164,8 +123,8 @@ func (b *baseBuilder) Rename(ctx context.Context, tx *sql.Tx, oldName string, ne
 }
 
 func (b *baseBuilder) Table(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
-	if err := b.validateCreateAndAlter(tx, name, blueprint); err != nil {
-		return err
+	if tx == nil || name == "" || blueprint == nil {
+		return errors.New("invalid arguments: transaction is nil or name/blueprint is empty")
 	}
 
 	bp := b.newBlueprint(name)

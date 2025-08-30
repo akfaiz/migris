@@ -1,5 +1,7 @@
 package schema
 
+import "github.com/afkdevs/go-schema/internal/util"
+
 // ForeignKeyDefinition defines the interface for defining a foreign key constraint in a database table.
 type ForeignKeyDefinition interface {
 	// CascadeOnDelete sets the foreign key to cascade on delete.
@@ -48,13 +50,13 @@ func (fd *foreignKeyDefinition) CascadeOnUpdate() ForeignKeyDefinition {
 }
 
 func (fd *foreignKeyDefinition) Deferrable(value ...bool) ForeignKeyDefinition {
-	val := optional(true, value...)
+	val := util.Optional(true, value...)
 	fd.deferrable = &val
 	return fd
 }
 
 func (fd *foreignKeyDefinition) InitiallyImmediate(value ...bool) ForeignKeyDefinition {
-	val := optional(true, value...)
+	val := util.Optional(true, value...)
 	fd.initiallyImmediate = &val
 	return fd
 }

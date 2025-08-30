@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+
+	"github.com/afkdevs/go-schema/internal/dialect"
+	"github.com/afkdevs/go-schema/internal/util"
 )
 
 const (
@@ -32,19 +35,23 @@ const (
 	columnTypeTimestampTz   string = "timestampTz"
 	columnTypeYear          string = "year"
 	columnTypeBinary        string = "binary"
-	columnTypeJSON          string = "json"
-	columnTypeJSONB         string = "jsonb"
+	columnTypeJson          string = "json"
+	columnTypeJsonb         string = "jsonb"
 	columnTypeGeography     string = "geography"
 	columnTypeGeometry      string = "geometry"
 	columnTypePoint         string = "point"
-	columnTypeUUID          string = "uuid"
+	columnTypeUuid          string = "uuid"
 	columnTypeEnum          string = "enum"
+)
+
+const (
+	defaultStringLength  int = 255
+	defaultTimePrecision int = 0
 )
 
 // Blueprint represents a schema blueprint for creating or altering a database table.
 type Blueprint struct {
-	debug     bool
-	dialect   dialect
+	dialect   dialect.Dialect
 	columns   []*columnDefinition
 	commands  []*command
 	grammar   grammar
@@ -52,6 +59,7 @@ type Blueprint struct {
 	charset   string
 	collation string
 	engine    string
+	verbose   bool
 }
 
 // Charset sets the character set for the table in the blueprint.
@@ -82,14 +90,14 @@ func (b *Blueprint) Boolean(name string) ColumnDefinition {
 // Char creates a new char column definition in the blueprint.
 func (b *Blueprint) Char(name string, length ...int) ColumnDefinition {
 	return b.addColumn(columnTypeChar, name, &columnDefinition{
-		length: optionalPtr(1, length...),
+		length: util.OptionalPtr(defaultStringLength, length...),
 	})
 }
 
 // String creates a new string column definition in the blueprint.
 func (b *Blueprint) String(name string, length ...int) ColumnDefinition {
 	return b.addColumn(columnTypeString, name, &columnDefinition{
-		length: optionalPtr(255, length...),
+		length: util.OptionalPtr(defaultStringLength, length...),
 	})
 }
 
@@ -138,8 +146,8 @@ func (b *Blueprint) Decimal(name string, params ...int) ColumnDefinition {
 		defaultPlaces = params[1]
 	}
 	return b.addColumn(columnTypeDecimal, name, &columnDefinition{
-		total:  optionalPtr(8, params...),
-		places: ptrOf(defaultPlaces),
+		total:  util.OptionalPtr(8, params...),
+		places: util.PtrOf(defaultPlaces),
 	})
 }
 
@@ -151,7 +159,7 @@ func (b *Blueprint) Double(name string) ColumnDefinition {
 // Float creates a new float column definition in the blueprint.
 func (b *Blueprint) Float(name string, precision ...int) ColumnDefinition {
 	return b.addColumn(columnTypeFloat, name, &columnDefinition{
-		precision: optionalPtr(53, precision...),
+		precision: util.OptionalPtr(53, precision...),
 	})
 }
 
@@ -159,7 +167,7 @@ func (b *Blueprint) Float(name string, precision ...int) ColumnDefinition {
 //
 // If a name is provided, it will be used as the column name; otherwise, "id" will be used.
 func (b *Blueprint) ID(name ...string) ColumnDefinition {
-	return b.BigIncrements(optional("id", name...)).Primary()
+	return b.BigIncrements(util.Optional("id", name...)).Primary()
 }
 
 // Increments create a new increment column definition in the blueprint.
@@ -229,14 +237,14 @@ func (b *Blueprint) UnsignedTinyInteger(name string) ColumnDefinition {
 // DateTime creates a new date time column definition in the blueprint.
 func (b *Blueprint) DateTime(name string, precision ...int) ColumnDefinition {
 	return b.addColumn(columnTypeDateTime, name, &columnDefinition{
-		precision: optionalPtr(0, precision...),
+		precision: util.OptionalPtr(defaultTimePrecision, precision...),
 	})
 }
 
 // DateTimeTz creates a new date time with a time zone column definition in the blueprint.
 func (b *Blueprint) DateTimeTz(name string, precision ...int) ColumnDefinition {
 	return b.addColumn(columnTypeDateTimeTz, name, &columnDefinition{
-		precision: optionalPtr(0, precision...),
+		precision: util.OptionalPtr(defaultTimePrecision, precision...),
 	})
 }
 
@@ -248,14 +256,14 @@ func (b *Blueprint) Date(name string) ColumnDefinition {
 // Time creates a new time column definition in the blueprint.
 func (b *Blueprint) Time(name string, precision ...int) ColumnDefinition {
 	return b.addColumn(columnTypeTime, name, &columnDefinition{
-		precision: optionalPtr(0, precision...),
+		precision: util.OptionalPtr(defaultTimePrecision, precision...),
 	})
 }
 
 // TimeTz creates a new time with time zone column definition in the blueprint.
 func (b *Blueprint) TimeTz(name string, precision ...int) ColumnDefinition {
 	return b.addColumn(columnTypeTimeTz, name, &columnDefinition{
-		precision: optionalPtr(0, precision...),
+		precision: util.OptionalPtr(defaultTimePrecision, precision...),
 	})
 }
 
@@ -263,7 +271,7 @@ func (b *Blueprint) TimeTz(name string, precision ...int) ColumnDefinition {
 // The precision parameter is optional and defaults to 0 if not provided.
 func (b *Blueprint) Timestamp(name string, precision ...int) ColumnDefinition {
 	return b.addColumn(columnTypeTimestamp, name, &columnDefinition{
-		precision: optionalPtr(0, precision...),
+		precision: util.OptionalPtr(defaultTimePrecision, precision...),
 	})
 }
 
@@ -271,7 +279,7 @@ func (b *Blueprint) Timestamp(name string, precision ...int) ColumnDefinition {
 // The precision parameter is optional and defaults to 0 if not provided.
 func (b *Blueprint) TimestampTz(name string, precision ...int) ColumnDefinition {
 	return b.addColumn(columnTypeTimestampTz, name, &columnDefinition{
-		precision: optionalPtr(0, precision...),
+		precision: util.OptionalPtr(defaultTimePrecision, precision...),
 	})
 }
 
@@ -295,23 +303,23 @@ func (b *Blueprint) Year(name string) ColumnDefinition {
 // Binary creates a new binary column definition in the blueprint.
 func (b *Blueprint) Binary(name string, length ...int) ColumnDefinition {
 	return b.addColumn(columnTypeBinary, name, &columnDefinition{
-		length: optionalNil(length...),
+		length: util.OptionalNil(length...),
 	})
 }
 
 // JSON creates a new JSON column definition in the blueprint.
 func (b *Blueprint) JSON(name string) ColumnDefinition {
-	return b.addColumn(columnTypeJSON, name)
+	return b.addColumn(columnTypeJson, name)
 }
 
 // JSONB creates a new JSONB column definition in the blueprint.
 func (b *Blueprint) JSONB(name string) ColumnDefinition {
-	return b.addColumn(columnTypeJSONB, name)
+	return b.addColumn(columnTypeJsonb, name)
 }
 
 // UUID creates a new UUID column definition in the blueprint.
 func (b *Blueprint) UUID(name string) ColumnDefinition {
-	return b.addColumn(columnTypeUUID, name)
+	return b.addColumn(columnTypeUuid, name)
 }
 
 // Geography creates a new geography column definition in the blueprint.
@@ -319,8 +327,8 @@ func (b *Blueprint) UUID(name string) ColumnDefinition {
 // The srid parameter is optional and specifies the Spatial Reference Identifier (SRID) for the geography type.
 func (b *Blueprint) Geography(name string, subtype string, srid ...int) ColumnDefinition {
 	return b.addColumn(columnTypeGeography, name, &columnDefinition{
-		subtype: optionalPtr("", subtype),
-		srid:    optionalPtr(4326, srid...),
+		subtype: util.OptionalPtr("", subtype),
+		srid:    util.OptionalPtr(4326, srid...),
 	})
 }
 
@@ -329,15 +337,15 @@ func (b *Blueprint) Geography(name string, subtype string, srid ...int) ColumnDe
 // The srid parameter is optional and specifies the Spatial Reference Identifier (SRID) for the geometry type.
 func (b *Blueprint) Geometry(name string, subtype string, srid ...int) ColumnDefinition {
 	return b.addColumn(columnTypeGeometry, name, &columnDefinition{
-		subtype: optionalPtr("", subtype),
-		srid:    optionalNil(srid...),
+		subtype: util.OptionalPtr("", subtype),
+		srid:    util.OptionalNil(srid...),
 	})
 }
 
 // Point creates a new point column definition in the blueprint.
 func (b *Blueprint) Point(name string, srid ...int) ColumnDefinition {
 	return b.addColumn(columnTypePoint, name, &columnDefinition{
-		srid: optionalPtr(4326, srid...),
+		srid: util.OptionalPtr(4326, srid...),
 	})
 }
 
@@ -497,15 +505,11 @@ func (b *Blueprint) create() {
 
 func (b *Blueprint) creating() bool {
 	for _, command := range b.commands {
-		if command.name == commandCreate || command.name == commandCreateIfNotExists {
+		if command.name == commandCreate {
 			return true
 		}
 	}
 	return false
-}
-
-func (b *Blueprint) createIfNotExists() {
-	b.addCommand(commandCreateIfNotExists)
 }
 
 func (b *Blueprint) drop() {
@@ -530,9 +534,11 @@ func (b *Blueprint) addImpliedCommands() {
 			b.commands = append([]*command{{name: commandAdd}}, b.commands...)
 		}
 		if len(b.getChangedColumns()) > 0 {
+			changedCommands := make([]*command, 0, len(b.getChangedColumns()))
 			for _, col := range b.getChangedColumns() {
-				b.commands = append([]*command{{name: commandChange, column: col}}, b.commands...)
+				changedCommands = append(changedCommands, &command{name: commandChange, column: col})
 			}
+			b.commands = append(changedCommands, b.commands...)
 		}
 	}
 }
@@ -540,7 +546,7 @@ func (b *Blueprint) addImpliedCommands() {
 func (b *Blueprint) addFluentIndexes() {
 	for _, col := range b.columns {
 		if col.primary != nil {
-			if b.dialect == dialectMySQL {
+			if b.dialect == dialect.MySQL {
 				continue
 			}
 			if !*col.primary && col.change {
@@ -573,7 +579,7 @@ func (b *Blueprint) addFluentIndexes() {
 func (b *Blueprint) getFluentStatements() []string {
 	var statements []string
 	for _, column := range b.columns {
-		for _, fluentCommand := range b.grammar.getFluentCommands() {
+		for _, fluentCommand := range b.grammar.GetFluentCommands() {
 			if statement := fluentCommand(b, &command{column: column}); statement != "" {
 				statements = append(statements, statement)
 			}
@@ -588,8 +594,8 @@ func (b *Blueprint) build(ctx context.Context, tx *sql.Tx) error {
 		return err
 	}
 	for _, statement := range statements {
-		if b.debug {
-			log.Print(statement)
+		if b.verbose {
+			log.Println(statement)
 		}
 		if _, err := tx.ExecContext(ctx, statement); err != nil {
 			return err
@@ -603,29 +609,28 @@ func (b *Blueprint) toSql() ([]string, error) {
 
 	var statements []string
 
-	mainCommandMap := map[string]func(*Blueprint) (string, error){
-		commandCreate:            b.grammar.compileCreate,
-		commandCreateIfNotExists: b.grammar.compileCreateIfNotExists,
-		commandAdd:               b.grammar.compileAdd,
-		commandDrop:              b.grammar.compileDrop,
-		commandDropIfExists:      b.grammar.compileDropIfExists,
+	mainCommandMap := map[string]func(blueprint *Blueprint) (string, error){
+		commandCreate:       b.grammar.CompileCreate,
+		commandAdd:          b.grammar.CompileAdd,
+		commandDrop:         b.grammar.CompileDrop,
+		commandDropIfExists: b.grammar.CompileDropIfExists,
 	}
-	secondaryCommandMap := map[string]func(*Blueprint, *command) (string, error){
-		commandChange:       b.grammar.compileChange,
-		commandDropColumn:   b.grammar.compileDropColumn,
-		commandDropIndex:    b.grammar.compileDropIndex,
-		commandDropForeign:  b.grammar.compileDropForeign,
-		commandDropFullText: b.grammar.compileDropFulltext,
-		commandDropPrimary:  b.grammar.compileDropPrimary,
-		commandDropUnique:   b.grammar.compileDropUnique,
-		commandForeign:      b.grammar.compileForeign,
-		commandFullText:     b.grammar.compileFullText,
-		commandIndex:        b.grammar.compileIndex,
-		commandPrimary:      b.grammar.compilePrimary,
-		commandRename:       b.grammar.compileRename,
-		commandRenameColumn: b.grammar.compileRenameColumn,
-		commandRenameIndex:  b.grammar.compileRenameIndex,
-		commandUnique:       b.grammar.compileUnique,
+	secondaryCommandMap := map[string]func(blueprint *Blueprint, command *command) (string, error){
+		commandChange:       b.grammar.CompileChange,
+		commandDropColumn:   b.grammar.CompileDropColumn,
+		commandDropIndex:    b.grammar.CompileDropIndex,
+		commandDropForeign:  b.grammar.CompileDropForeign,
+		commandDropFullText: b.grammar.CompileDropFulltext,
+		commandDropPrimary:  b.grammar.CompileDropPrimary,
+		commandDropUnique:   b.grammar.CompileDropUnique,
+		commandForeign:      b.grammar.CompileForeign,
+		commandFullText:     b.grammar.CompileFullText,
+		commandIndex:        b.grammar.CompileIndex,
+		commandPrimary:      b.grammar.CompilePrimary,
+		commandRename:       b.grammar.CompileRename,
+		commandRenameColumn: b.grammar.CompileRenameColumn,
+		commandRenameIndex:  b.grammar.CompileRenameIndex,
+		commandUnique:       b.grammar.CompileUnique,
 	}
 	for _, cmd := range b.commands {
 		if compileFunc, exists := mainCommandMap[cmd.name]; exists {
@@ -688,7 +693,7 @@ func (b *Blueprint) dropIndexCommand(name string, indexType string, index any) {
 			index: index,
 		})
 	case []string:
-		indexName := b.grammar.createIndexName(b, indexType, index...)
+		indexName := b.grammar.CreateIndexName(b, indexType, index...)
 		b.addCommand(name, &command{
 			index: indexName,
 		})

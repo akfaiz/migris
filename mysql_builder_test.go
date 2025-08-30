@@ -43,7 +43,7 @@ func (s *mysqlBuilderSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.db = db
-	s.builder, err = schema.NewBuilder("mysql", schema.WithDebug())
+	s.builder, err = schema.NewBuilder("mysql")
 	s.Require().NoError(err)
 }
 
@@ -138,41 +138,6 @@ func (s *mysqlBuilderSuite) TestCreate() {
 			table.String("email", 255).Unique()
 		})
 		s.Error(err, "expected error when creating table that already exists")
-	})
-}
-
-func (s *mysqlBuilderSuite) TestCreateIfNotExists() {
-	builder := s.builder
-	tx, err := s.db.BeginTx(s.ctx, nil)
-	s.Require().NoError(err)
-	defer tx.Rollback() //nolint:errcheck
-
-	s.Run("when tx is nil, should return error", func() {
-		err := builder.CreateIfNotExists(s.ctx, nil, "test_table", func(table *schema.Blueprint) {
-			table.String("name")
-		})
-		s.Error(err)
-	})
-	s.Run("when table name is empty, should return error", func() {
-		err := builder.CreateIfNotExists(s.ctx, tx, "", func(table *schema.Blueprint) {
-			table.String("name")
-		})
-		s.Error(err)
-	})
-	s.Run("when blueprint is nil, should return error", func() {
-		err := builder.CreateIfNotExists(s.ctx, tx, "test_table", nil)
-		s.Error(err)
-	})
-	s.Run("when all parameters are valid, should error", func() {
-		err = builder.CreateIfNotExists(context.Background(), tx, "users", func(table *schema.Blueprint) {
-			table.ID()
-			table.String("name", 255)
-			table.String("email", 255).Unique()
-			table.String("password", 255).Nullable()
-			table.Timestamp("created_at").Default("CURRENT_TIMESTAMP")
-			table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP")
-		})
-		s.Error(err)
 	})
 }
 

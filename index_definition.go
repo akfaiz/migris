@@ -1,5 +1,7 @@
 package schema
 
+import "github.com/afkdevs/go-schema/internal/util"
+
 // IndexDefinition defines the interface for defining an index in a database table.
 type IndexDefinition interface {
 	// Algorithm sets the algorithm for the index.
@@ -25,13 +27,13 @@ func (id *indexDefinition) Algorithm(algorithm string) IndexDefinition {
 }
 
 func (id *indexDefinition) Deferrable(value ...bool) IndexDefinition {
-	val := optional(true, value...)
+	val := util.Optional(true, value...)
 	id.deferrable = &val
 	return id
 }
 
 func (id *indexDefinition) InitiallyImmediate(value ...bool) IndexDefinition {
-	val := optional(true, value...)
+	val := util.Optional(true, value...)
 	id.initiallyImmediate = &val
 	return id
 }

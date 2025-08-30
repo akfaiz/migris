@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+
+	"github.com/afkdevs/go-schema/internal/config"
 )
 
 type mysqlBuilder struct {
@@ -12,22 +14,20 @@ type mysqlBuilder struct {
 	grammar *mysqlGrammar
 }
 
-func newMysqlBuilder(options ...Option) Builder {
+var _ Builder = (*mysqlBuilder)(nil)
+
+func newMysqlBuilder() Builder {
 	grammar := newMysqlGrammar()
-	cfg := applyOptions(options...)
+	cfg := config.Get()
 
 	return &mysqlBuilder{
-		baseBuilder: baseBuilder{grammar: grammar, debug: cfg.debug},
+		baseBuilder: baseBuilder{grammar: grammar, verbose: cfg.Verbose},
 		grammar:     grammar,
 	}
 }
 
 func (b *mysqlBuilder) getCurrentDatabase(ctx context.Context, tx *sql.Tx) (string, error) {
-	if tx == nil {
-		return "", errors.New("transaction is nil")
-	}
-
-	query := b.grammar.compileCurrentDatabase()
+	query := b.grammar.CompileCurrentDatabase()
 	row := tx.QueryRowContext(ctx, query)
 	var dbName string
 	if err := row.Scan(&dbName); err != nil {
@@ -36,33 +36,9 @@ func (b *mysqlBuilder) getCurrentDatabase(ctx context.Context, tx *sql.Tx) (stri
 	return dbName, nil
 }
 
-func (b *mysqlBuilder) CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
-	if err := b.validateCreateAndAlter(tx, name, blueprint); err != nil {
-		return err
-	}
-
-	exist, err := b.HasTable(ctx, tx, name)
-	if err != nil {
-		return err
-	}
-	if exist {
-		return nil // Table already exists, no need to create it
-	}
-
-	bp := &Blueprint{name: name, grammar: b.grammar}
-	bp.createIfNotExists()
-	blueprint(bp)
-
-	if err := bp.build(ctx, tx); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (b *mysqlBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, error) {
-	if err := b.validateTxAndName(tx, tableName); err != nil {
-		return nil, err
+	if tx == nil || tableName == "" {
+		return nil, errors.New("invalid arguments: transaction is nil or table name is empty")
 	}
 
 	database, err := b.getCurrentDatabase(ctx, tx)
@@ -70,7 +46,7 @@ func (b *mysqlBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName str
 		return nil, err
 	}
 
-	query, err := b.grammar.compileColumns(database, tableName)
+	query, err := b.grammar.CompileColumns(database, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +78,8 @@ func (b *mysqlBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName str
 }
 
 func (b *mysqlBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName string) ([]*Index, error) {
-	if err := b.validateTxAndName(tx, tableName); err != nil {
-		return nil, err
+	if tx == nil || tableName == "" {
+		return nil, errors.New("invalid arguments: transaction is nil or table name is empty")
 	}
 
 	database, err := b.getCurrentDatabase(ctx, tx)
@@ -111,7 +87,7 @@ func (b *mysqlBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName str
 		return nil, err
 	}
 
-	query, err := b.grammar.compileIndexes(database, tableName)
+	query, err := b.grammar.CompileIndexes(database, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -136,12 +112,16 @@ func (b *mysqlBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName str
 }
 
 func (b *mysqlBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo, error) {
+	if tx == nil {
+		return nil, errors.New("invalid arguments: transaction is nil")
+	}
+
 	database, err := b.getCurrentDatabase(ctx, tx)
 	if err != nil {
 		return nil, err
 	}
 
-	query, err := b.grammar.compileTables(database)
+	query, err := b.grammar.CompileTables(database)
 	if err != nil {
 		return nil, err
 	}
@@ -163,15 +143,15 @@ func (b *mysqlBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo,
 }
 
 func (b *mysqlBuilder) HasColumn(ctx context.Context, tx *sql.Tx, tableName string, columnName string) (bool, error) {
-	if columnName == "" {
-		return false, errors.New("column name cannot be empty")
+	if tx == nil || columnName == "" {
+		return false, errors.New("invalid arguments: transaction is nil or column name is empty")
 	}
 	return b.HasColumns(ctx, tx, tableName, []string{columnName})
 }
 
 func (b *mysqlBuilder) HasColumns(ctx context.Context, tx *sql.Tx, tableName string, columnNames []string) (bool, error) {
-	if err := b.validateTxAndName(tx, tableName); err != nil {
-		return false, err
+	if tx == nil || tableName == "" {
+		return false, errors.New("invalid arguments: transaction is nil or table name is empty")
 	}
 	if len(columnNames) == 0 {
 		return false, errors.New("no column names provided")
@@ -194,8 +174,8 @@ func (b *mysqlBuilder) HasColumns(ctx context.Context, tx *sql.Tx, tableName str
 }
 
 func (b *mysqlBuilder) HasIndex(ctx context.Context, tx *sql.Tx, tableName string, indexes []string) (bool, error) {
-	if err := b.validateTxAndName(tx, tableName); err != nil {
-		return false, err
+	if tx == nil || tableName == "" {
+		return false, errors.New("invalid arguments: transaction is nil or table name is empty")
 	}
 
 	existingIndexes, err := b.GetIndexes(ctx, tx, tableName)
@@ -238,8 +218,8 @@ func (b *mysqlBuilder) HasIndex(ctx context.Context, tx *sql.Tx, tableName strin
 }
 
 func (b *mysqlBuilder) HasTable(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
-	if err := b.validateTxAndName(tx, name); err != nil {
-		return false, err
+	if tx == nil || name == "" {
+		return false, errors.New("invalid arguments: transaction is nil or table name is empty")
 	}
 
 	database, err := b.getCurrentDatabase(ctx, tx)
@@ -247,7 +227,7 @@ func (b *mysqlBuilder) HasTable(ctx context.Context, tx *sql.Tx, name string) (b
 		return false, err
 	}
 
-	query, err := b.grammar.compileTableExists(database, name)
+	query, err := b.grammar.CompileTableExists(database, name)
 	if err != nil {
 		return false, err
 	}

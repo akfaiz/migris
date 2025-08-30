@@ -3,8 +3,8 @@ package schema
 import (
 	"testing"
 
+	"github.com/afkdevs/go-schema/internal/dialect"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestMysqlGrammar_CompileCreate(t *testing.T) {
@@ -83,7 +83,7 @@ func TestMysqlGrammar_CompileCreate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := g.compileCreate(bp)
+			got, err := g.CompileCreate(bp)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -173,7 +173,7 @@ func TestMysqlGrammar_CompileAdd(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := g.compileAdd(bp)
+			got, err := g.CompileAdd(bp)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -243,7 +243,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Text("description").Nullable().Default(nil).Change()
 			},
-			want:    []string{"ALTER TABLE users MODIFY COLUMN description TEXT DEFAULT NULL"},
+			want:    []string{"ALTER TABLE users MODIFY COLUMN description TEXT NULL DEFAULT NULL"},
 			wantErr: false,
 		},
 		{
@@ -252,7 +252,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Integer("age").Comment("User age in years").Change()
 			},
-			want:    []string{"ALTER TABLE users MODIFY COLUMN age INT COMMENT 'User age in years'"},
+			want:    []string{"ALTER TABLE users MODIFY COLUMN age INT NOT NULL COMMENT 'User age in years'"},
 			wantErr: false,
 		},
 		{
@@ -261,7 +261,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Text("notes").Comment("").Change()
 			},
-			want:    []string{"ALTER TABLE users MODIFY COLUMN notes TEXT COMMENT ''"},
+			want:    []string{"ALTER TABLE users MODIFY COLUMN notes TEXT NOT NULL COMMENT ''"},
 			wantErr: false,
 		},
 		{
@@ -285,7 +285,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 				table.SmallInteger("age").Nullable().Change()
 			},
 			want: []string{
-				"ALTER TABLE users MODIFY COLUMN name VARCHAR(200)",
+				"ALTER TABLE users MODIFY COLUMN name VARCHAR(200) NOT NULL",
 				"ALTER TABLE users MODIFY COLUMN age SMALLINT NULL",
 			},
 			wantErr: false,
@@ -302,7 +302,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bp := &Blueprint{name: tt.table, grammar: g, dialect: dialectMySQL}
+			bp := &Blueprint{name: tt.table, grammar: g, dialect: dialect.MySQL}
 			tt.blueprint(bp)
 			statements, err := bp.toSql()
 			if tt.wantErr {
@@ -310,10 +310,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 				return
 			}
 			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
-			require.Len(t, statements, len(tt.want), "Expected number of SQL statements to match for test case: %s", tt.name)
-			for i, stmt := range statements {
-				assert.Equal(t, tt.want[i], stmt, "Expected SQL to match for test case: %s", tt.name)
-			}
+			assert.Equal(t, tt.want, statements, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
 }
@@ -357,7 +354,7 @@ func TestMysqlGrammar_CompileRename(t *testing.T) {
 				name: tt.table,
 			}
 			bp.rename(tt.newName)
-			got, err := g.compileRename(bp, bp.commands[0])
+			got, err := g.CompileRename(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -411,7 +408,7 @@ func TestMysqlGrammar_CompileDrop(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
-			got, err := g.compileDrop(bp)
+			got, err := g.CompileDrop(bp)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -465,7 +462,7 @@ func TestMysqlGrammar_CompileDropIfExists(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
-			got, err := g.compileDropIfExists(bp)
+			got, err := g.CompileDropIfExists(bp)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -528,7 +525,7 @@ func TestMysqlGrammar_CompileDropColumn(t *testing.T) {
 				name: tt.table,
 			}
 			tt.blueprint(bp)
-			got, err := g.compileDropColumn(bp, bp.commands[0])
+			got, err := g.CompileDropColumn(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -585,7 +582,7 @@ func TestMysqlGrammar_CompileRenameColumn(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			command := &command{from: tt.oldName, to: tt.newName}
-			got, err := g.compileRenameColumn(bp, command)
+			got, err := g.CompileRenameColumn(bp, command)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -707,7 +704,7 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := g.compileForeign(bp, bp.commands[0])
+			got, err := g.CompileForeign(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -747,7 +744,7 @@ func TestMysqlGrammar_CompileDropForeign(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			command := &command{index: tt.fkName}
-			got, err := g.compileDropForeign(bp, command)
+			got, err := g.CompileDropForeign(bp, command)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -827,7 +824,7 @@ func TestMysqlGrammar_CompileIndex(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := g.compileIndex(bp, bp.commands[0])
+			got, err := g.CompileIndex(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -915,7 +912,7 @@ func TestMysqlGrammar_CompileUnique(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := g.compileUnique(bp, bp.commands[0])
+			got, err := g.CompileUnique(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -1011,7 +1008,7 @@ func TestMysqlGrammar_CompilePrimary(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := g.compilePrimary(bp, bp.commands[0])
+			got, err := g.CompilePrimary(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -1107,7 +1104,7 @@ func TestMysqlGrammar_CompileFullText(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			tt.blueprint(bp)
-			got, err := g.compileFullText(bp, bp.commands[0])
+			got, err := g.CompileFullText(bp, bp.commands[0])
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -1147,7 +1144,7 @@ func TestMysqlGrammar_CompileDropIndex(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			command := &command{index: tt.indexName}
-			got, err := g.compileDropIndex(bp, command)
+			got, err := g.CompileDropIndex(bp, command)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -1186,7 +1183,7 @@ func TestMysqlGrammar_CompileDropUnique(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			command := &command{index: tt.indexName}
-			got, err := g.compileDropUnique(bp, command)
+			got, err := g.CompileDropUnique(bp, command)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -1225,7 +1222,7 @@ func TestMysqlGrammar_CompileDropFulltext(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			command := &command{index: tt.indexName}
-			got, err := g.compileDropFulltext(bp, command)
+			got, err := g.CompileDropFulltext(bp, command)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -1287,7 +1284,7 @@ func TestMysqlGrammar_CompileDropPrimary(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			command := &command{index: tt.indexName}
-			got, err := g.compileDropPrimary(bp, command)
+			got, err := g.CompileDropPrimary(bp, command)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -1376,7 +1373,7 @@ func TestMysqlGrammar_CompileRenameIndex(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			command := &command{from: tt.oldName, to: tt.newName}
-			got, err := g.compileRenameIndex(bp, command)
+			got, err := g.CompileRenameIndex(bp, command)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
@@ -1701,14 +1698,6 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "column with on update value",
-			blueprint: func(table *Blueprint) {
-				table.Timestamp("updated_at", 0).UseCurrentOnUpdate()
-			},
-			want:    []string{"updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL"},
-			wantErr: false,
-		},
-		{
 			name: "nullable column",
 			blueprint: func(table *Blueprint) {
 				table.String("email", 255).Nullable()
@@ -1760,20 +1749,12 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "timestamp with default",
-			blueprint: func(table *Blueprint) {
-				table.Timestamp("created_at", 0).UseCurrent()
-			},
-			want:    []string{"created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL"},
-			wantErr: false,
-		},
-		{
 			name: "multiple columns with different attributes",
 			blueprint: func(table *Blueprint) {
 				table.BigInteger("id").Unsigned().AutoIncrement().Primary()
 				table.String("name", 255).Comment("User name")
 				table.String("email", 255).Nullable()
-				table.Timestamp("created_at", 0).Default("CURRENT_TIMESTAMP")
+				table.Timestamp("created_at", 0).UseCurrent()
 			},
 			want: []string{
 				"id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL",

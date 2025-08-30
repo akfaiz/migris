@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
+	"github.com/afkdevs/go-schema/internal/config"
+	"github.com/afkdevs/go-schema/internal/dialect"
 )
 
 // Column represents a database column with its properties.
@@ -39,13 +42,12 @@ type TableInfo struct {
 }
 
 func newBuilder() (Builder, error) {
-	if dialectValue == dialectUnknown {
+	cfg := config.Get()
+	if cfg.Dialect == dialect.Unknown {
 		return nil, errors.New("schema dialect is not set, please call schema.SetDialect() before using schema functions")
 	}
 
-	builder, err := NewBuilder(dialectValue.String(),
-		WithDebug(cfg.debug),
-	)
+	builder, err := NewBuilder(cfg.Dialect.String())
 	if err != nil {
 		return nil, err
 	}
@@ -74,29 +76,6 @@ func Create(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *
 	}
 
 	return builder.Create(ctx, tx, name, blueprint)
-}
-
-// CreateIfNotExists creates a new table with the given name and blueprint if it does not already exist.
-// The blueprint function is used to define the structure of the table.
-// It returns an error if the table creation fails.
-//
-// Example:
-//
-//	err := schema.CreateIfNotExists(ctx, tx, "users", func(table *schema.Blueprint) {
-//	    table.ID()
-//	    table.String("name").Nullable(false)
-//	    table.String("email").Unique().Nullable(false)
-//	    table.String("password").Nullable()
-//	    table.Timestamp("created_at").Default("CURRENT_TIMESTAMP").Nullable(false)
-//	    table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP").Nullable(false)
-//	})
-func CreateIfNotExists(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
-	builder, err := newBuilder()
-	if err != nil {
-		return err
-	}
-
-	return builder.CreateIfNotExists(ctx, tx, name, blueprint)
 }
 
 // Drop removes the table with the given name.

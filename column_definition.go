@@ -1,5 +1,11 @@
 package schema
 
+import (
+	"slices"
+
+	"github.com/afkdevs/go-schema/internal/util"
+)
+
 // ColumnDefinition defines the interface for defining a column in a database table.
 type ColumnDefinition interface {
 	// AutoIncrement sets the column to auto-increment.
@@ -33,20 +39,8 @@ type ColumnDefinition interface {
 	UseCurrentOnUpdate() ColumnDefinition
 }
 
-// Expression is a type for expressions that can be used as default values for columns.
-//
-// Example:
-//
-// schema.Timestamp("created_at").Default(schema.Expression("CURRENT_TIMESTAMP"))
-type Expression string
-
-func (e Expression) String() string {
-	return string(e)
-}
-
-var _ ColumnDefinition = &columnDefinition{}
-
 type columnDefinition struct {
+	commands           []string
 	name               string
 	columnType         string
 	charset            *string
@@ -54,8 +48,8 @@ type columnDefinition struct {
 	comment            *string
 	defaultValue       any
 	onUpdateValue      any
-	useCurrent         *bool
-	useCurrentOnUpdate *bool
+	useCurrent         bool
+	useCurrentOnUpdate bool
 	nullable           *bool
 	autoIncrement      *bool
 	unsigned           *bool
@@ -74,8 +68,43 @@ type columnDefinition struct {
 	srid               *int     // for geography and geometry types
 }
 
+// Expression is a type for expressions that can be used as default values for columns.
+//
+// Example:
+//
+// schema.Timestamp("created_at").Default(schema.Expression("CURRENT_TIMESTAMP"))
+type Expression string
+
+func (e Expression) String() string {
+	return string(e)
+}
+
+var _ ColumnDefinition = &columnDefinition{}
+
+func (c *columnDefinition) addCommand(command string) {
+	c.commands = append(c.commands, command)
+}
+
+func (c *columnDefinition) hasCommand(command string) bool {
+	return slices.Contains(c.commands, command)
+}
+
+func (c *columnDefinition) SetDefault(value any) {
+	c.addCommand("default")
+	c.defaultValue = value
+}
+
+func (c *columnDefinition) SetOnUpdate(value any) {
+	c.addCommand("onUpdate")
+	c.onUpdateValue = value
+}
+
+func (c *columnDefinition) SetSubtype(value *string) {
+	c.subtype = value
+}
+
 func (c *columnDefinition) AutoIncrement() ColumnDefinition {
-	c.autoIncrement = ptrOf(true)
+	c.autoIncrement = util.PtrOf(true)
 	return c
 }
 
@@ -95,11 +124,13 @@ func (c *columnDefinition) Collation(collation string) ColumnDefinition {
 }
 
 func (c *columnDefinition) Comment(comment string) ColumnDefinition {
+	c.addCommand("comment")
 	c.comment = &comment
 	return c
 }
 
 func (c *columnDefinition) Default(value any) ColumnDefinition {
+	c.addCommand("default")
 	c.defaultValue = value
 
 	return c
@@ -120,17 +151,19 @@ func (c *columnDefinition) Index(params ...any) ColumnDefinition {
 }
 
 func (c *columnDefinition) Nullable(value ...bool) ColumnDefinition {
-	c.nullable = optionalPtr(true, value...)
+	c.addCommand("nullable")
+	c.nullable = util.OptionalPtr(true, value...)
 	return c
 }
 
 func (c *columnDefinition) OnUpdate(value any) ColumnDefinition {
+	c.addCommand("onUpdate")
 	c.onUpdateValue = value
 	return c
 }
 
 func (c *columnDefinition) Primary(value ...bool) ColumnDefinition {
-	val := optional(true, value...)
+	val := util.Optional(true, value...)
 	c.primary = &val
 	return c
 }
@@ -150,16 +183,16 @@ func (c *columnDefinition) Unique(params ...any) ColumnDefinition {
 }
 
 func (c *columnDefinition) Unsigned() ColumnDefinition {
-	c.unsigned = ptrOf(true)
+	c.unsigned = util.PtrOf(true)
 	return c
 }
 
 func (c *columnDefinition) UseCurrent() ColumnDefinition {
-	c.useCurrent = ptrOf(true)
+	c.useCurrent = true
 	return c
 }
 
 func (c *columnDefinition) UseCurrentOnUpdate() ColumnDefinition {
-	c.useCurrentOnUpdate = ptrOf(true)
+	c.useCurrentOnUpdate = true
 	return c
 }

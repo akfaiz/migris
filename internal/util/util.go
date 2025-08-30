@@ -1,31 +1,31 @@
-package schema
+package util
 
-func optional[T any](defaultValue T, values ...T) T {
+func Optional[T any](defaultValue T, values ...T) T {
 	if len(values) > 0 {
 		return values[0]
 	}
 	return defaultValue
 }
 
-func optionalPtr[T any](defaultValue T, values ...T) *T {
+func OptionalPtr[T any](defaultValue T, values ...T) *T {
 	if len(values) > 0 {
 		return &values[0]
 	}
 	return &defaultValue
 }
 
-func optionalNil[T any](values ...T) *T {
+func OptionalNil[T any](values ...T) *T {
 	if len(values) > 0 {
 		return &values[0]
 	}
 	return nil
 }
 
-func ptrOf[T any](value T) *T {
+func PtrOf[T any](value T) *T {
 	return &value
 }
 
-func ternary[T any](condition bool, trueValue, falseValue T) T {
+func Ternary[T any](condition bool, trueValue, falseValue T) T {
 	if condition {
 		return trueValue
 	}

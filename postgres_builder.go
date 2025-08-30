@@ -5,19 +5,21 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+
+	"github.com/afkdevs/go-schema/internal/config"
 )
 
 type postgresBuilder struct {
 	baseBuilder
-	grammar *pgGrammar
+	grammar *postgresGrammar
 }
 
-func newPostgresBuilder(options ...Option) Builder {
-	grammar := newPgGrammar()
-	cfg := applyOptions(options...)
+func newPostgresBuilder() Builder {
+	grammar := newPostgresGrammar()
+	cfg := config.Get()
 
 	return &postgresBuilder{
-		baseBuilder: baseBuilder{grammar: grammar, debug: cfg.debug},
+		baseBuilder: baseBuilder{grammar: grammar, verbose: cfg.Verbose},
 		grammar:     grammar,
 	}
 }
@@ -31,15 +33,15 @@ func (b *postgresBuilder) parseSchemaAndTable(name string) (string, string) {
 }
 
 func (b *postgresBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, error) {
-	if err := b.validateTxAndName(tx, tableName); err != nil {
-		return nil, err
+	if tx == nil || tableName == "" {
+		return nil, errors.New("invalid arguments: transaction is nil or table name is empty")
 	}
 
 	schema, name := b.parseSchemaAndTable(tableName)
 	if schema == "" {
 		schema = "public" // Default schema for PostgreSQL
 	}
-	query, err := b.grammar.compileColumns(schema, name)
+	query, err := b.grammar.CompileColumns(schema, name)
 	if err != nil {
 		return nil, err
 	}
@@ -66,14 +68,14 @@ func (b *postgresBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName 
 }
 
 func (b *postgresBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName string) ([]*Index, error) {
-	if err := b.validateTxAndName(tx, tableName); err != nil {
-		return nil, err
+	if tx == nil || tableName == "" {
+		return nil, errors.New("invalid arguments: transaction is nil or table name is empty")
 	}
 	schema, name := b.parseSchemaAndTable(tableName)
 	if schema == "" {
 		schema = "public" // Default schema for PostgreSQL
 	}
-	query, err := b.grammar.compileIndexes(schema, name)
+	query, err := b.grammar.CompileIndexes(schema, name)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +104,7 @@ func (b *postgresBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableIn
 		return nil, errors.New("transaction is nil")
 	}
 
-	query, err := b.grammar.compileTables()
+	query, err := b.grammar.CompileTables()
 	if err != nil {
 		return nil, err
 	}
@@ -130,6 +132,9 @@ func (b *postgresBuilder) HasColumn(ctx context.Context, tx *sql.Tx, tableName s
 }
 
 func (b *postgresBuilder) HasColumns(ctx context.Context, tx *sql.Tx, tableName string, columnNames []string) (bool, error) {
+	if tx == nil || tableName == "" {
+		return false, errors.New("invalid arguments: transaction is nil or table name is empty")
+	}
 	if len(columnNames) == 0 {
 		return false, errors.New("no column names provided")
 	}
@@ -159,8 +164,8 @@ func (b *postgresBuilder) HasColumns(ctx context.Context, tx *sql.Tx, tableName 
 }
 
 func (b *postgresBuilder) HasIndex(ctx context.Context, tx *sql.Tx, tableName string, indexes []string) (bool, error) {
-	if err := b.validateTxAndName(tx, tableName); err != nil {
-		return false, err
+	if tx == nil || tableName == "" {
+		return false, errors.New("invalid arguments: transaction is nil or table name is empty")
 	}
 
 	existingIndexes, err := b.GetIndexes(ctx, tx, tableName)
@@ -203,15 +208,15 @@ func (b *postgresBuilder) HasIndex(ctx context.Context, tx *sql.Tx, tableName st
 }
 
 func (b *postgresBuilder) HasTable(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
-	if err := b.validateTxAndName(tx, name); err != nil {
-		return false, err
+	if tx == nil || name == "" {
+		return false, errors.New("invalid arguments: transaction is nil or table name is empty")
 	}
 
 	schema, name := b.parseSchemaAndTable(name)
 	if schema == "" {
 		schema = "public" // Default schema for PostgreSQL
 	}
-	query, err := b.grammar.compileTableExists(schema, name)
+	query, err := b.grammar.CompileTableExists(schema, name)
 	if err != nil {
 		return false, err
 	}
