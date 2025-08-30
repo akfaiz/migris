@@ -16,7 +16,18 @@ func (m *Migrate) Up() error {
 
 // UpContext applies the migrations in the specified directory.
 func (m *Migrate) UpContext(ctx context.Context) error {
-	provider, err := newProvider(m.db, m.dir)
+	return m.UpToContext(ctx, goose.MaxVersion)
+}
+
+// UpTo applies the migrations up to the specified version.
+func (m *Migrate) UpTo(version int64) error {
+	ctx := context.Background()
+	return m.UpToContext(ctx, version)
+}
+
+// UpToContext applies the migrations up to the specified version.
+func (m *Migrate) UpToContext(ctx context.Context, version int64) error {
+	provider, err := m.newProvider()
 	if err != nil {
 		return err
 	}
@@ -28,9 +39,9 @@ func (m *Migrate) UpContext(ctx context.Context) error {
 		logger.Info("Nothing to migrate.")
 		return nil
 	}
-	logger.Infof("Running migrations.\n")
 
-	results, err := provider.Up(ctx)
+	logger.Infof("Running migrations.\n")
+	results, err := provider.UpTo(ctx, version)
 	if err != nil {
 		var partialErr *goose.PartialError
 		if errors.As(err, &partialErr) {
@@ -41,5 +52,6 @@ func (m *Migrate) UpContext(ctx context.Context) error {
 		return err
 	}
 	logger.PrintResults(results)
+
 	return nil
 }

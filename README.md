@@ -119,32 +119,8 @@ func newMigrate() (*migris.Migrate, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	return migris.New(db, "migrations"), nil
+	return migris.New("postgres", migris.WithDB(db), migris.WithMigrationPath("migrations")), nil
 }
-```
-
-## 🔧 Commands
-
-Here are the available migration commands:
-
-| Function          | Description                                |
-|-------------------|--------------------------------------------|
-| `migris.Up`       | Apply all pending migrations               |
-| `migris.Down`     | Rollback the last migration                |
-| `migris.Reset`    | Rollback all migrations                    |
-| `migris.Status`   | Show migration status                      |
-| `migris.Create`   | Create a new migration file with timestamp |
-
-## 🛠️ Example Schema
-
-```go
-schema.Create(c, "posts", func(table *schema.Blueprint) {
-    table.ID()
-    table.String("title")
-    table.Text("body")
-    table.ForeignID("user_id").Constrained("users")
-    table.Timestamps()
-})
 ```
 
 ## 📖 Roadmap

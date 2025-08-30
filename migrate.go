@@ -1,17 +1,63 @@
 package migris
 
-import "database/sql"
+import (
+	"database/sql"
+	"errors"
+	"os"
+
+	"github.com/afkdevs/migris/internal/config"
+	"github.com/afkdevs/migris/internal/dialect"
+	"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3/database"
+)
 
 // Migrate handles database migrations
 type Migrate struct {
-	dir string
-	db  *sql.DB
+	dialect       dialect.Dialect
+	migrationPath string
+	db            *sql.DB
+	tableName     string
 }
 
 // New creates a new Migrate instance
-func New(db *sql.DB, dir string) *Migrate {
-	return &Migrate{
-		dir: dir,
-		db:  db,
+func New(dialectValue string, opts ...Option) (*Migrate, error) {
+	dialectVal := dialect.FromString(dialectValue)
+	if dialectVal == dialect.Unknown {
+		return nil, errors.New("unknown database dialect")
 	}
+	config.SetDialect(dialectVal)
+
+	m := &Migrate{
+		dialect:       dialectVal,
+		migrationPath: "migrations",
+		tableName:     "migris_db_version",
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	if m.db == nil {
+		return nil, errors.New("database connection is not set, please call WithDB option")
+	}
+	return m, nil
+}
+
+func (m *Migrate) newProvider() (*goose.Provider, error) {
+	val := config.GetDialect()
+	if val == dialect.Unknown {
+		return nil, errors.New("unknown database dialect")
+	}
+	gooseDialect := val.GooseDialect()
+	store, err := database.NewStore(gooseDialect, m.tableName)
+	if err != nil {
+		return nil, err
+	}
+	provider, err := goose.NewProvider(database.DialectCustom, m.db, os.DirFS(m.migrationPath),
+		goose.WithStore(store),
+		goose.WithDisableGlobalRegistry(true),
+		goose.WithGoMigrations(gooseMigrations()...),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return provider, nil
 }

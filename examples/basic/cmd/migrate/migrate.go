@@ -51,9 +51,6 @@ func Status() error {
 }
 
 func newMigrate() (*migris.Migrate, error) {
-	if err := migris.SetDialect("postgres"); err != nil {
-		return nil, fmt.Errorf("failed to set schema dialect: %w", err)
-	}
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
@@ -62,7 +59,11 @@ func newMigrate() (*migris.Migrate, error) {
 	if err != nil {
 		return nil, err
 	}
-	return migris.New(db, "migrations"), nil
+	migrate, err := migris.New("postgres", migris.WithDB(db))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create migris instance: %w", err)
+	}
+	return migrate, nil
 }
 
 func openDatabase(cfg config.Database) (*sql.DB, error) {

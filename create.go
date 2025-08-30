@@ -10,7 +10,7 @@ import (
 // Create creates a new migration file with the given name in the specified directory.
 func (m *Migrate) Create(name string) error {
 	tmpl := getMigrationTemplate(name)
-	return goose.CreateWithTemplate(nil, m.dir, tmpl, name, "go")
+	return goose.CreateWithTemplate(nil, m.migrationPath, tmpl, name, "go")
 }
 
 func getMigrationTemplate(name string) *template.Template {

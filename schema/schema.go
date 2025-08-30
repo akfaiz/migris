@@ -41,12 +41,12 @@ type TableInfo struct {
 }
 
 func newBuilder() (Builder, error) {
-	cfg := config.Get()
-	if cfg.Dialect == dialect.Unknown {
+	dialectVal := config.GetDialect()
+	if dialectVal == dialect.Unknown {
 		return nil, errors.New("schema dialect is not set, please call schema.SetDialect() before using schema functions")
 	}
 
-	builder, err := NewBuilder(cfg.Dialect.String())
+	builder, err := NewBuilder(dialectVal.String())
 	if err != nil {
 		return nil, err
 	}

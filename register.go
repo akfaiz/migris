@@ -13,55 +13,78 @@ import (
 
 var (
 	registeredVersions   = make(map[int64]string)
-	registeredMigrations = make([]*goose.Migration, 0)
+	registeredMigrations = make([]*Migration, 0)
 )
 
-// GoMigrationContext is a Go migration func that is run within a transaction and receives a
-// context.
-type GoMigrationContext func(ctx *schema.Context) error
+type Migration struct {
+	version                    int64
+	source                     string
+	upFnContext, downFnContext MigrationContext
+}
 
-func (m GoMigrationContext) RunTxFunc(filename string) func(ctx context.Context, tx *sql.Tx) error {
+// MigrationContext is a Go migration func that is run within a transaction and receives a
+// context.
+type MigrationContext func(ctx *schema.Context) error
+
+func (m MigrationContext) runTxFunc(source string) func(ctx context.Context, tx *sql.Tx) error {
 	return func(ctx context.Context, tx *sql.Tx) error {
-		filename = path.Base(filename)
+		filename := path.Base(source)
 		c := schema.NewContext(ctx, tx, schema.WithFilename(filename))
 		return m(c)
 	}
 }
 
 // AddMigrationContext adds Go migrations.
-func AddMigrationContext(up, down GoMigrationContext) {
+func AddMigrationContext(up, down MigrationContext) {
 	_, filename, _, _ := runtime.Caller(1)
 	AddNamedMigrationContext(filename, up, down)
 }
 
 // AddNamedMigrationContext adds named Go migrations.
-func AddNamedMigrationContext(filename string, up, down GoMigrationContext) {
+func AddNamedMigrationContext(source string, up, down MigrationContext) {
 	if err := register(
-		filename,
-		true,
-		&goose.GoFunc{RunTx: up.RunTxFunc(filename), Mode: goose.TransactionEnabled},
-		&goose.GoFunc{RunTx: down.RunTxFunc(filename), Mode: goose.TransactionEnabled},
+		source,
+		up,
+		down,
 	); err != nil {
 		panic(err)
 	}
 }
 
-func register(filename string, useTx bool, up, down *goose.GoFunc) error {
-	v, _ := goose.NumericComponent(filename)
+func register(source string, up, down MigrationContext) error {
+	v, _ := goose.NumericComponent(source)
 	if existing, ok := registeredVersions[v]; ok {
 		return fmt.Errorf("failed to add migration %q: version %d conflicts with %q",
-			filename,
+			source,
 			v,
 			existing,
 		)
 	}
 	// Add to global as a registered migration.
-	m := goose.NewGoMigration(v, up, down)
-	m.Source = filename
-	// We explicitly set transaction to maintain existing behavior. Both up and down may be nil, but
-	// we know based on the register function what the user is requesting.
-	m.UseTx = useTx
-	registeredVersions[v] = filename
+	m := &Migration{
+		version:       v,
+		source:        source,
+		upFnContext:   up,
+		downFnContext: down,
+	}
+	registeredVersions[v] = source
 	registeredMigrations = append(registeredMigrations, m)
 	return nil
+}
+
+func gooseMigrations() []*goose.Migration {
+	migrations := make([]*goose.Migration, 0, len(registeredMigrations))
+	for _, m := range registeredMigrations {
+		upFunc := &goose.GoFunc{
+			RunTx: m.upFnContext.runTxFunc(m.source),
+			Mode:  goose.TransactionEnabled,
+		}
+		downFunc := &goose.GoFunc{
+			RunTx: m.downFnContext.runTxFunc(m.source),
+			Mode:  goose.TransactionEnabled,
+		}
+		gm := goose.NewGoMigration(m.version, upFunc, downFunc)
+		migrations = append(migrations, gm)
+	}
+	return migrations
 }

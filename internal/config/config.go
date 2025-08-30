@@ -7,23 +7,23 @@ import (
 )
 
 type Config struct {
-	Dialect   dialect.Dialect
-	TableName string
+	Dialect dialect.Dialect
 }
 
 var config = atomic.Pointer[Config]{}
 
 func init() {
 	config.Store(&Config{
-		Dialect:   dialect.Unknown,
-		TableName: "migris_db_version",
+		Dialect: dialect.Unknown,
 	})
 }
 
-func Set(cfg *Config) {
+func SetDialect(dialect dialect.Dialect) {
+	cfg := config.Load()
+	cfg.Dialect = dialect
 	config.Store(cfg)
 }
 
-func Get() *Config {
-	return config.Load()
+func GetDialect() dialect.Dialect {
+	return config.Load().Dialect
 }

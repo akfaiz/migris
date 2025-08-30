@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/afkdevs/migris"
+	"github.com/afkdevs/migris/internal/config"
+	"github.com/afkdevs/migris/internal/dialect"
 	"github.com/afkdevs/migris/schema"
 	"github.com/stretchr/testify/suite"
 )
@@ -22,6 +23,7 @@ type schemaTestSuite struct {
 }
 
 func (s *schemaTestSuite) SetupSuite() {
+	config.SetDialect(dialect.Postgres)
 	ctx := context.Background()
 	s.ctx = ctx
 
@@ -34,10 +36,7 @@ func (s *schemaTestSuite) SetupSuite() {
 
 	err = db.Ping()
 	s.Require().NoError(err)
-
 	s.db = db
-	err = migris.SetDialect("postgres")
-	s.Require().NoError(err)
 }
 
 func (s *schemaTestSuite) TearDownSuite() {
