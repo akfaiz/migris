@@ -4,85 +4,73 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/afkdevs/go-schema"
-	"github.com/afkdevs/go-schema/examples/basic/config"
-	_ "github.com/afkdevs/go-schema/examples/basic/migrations"
+	"github.com/akfaiz/migris"
+	"github.com/akfaiz/migris/examples/basic/config"
+	_ "github.com/akfaiz/migris/examples/basic/migrations"
 	_ "github.com/lib/pq" // PostgreSQL driver
-	"github.com/pressly/goose/v3"
 )
 
 func Up() error {
-	m, err := newMigrator()
+	m, err := newMigrate()
 	if err != nil {
 		return err
 	}
-	return goose.Up(m.db, m.dir)
+	return m.Up()
 }
 
 func Create(name string) error {
-	m, err := newMigrator()
+	m, err := newMigrate()
 	if err != nil {
 		return err
 	}
-	return goose.Create(m.db, m.dir, name, m.migrationType)
+	return m.Create(name)
+}
+
+func Reset() error {
+	m, err := newMigrate()
+	if err != nil {
+		return err
+	}
+	return m.Reset()
 }
 
 func Down() error {
-	m, err := newMigrator()
+	m, err := newMigrate()
 	if err != nil {
 		return err
 	}
-	return goose.Reset(m.db, m.dir)
+	return m.Down()
 }
 
-type migrator struct {
-	dir           string
-	dialect       string
-	tableName     string
-	migrationType string
-	db            *sql.DB
+func Status() error {
+	m, err := newMigrate()
+	if err != nil {
+		return err
+	}
+	return m.Status()
 }
 
-func newMigrator() (*migrator, error) {
-	db, err := newDatabase(config.GetDatabase())
+func newMigrate() (*migris.Migrate, error) {
+	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
-	m := &migrator{
-		dir:           "migrations",
-		dialect:       "postgres",
-		tableName:     "schema_migrations",
-		migrationType: "go",
-		db:            db,
-	}
-	if err := m.init(); err != nil {
+	db, err := openDatabase(cfg.Database)
+	if err != nil {
 		return nil, err
 	}
-
-	return m, nil
+	migrate, err := migris.New("postgres", migris.WithDB(db))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create migris instance: %w", err)
+	}
+	return migrate, nil
 }
 
-func newDatabase(cfg config.Database) (*sql.DB, error) {
+func openDatabase(cfg config.Database) (*sql.DB, error) {
 	dsn := cfg.DSN()
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
-
 	return db, nil
-}
-
-func (m *migrator) init() error {
-	goose.SetTableName(m.tableName)
-	if err := goose.SetDialect(m.dialect); err != nil {
-		return err
-	}
-	if err := schema.SetDialect(m.dialect); err != nil {
-		return err
-	}
-	return nil
 }

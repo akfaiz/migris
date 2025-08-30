@@ -16,13 +16,13 @@ func (db Database) DSN() string {
 		db.User, db.Password, db.Host, db.Port, db.Database, db.SSLMode)
 }
 
-func GetDatabase() Database {
+func getDatabaseConfig() Database {
 	return Database{
-		Host:     "localhost",
-		Port:     5432,
-		User:     "root",
-		Password: "password",
-		Database: "schema_example",
-		SSLMode:  "disable",
+		Host:     getEnv("DB_HOST"),
+		Port:     getEnvInt("DB_PORT"),
+		User:     getEnv("DB_USER"),
+		Password: getEnv("DB_PASSWORD"),
+		Database: getEnv("DB_NAME"),
+		SSLMode:  getEnv("DB_SSLMODE"),
 	}
 }
