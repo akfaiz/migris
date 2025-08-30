@@ -2,20 +2,21 @@ package migris
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
 	"github.com/afkdevs/migris/internal/logger"
 	"github.com/pressly/goose/v3"
 )
 
-func Reset(db *sql.DB, dir string) error {
+// Reset rolls back all migrations.
+func (m *Migrate) Reset() error {
 	ctx := context.Background()
-	return ResetContext(ctx, db, dir)
+	return m.ResetContext(ctx)
 }
 
-func ResetContext(ctx context.Context, db *sql.DB, dir string) error {
-	provider, err := newProvider(db, dir)
+// ResetContext rolls back all migrations.
+func (m *Migrate) ResetContext(ctx context.Context) error {
+	provider, err := newProvider(m.db, m.dir)
 	if err != nil {
 		return err
 	}

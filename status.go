@@ -2,18 +2,19 @@ package migris
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/afkdevs/migris/internal/logger"
 )
 
-func Status(db *sql.DB, dir string) error {
+// Status returns the status of the migrations.
+func (m *Migrate) Status() error {
 	ctx := context.Background()
-	return StatusContext(ctx, db, dir)
+	return m.StatusContext(ctx)
 }
 
-func StatusContext(ctx context.Context, db *sql.DB, dir string) error {
-	provider, err := newProvider(db, dir)
+// StatusContext returns the status of the migrations.
+func (m *Migrate) StatusContext(ctx context.Context) error {
+	provider, err := newProvider(m.db, m.dir)
 	if err != nil {
 		return err
 	}

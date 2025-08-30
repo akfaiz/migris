@@ -1,74 +1,159 @@
-# Go-Schema
-[![Go](https://github.com/afkdevs/go-schema/actions/workflows/ci.yml/badge.svg)](https://github.com/afkdevs/go-schema/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/afkdevs/go-schema)](https://goreportcard.com/report/github.com/afkdevs/go-schema)
-[![codecov](https://codecov.io/gh/afkdevs/go-schema/graph/badge.svg?token=7tbSVRaD4b)](https://codecov.io/gh/afkdevs/go-schema)
-[![GoDoc](https://pkg.go.dev/badge/github.com/afkdevs/go-schema)](https://pkg.go.dev/github.com/afkdevs/go-schema)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/afkdevs/go-schema)](https://golang.org/doc/devel/release.html)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+# Migris
 
-`Go-Schema` is a simple Go library for building and running SQL schema (DDL) code in a clean, readable, and migration-friendly way. Inspired by Laravel's Schema Builder, it helps you easily create or change database tables—and works well with tools like [`goose`](https://github.com/pressly/goose).
+**Migris** is a database migration library for Go, inspired by Laravel's migrations.  
+It combines the power of [pressly/goose](https://github.com/pressly/goose) with a fluent schema builder, making migrations easy to write, run, and maintain.
 
-## Features
+## ✨ Features
 
-- 📊 Programmatic table and column definitions
-- 🗃️ Support for common data types and constraints
-- ⚙️ Auto-generates `CREATE TABLE`, `ALTER TABLE`, index and foreign key SQL
-- 🔀 Designed to work with database transactions
-- 🧪 Built-in types and functions make migration code clear and testable
-- 🔍 Provides helper functions to get list tables, columns, and indexes
+- 📦 Migration management (`up`, `down`, `reset`, `status`, `create`)
+- 🏗️ Fluent schema builder (similar to Laravel migrations)
+- 🗄️ Supports PostgreSQL, MySQL, and MariaDB
+- 🔄 Transaction-based migrations
+- 🛠️ Integration with Go projects (no external CLI required)
 
-## Supported Databases
-
-Currently, `schema` is tested and optimized for:
-
-* PostgreSQL
-* MySQL / MariaDB
-* SQLite (TODO)
-
-## Installation
+## 🚀 Installation
 
 ```bash
-go get github.com/afkdevs/go-schema
+go get github.com/afkdevs/migris
 ```
 
-## Integration Example (with goose)
+## 📚 Usage
+
+### 1. Create a Migration
+
+Migrations are defined in Go files using the schema builder:
+
 ```go
 package migrations
 
 import (
-	"context"
-	"database/sql"
-
-	"github.com/afkdevs/go-schema"
-	"github.com/pressly/goose/v3"
+    "github.com/afkdevs/migris"
+    "github.com/afkdevs/migris/schema"
 )
 
 func init() {
-	goose.AddMigrationContext(upCreateUsersTable, downCreateUsersTable)
+    migris.AddMigrationContext(upCreateUsersTable, downCreateUsersTable)
 }
 
-func upCreateUsersTable(ctx context.Context, tx *sql.Tx) error {
-	return schema.Create(ctx, tx, "users", func(table *schema.Blueprint) {
-		table.ID()
-		table.String("name")
-		table.String("email")
-		table.Timestamp("email_verified_at").Nullable()
-		table.String("password")
-		table.Timestamps()
-	})
+func upCreateUsersTable(c *schema.Context) error {
+    return schema.Create(c, "users", func(table *schema.Blueprint) {
+        table.ID()
+        table.String("name")
+        table.String("email")
+        table.Timestamp("email_verified_at").Nullable()
+        table.String("password")
+        table.Timestamps()
+    })
 }
 
-func downCreateUsersTable(ctx context.Context, tx *sql.Tx) error {
-	return schema.Drop(ctx, tx, "users")
+func downCreateUsersTable(c *schema.Context) error {
+    return schema.DropIfExists(c, "users")
 }
 ```
-For more examples, check out the [examples](examples/basic) directory.
 
-## Documentation
-For detailed documentation, please refer to the [GoDoc](https://pkg.go.dev/github.com/afkdevs/go-schema) page.
+This creates a `users` table with common fields.
 
-## Contributing
-Contributions are welcome! Please read the [contributing guidelines](CONTRIBUTING.md) and submit a pull request.
+### 2. Run Migrations
 
-## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+You can manage migrations directly from Go code:
+
+```go
+package migrate
+
+import (
+	"database/sql"
+	"fmt"
+
+	"github.com/afkdevs/migris"
+	"github.com/afkdevs/migris/examples/basic/config"
+	_ "github.com/afkdevs/migris/examples/basic/migrations"
+	_ "github.com/lib/pq" // PostgreSQL driver
+)
+
+func Up() error {
+	m, err := newMigrate()
+	if err != nil {
+		return err
+	}
+	return m.Up()
+}
+
+func Create(name string) error {
+	m, err := newMigrate()
+	if err != nil {
+		return err
+	}
+	return m.Create(name)
+}
+
+func Reset() error {
+	m, err := newMigrate()
+	if err != nil {
+		return err
+	}
+	return m.Reset()
+}
+
+func Down() error {
+	m, err := newMigrate()
+	if err != nil {
+		return err
+	}
+	return m.Down()
+}
+
+func Status() error {
+	m, err := newMigrate()
+	if err != nil {
+		return err
+	}
+	return m.Status()
+}
+
+func newMigrate() (*migris.Migrate, error) {
+	if err := migris.SetDialect("postgres"); err != nil {
+		return nil, fmt.Errorf("failed to set schema dialect: %w", err)
+	}
+	dsn := "postgres://user:pass@localhost:5432/mydb?sslmode=disable"
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+	return migris.New(db, "migrations"), nil
+}
+```
+
+## 🔧 Commands
+
+Here are the available migration commands:
+
+| Function          | Description                                |
+|-------------------|--------------------------------------------|
+| `migris.Up`       | Apply all pending migrations               |
+| `migris.Down`     | Rollback the last migration                |
+| `migris.Reset`    | Rollback all migrations                    |
+| `migris.Status`   | Show migration status                      |
+| `migris.Create`   | Create a new migration file with timestamp |
+
+## 🛠️ Example Schema
+
+```go
+schema.Create(c, "posts", func(table *schema.Blueprint) {
+    table.ID()
+    table.String("title")
+    table.Text("body")
+    table.ForeignID("user_id").Constrained("users")
+    table.Timestamps()
+})
+```
+
+## 📖 Roadmap
+
+- [ ] Add dry-run mode
+- [ ] Add SQLite support
+- [ ] CLI wrapper for quick usage
+
+## 📄 License
+
+MIT License.  
+See [LICENSE](./LICENSE) for details.

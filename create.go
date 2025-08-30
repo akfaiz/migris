@@ -7,10 +7,10 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-// Create a new migration file
-func Create(dir, name string) error {
+// Create creates a new migration file with the given name in the specified directory.
+func (m *Migrate) Create(name string) error {
 	tmpl := getMigrationTemplate(name)
-	return goose.CreateWithTemplate(nil, dir, tmpl, name, "go")
+	return goose.CreateWithTemplate(nil, m.dir, tmpl, name, "go")
 }
 
 func getMigrationTemplate(name string) *template.Template {

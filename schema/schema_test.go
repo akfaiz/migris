@@ -36,7 +36,8 @@ func (s *schemaTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.db = db
-	migris.SetDialect("postgres")
+	err = migris.SetDialect("postgres")
+	s.Require().NoError(err)
 }
 
 func (s *schemaTestSuite) TearDownSuite() {

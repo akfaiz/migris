@@ -10,47 +10,47 @@ import (
 	_ "github.com/lib/pq" // PostgreSQL driver
 )
 
-const (
-	directory = "migrations"
-)
-
 func Up() error {
-	db, err := initMigrator()
+	m, err := newMigrate()
 	if err != nil {
 		return err
 	}
-	return migris.Up(db, directory)
+	return m.Up()
 }
 
 func Create(name string) error {
-	return migris.Create(directory, name)
+	m, err := newMigrate()
+	if err != nil {
+		return err
+	}
+	return m.Create(name)
 }
 
 func Reset() error {
-	db, err := initMigrator()
+	m, err := newMigrate()
 	if err != nil {
 		return err
 	}
-	return migris.Reset(db, directory)
+	return m.Reset()
 }
 
 func Down() error {
-	db, err := initMigrator()
+	m, err := newMigrate()
 	if err != nil {
 		return err
 	}
-	return migris.Down(db, directory)
+	return m.Down()
 }
 
 func Status() error {
-	db, err := initMigrator()
+	m, err := newMigrate()
 	if err != nil {
 		return err
 	}
-	return migris.Status(db, directory)
+	return m.Status()
 }
 
-func initMigrator() (*sql.DB, error) {
+func newMigrate() (*migris.Migrate, error) {
 	if err := migris.SetDialect("postgres"); err != nil {
 		return nil, fmt.Errorf("failed to set schema dialect: %w", err)
 	}
@@ -58,23 +58,18 @@ func initMigrator() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	db, err := newDatabase(cfg.Database)
+	db, err := openDatabase(cfg.Database)
 	if err != nil {
 		return nil, err
 	}
-	return db, nil
+	return migris.New(db, "migrations"), nil
 }
 
-func newDatabase(cfg config.Database) (*sql.DB, error) {
+func openDatabase(cfg config.Database) (*sql.DB, error) {
 	dsn := cfg.DSN()
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
-
 	return db, nil
 }

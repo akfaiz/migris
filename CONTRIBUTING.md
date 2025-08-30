@@ -1,4 +1,4 @@
-# Contributing to \[Schema]
+# Contributing to \[Migris]
 
 Thank you for considering contributing to this Go library! We welcome contributions of all kinds—bug reports, feature requests, documentation updates, tests, and code improvements.
 

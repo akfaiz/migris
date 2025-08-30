@@ -2,20 +2,21 @@ package migris
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
 	"github.com/afkdevs/migris/internal/logger"
 	"github.com/pressly/goose/v3"
 )
 
-func Down(db *sql.DB, dir string) error {
+// Down rolls back the last migration.
+func (m *Migrate) Down() error {
 	ctx := context.Background()
-	return DownContext(ctx, db, dir)
+	return m.DownContext(ctx)
 }
 
-func DownContext(ctx context.Context, db *sql.DB, dir string) error {
-	provider, err := newProvider(db, dir)
+// DownContext rolls back the last migration.
+func (m *Migrate) DownContext(ctx context.Context) error {
+	provider, err := newProvider(m.db, m.dir)
 	if err != nil {
 		return err
 	}

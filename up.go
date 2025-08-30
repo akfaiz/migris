@@ -2,7 +2,6 @@ package migris
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
 	"github.com/afkdevs/migris/internal/logger"
@@ -10,14 +9,14 @@ import (
 )
 
 // Up applies the migrations in the specified directory.
-func Up(db *sql.DB, dir string) error {
+func (m *Migrate) Up() error {
 	ctx := context.Background()
-	return UpContext(ctx, db, dir)
+	return m.UpContext(ctx)
 }
 
 // UpContext applies the migrations in the specified directory.
-func UpContext(ctx context.Context, db *sql.DB, dir string) error {
-	provider, err := newProvider(db, dir)
+func (m *Migrate) UpContext(ctx context.Context) error {
+	provider, err := newProvider(m.db, m.dir)
 	if err != nil {
 		return err
 	}
