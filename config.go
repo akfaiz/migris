@@ -1,10 +1,10 @@
-package schema
+package migris
 
 import (
 	"errors"
 
-	"github.com/afkdevs/go-schema/internal/config"
-	"github.com/afkdevs/go-schema/internal/dialect"
+	"github.com/afkdevs/migris/internal/config"
+	"github.com/afkdevs/migris/internal/dialect"
 )
 
 // SetDialect sets the migrator dialect
@@ -23,5 +23,12 @@ func SetDialect(d string) error {
 func SetVerbose(enabled bool) {
 	cfg := config.Get()
 	cfg.Verbose = enabled
+	config.Set(cfg)
+}
+
+// SetTableName sets the table name for the migrator
+func SetTableName(name string) {
+	cfg := config.Get()
+	cfg.TableName = name
 	config.Set(cfg)
 }

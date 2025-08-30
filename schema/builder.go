@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/afkdevs/go-schema/internal/dialect"
+	"github.com/afkdevs/migris/internal/dialect"
 )
 
 // Builder is an interface that defines methods for creating, dropping, and managing database tables.

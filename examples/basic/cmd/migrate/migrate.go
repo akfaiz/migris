@@ -4,45 +4,38 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/afkdevs/go-schema"
-	"github.com/afkdevs/go-schema/examples/basic/config"
-	_ "github.com/afkdevs/go-schema/examples/basic/migrations"
+	"github.com/afkdevs/migris"
+	"github.com/afkdevs/migris/examples/basic/config"
+	_ "github.com/afkdevs/migris/examples/basic/migrations"
 	_ "github.com/lib/pq" // PostgreSQL driver
-	"github.com/pressly/goose/v3"
 )
 
 const (
 	directory = "migrations"
-	tableName = "schema_migrations"
 )
 
-func Up(dryRun bool) error {
+func Up() error {
 	db, err := initMigrator()
 	if err != nil {
 		return err
 	}
-	return goose.Up(db, directory)
+	return migris.Up(db, directory)
 }
 
 func Create(name string) error {
-	tmpl := schema.GooseMigrationTemplate(name)
-	return goose.CreateWithTemplate(nil, directory, tmpl, name, "go")
+	return migris.Create(directory, name)
 }
 
-func Reset(dryRun bool) error {
+func Reset() error {
 	db, err := initMigrator()
 	if err != nil {
 		return err
 	}
-	return goose.Reset(db, directory)
+	return migris.Reset(db, directory)
 }
 
 func initMigrator() (*sql.DB, error) {
-	if err := goose.SetDialect("postgres"); err != nil {
-		return nil, fmt.Errorf("failed to set dialect: %w", err)
-	}
-	goose.SetTableName(tableName)
-	if err := schema.SetDialect("postgres"); err != nil {
+	if err := migris.SetDialect("postgres"); err != nil {
 		return nil, fmt.Errorf("failed to set schema dialect: %w", err)
 	}
 	cfg, err := config.Load()

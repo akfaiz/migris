@@ -1,12 +1,19 @@
-package schema
+package migris
 
 import (
 	"text/template"
 
-	"github.com/afkdevs/go-schema/internal/parser"
+	"github.com/afkdevs/migris/internal/parser"
+	"github.com/pressly/goose/v3"
 )
 
-func GooseMigrationTemplate(name string) *template.Template {
+// Create a new migration file
+func Create(dir, name string) error {
+	tmpl := getMigrationTemplate(name)
+	return goose.CreateWithTemplate(nil, dir, tmpl, name, "go")
+}
+
+func getMigrationTemplate(name string) *template.Template {
 	tableName, create := parser.ParseMigrationName(name)
 	if create {
 		return migrationCreateTemplate(tableName)
@@ -23,12 +30,12 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/afkdevs/go-schema"
-	"github.com/pressly/goose/v3"
+	"github.com/afkdevs/migris"
+	"github.com/afkdevs/migris/schema"
 )
 
 func init() {
-	goose.AddMigrationContext(up{{.CamelName}}, down{{.CamelName}})
+	migris.AddMigrationContext(up{{.CamelName}}, down{{.CamelName}})
 }
 
 func up{{.CamelName}}(ctx context.Context, tx *sql.Tx) error {
@@ -49,12 +56,12 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/afkdevs/go-schema"
-	"github.com/pressly/goose/v3"
+	"github.com/afkdevs/migris"
+	"github.com/afkdevs/migris/schema"
 )
 
 func init() {
-	goose.AddMigrationContext(up{{.CamelName}}, down{{.CamelName}})
+	migris.AddMigrationContext(up{{.CamelName}}, down{{.CamelName}})
 }
 
 func up{{.CamelName}}(ctx context.Context, tx *sql.Tx) error {
@@ -77,12 +84,12 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/afkdevs/go-schema"
-	"github.com/pressly/goose/v3"
+	"github.com/afkdevs/migris"
+	"github.com/afkdevs/migris/schema"
 )
 
 func init() {
-	goose.AddMigrationContext(up{{.CamelName}}, down{{.CamelName}})
+	migris.AddMigrationContext(up{{.CamelName}}, down{{.CamelName}})
 }
 
 func up{{.CamelName}}(ctx context.Context, tx *sql.Tx) error {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/afkdevs/go-schema"
+	schema2 "github.com/afkdevs/migris/schema"
 	_ "github.com/go-sql-driver/mysql" // MySQL driver
 	"github.com/stretchr/testify/suite"
 )
@@ -19,7 +19,7 @@ type mysqlBuilderSuite struct {
 	suite.Suite
 	ctx     context.Context
 	db      *sql.DB
-	builder schema.Builder
+	builder schema2.Builder
 }
 
 func (s *mysqlBuilderSuite) SetupSuite() {
@@ -43,7 +43,7 @@ func (s *mysqlBuilderSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.db = db
-	s.builder, err = schema.NewBuilder("mysql")
+	s.builder, err = schema2.NewBuilder("mysql")
 	s.Require().NoError(err)
 }
 
@@ -74,13 +74,13 @@ func (s *mysqlBuilderSuite) TestCreate() {
 	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
-		err := builder.Create(s.ctx, nil, "test_table", func(table *schema.Blueprint) {
+		err := builder.Create(s.ctx, nil, "test_table", func(table *schema2.Blueprint) {
 			table.String("name")
 		})
 		s.Error(err)
 	})
 	s.Run("when table name is empty, should return error", func() {
-		err := builder.Create(s.ctx, tx, "", func(table *schema.Blueprint) {
+		err := builder.Create(s.ctx, tx, "", func(table *schema2.Blueprint) {
 			table.String("name")
 		})
 		s.Error(err)
@@ -90,7 +90,7 @@ func (s *mysqlBuilderSuite) TestCreate() {
 		s.Error(err)
 	})
 	s.Run("when all parameters are valid, should create table successfully", func() {
-		err = builder.Create(context.Background(), tx, "users", func(table *schema.Blueprint) {
+		err = builder.Create(context.Background(), tx, "users", func(table *schema2.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -100,7 +100,7 @@ func (s *mysqlBuilderSuite) TestCreate() {
 		s.NoError(err, "expected no error when creating table with valid parameters")
 	})
 	s.Run("when have composite primary key should create it successfully", func() {
-		err = builder.Create(context.Background(), tx, "user_roles", func(table *schema.Blueprint) {
+		err = builder.Create(context.Background(), tx, "user_roles", func(table *schema2.Blueprint) {
 			table.Integer("user_id")
 			table.Integer("role_id")
 
@@ -109,7 +109,7 @@ func (s *mysqlBuilderSuite) TestCreate() {
 		s.NoError(err, "expected no error when creating table with composite primary key")
 	})
 	s.Run("when have foreign key should create it successfully", func() {
-		err = builder.Create(context.Background(), tx, "orders", func(table *schema.Blueprint) {
+		err = builder.Create(context.Background(), tx, "orders", func(table *schema2.Blueprint) {
 			table.ID()
 			table.UnsignedBigInteger("user_id")
 			table.String("order_id", 255).Unique()
@@ -121,7 +121,7 @@ func (s *mysqlBuilderSuite) TestCreate() {
 		s.NoError(err, "expected no error when creating table with foreign key")
 	})
 	s.Run("when have custom index should create it successfully", func() {
-		err = builder.Create(context.Background(), tx, "orders_2", func(table *schema.Blueprint) {
+		err = builder.Create(context.Background(), tx, "orders_2", func(table *schema2.Blueprint) {
 			table.ID()
 			table.String("order_id", 255).Unique("uk_orders_2_order_id")
 			table.Decimal("amount", 10, 2)
@@ -132,7 +132,7 @@ func (s *mysqlBuilderSuite) TestCreate() {
 		s.NoError(err, "expected no error when creating table with custom index")
 	})
 	s.Run("when table already exists, should return error", func() {
-		err = builder.Create(context.Background(), tx, "users", func(table *schema.Blueprint) {
+		err = builder.Create(context.Background(), tx, "users", func(table *schema2.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -156,7 +156,7 @@ func (s *mysqlBuilderSuite) TestDrop() {
 		s.Error(err)
 	})
 	s.Run("when all parameters are valid, should drop table successfully", func() {
-		err = builder.Create(context.Background(), tx, "users", func(table *schema.Blueprint) {
+		err = builder.Create(context.Background(), tx, "users", func(table *schema2.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -188,7 +188,7 @@ func (s *mysqlBuilderSuite) TestDropIfExists() {
 		s.Error(err)
 	})
 	s.Run("when all parameters are valid, should drop table successfully", func() {
-		err = builder.Create(context.Background(), tx, "users", func(table *schema.Blueprint) {
+		err = builder.Create(context.Background(), tx, "users", func(table *schema2.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -224,7 +224,7 @@ func (s *mysqlBuilderSuite) TestRename() {
 		s.Error(err)
 	})
 	s.Run("when all parameters are valid, should rename table successfully", func() {
-		err = builder.Create(context.Background(), tx, "old_table", func(table *schema.Blueprint) {
+		err = builder.Create(context.Background(), tx, "old_table", func(table *schema2.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 		})
@@ -241,13 +241,13 @@ func (s *mysqlBuilderSuite) TestTable() {
 	defer tx.Rollback() //nolint:errcheck
 
 	s.Run("when tx is nil, should return error", func() {
-		err := builder.Table(s.ctx, nil, "test_table", func(table *schema.Blueprint) {
+		err := builder.Table(s.ctx, nil, "test_table", func(table *schema2.Blueprint) {
 			table.String("name")
 		})
 		s.Error(err)
 	})
 	s.Run("when table name is empty, should return error", func() {
-		err := builder.Table(s.ctx, tx, "", func(table *schema.Blueprint) {
+		err := builder.Table(s.ctx, tx, "", func(table *schema2.Blueprint) {
 			table.String("name")
 		})
 		s.Error(err)
@@ -257,7 +257,7 @@ func (s *mysqlBuilderSuite) TestTable() {
 		s.Error(err)
 	})
 	s.Run("when all parameters are valid, should modify table successfully", func() {
-		err = builder.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err = builder.Create(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique("uk_users_email")
@@ -270,75 +270,75 @@ func (s *mysqlBuilderSuite) TestTable() {
 		s.NoError(err, "expected no error when creating table before modifying it")
 
 		s.Run("should add new columns and modify existing ones", func() {
-			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 				table.String("address", 255).Nullable()
 				table.String("phone", 20).Nullable().Unique("uk_users_phone")
 			})
 			s.NoError(err, "expected no error when modifying table with valid parameters")
 		})
 		s.Run("should modify existing column", func() {
-			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 				table.String("email", 255).Nullable().Change()
 			})
 			s.NoError(err, "expected no error when modifying existing column")
 		})
 		s.Run("should drop column and rename existing one", func() {
-			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 				table.DropColumn("password")
 				table.RenameColumn("name", "full_name")
 			})
 			s.NoError(err, "expected no error when dropping column and renaming existing one")
 		})
 		s.Run("should add index", func() {
-			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 				table.Index("phone").Name("idx_users_phone").Algorithm("BTREE")
 			})
 			s.NoError(err, "expected no error when adding index to table")
 		})
 		s.Run("should rename index", func() {
-			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 				table.RenameIndex("idx_users_phone", "idx_users_contact")
 			})
 			s.NoError(err, "expected no error when renaming index in table")
 		})
 		s.Run("should drop index", func() {
-			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 				table.DropIndex("idx_users_contact")
 			})
 			s.NoError(err, "expected no error when dropping index from table")
 		})
 		s.Run("should drop unique constraint", func() {
-			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 				table.DropUnique("uk_users_email")
 			})
 			s.NoError(err, "expected no error when dropping unique constraint from table")
 		})
 		s.Run("should drop fulltext index", func() {
-			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 				table.DropFulltext("ft_users_bio")
 			})
 			s.NoError(err, "expected no error when dropping fulltext index from table")
 		})
 		s.Run("should add foreign key", func() {
-			err = builder.Create(s.ctx, tx, "roles", func(table *schema.Blueprint) {
+			err = builder.Create(s.ctx, tx, "roles", func(table *schema2.Blueprint) {
 				table.UnsignedInteger("id").Primary()
 				table.String("role_name", 255).Unique("uk_roles_role_name")
 			})
 			s.NoError(err, "expected no error when creating roles table before adding foreign key")
-			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 				table.UnsignedInteger("role_id").Nullable()
 				table.Foreign("role_id").References("id").On("roles").OnDelete("SET NULL").OnUpdate("CASCADE")
 			})
 			s.NoError(err, "expected no error when adding foreign key to users table")
 		})
 		s.Run("should drop foreign key", func() {
-			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 				table.DropForeign("fk_users_roles")
 			})
 			s.NoError(err, "expected no error when dropping foreign key from users table")
 		})
 		s.Run("should drop primary key", func() {
-			err = builder.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+			err = builder.Table(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 				table.UnsignedBigInteger("id").Change()
 				table.DropPrimary("users_pkey")
 			})
@@ -369,7 +369,7 @@ func (s *mysqlBuilderSuite) TestGetColumns() {
 		s.Empty(columns)
 	})
 	s.Run("when table exists, should return columns successfully", func() {
-		err = builder.Create(context.Background(), tx, "users", func(table *schema.Blueprint) {
+		err = builder.Create(context.Background(), tx, "users", func(table *schema2.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -400,7 +400,7 @@ func (s *mysqlBuilderSuite) TestGetIndexes() {
 		s.Error(err, "expected error when table name is empty")
 	})
 	s.Run("when all parameters are valid", func() {
-		err = builder.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err = builder.Create(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -435,7 +435,7 @@ func (s *mysqlBuilderSuite) TestGetTables() {
 		s.Nil(tables)
 	})
 	s.Run("when all parameters are valid", func() {
-		err = builder.Create(context.Background(), tx, "users", func(table *schema.Blueprint) {
+		err = builder.Create(context.Background(), tx, "users", func(table *schema2.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -480,7 +480,7 @@ func (s *mysqlBuilderSuite) TestHasColumn() {
 		s.False(exists)
 	})
 	s.Run("when all parameters are valid", func() {
-		err = builder.Create(context.Background(), tx, "users", func(table *schema.Blueprint) {
+		err = builder.Create(context.Background(), tx, "users", func(table *schema2.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -521,7 +521,7 @@ func (s *mysqlBuilderSuite) TestHasColumns() {
 		s.False(exists)
 	})
 	s.Run("when all parameters are valid", func() {
-		err = builder.Create(context.Background(), tx, "users", func(table *schema.Blueprint) {
+		err = builder.Create(context.Background(), tx, "users", func(table *schema2.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()
@@ -557,7 +557,7 @@ func (s *mysqlBuilderSuite) TestHasIndex() {
 		s.False(exists, "expected exists to be false when table name is empty")
 	})
 	s.Run("when all parameters are valid", func() {
-		err = builder.Create(s.ctx, tx, "orders", func(table *schema.Blueprint) {
+		err = builder.Create(s.ctx, tx, "orders", func(table *schema2.Blueprint) {
 			table.ID()
 			table.Integer("company_id")
 			table.Integer("user_id")
@@ -601,7 +601,7 @@ func (s *mysqlBuilderSuite) TestHasTable() {
 		s.False(exists, "expected exists to be false when table name is empty")
 	})
 	s.Run("when all parameters are valid", func() {
-		err = builder.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err = builder.Create(s.ctx, tx, "users", func(table *schema2.Blueprint) {
 			table.ID()
 			table.String("name", 255)
 			table.String("email", 255).Unique()

@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 
-	"github.com/afkdevs/go-schema/examples/basic/cmd/migrate"
+	"github.com/afkdevs/migris/examples/basic/cmd/migrate"
 	"github.com/urfave/cli/v3"
 )
 

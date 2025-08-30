@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/afkdevs/go-schema/internal/config"
-	"github.com/afkdevs/go-schema/internal/dialect"
+	"github.com/afkdevs/migris/internal/config"
+	"github.com/afkdevs/migris/internal/dialect"
 )
 
 // Column represents a database column with its properties.

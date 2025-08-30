@@ -6,7 +6,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/afkdevs/go-schema/internal/config"
+	"github.com/afkdevs/migris/internal/config"
 )
 
 type postgresBuilder struct {

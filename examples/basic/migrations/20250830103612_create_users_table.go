@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/afkdevs/go-schema"
-	"github.com/pressly/goose/v3"
+	"github.com/afkdevs/migris"
+	"github.com/afkdevs/migris/schema"
 )
 
 func init() {
-	goose.AddMigrationContext(upCreateUsersTable, downCreateUsersTable)
+	migris.AddMigrationContext(upCreateUsersTable, downCreateUsersTable)
 }
 
 func upCreateUsersTable(ctx context.Context, tx *sql.Tx) error {

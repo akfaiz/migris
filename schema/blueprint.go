@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/afkdevs/go-schema/internal/dialect"
-	"github.com/afkdevs/go-schema/internal/util"
+	"github.com/afkdevs/migris/internal/dialect"
+	"github.com/afkdevs/migris/internal/util"
 )
 
 const (

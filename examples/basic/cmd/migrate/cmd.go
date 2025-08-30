@@ -38,7 +38,7 @@ func Command() *cli.Command {
 					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
-					return Up(c.Bool("dry-run"))
+					return Up()
 				},
 			},
 			{
@@ -53,7 +53,7 @@ func Command() *cli.Command {
 					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
-					return Reset(c.Bool("dry-run"))
+					return Reset()
 				},
 			},
 		},

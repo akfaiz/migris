@@ -3,25 +3,27 @@ package config
 import (
 	"sync/atomic"
 
-	"github.com/afkdevs/go-schema/internal/dialect"
+	"github.com/afkdevs/migris/internal/dialect"
 )
 
 type Config struct {
-	Dialect dialect.Dialect
-	Verbose bool
+	Dialect   dialect.Dialect
+	TableName string
+	Verbose   bool
 }
 
 var config = atomic.Pointer[Config]{}
 
 func init() {
 	config.Store(&Config{
-		Dialect: dialect.Unknown,
-		Verbose: true,
+		Dialect:   dialect.Unknown,
+		TableName: "migris_db_version",
+		Verbose:   true,
 	})
 }
 
-func Set(newConfig *Config) {
-	config.Store(newConfig)
+func Set(cfg *Config) {
+	config.Store(cfg)
 }
 
 func Get() *Config {

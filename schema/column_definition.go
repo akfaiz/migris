@@ -3,7 +3,7 @@ package schema
 import (
 	"slices"
 
-	"github.com/afkdevs/go-schema/internal/util"
+	"github.com/afkdevs/migris/internal/util"
 )
 
 // ColumnDefinition defines the interface for defining a column in a database table.

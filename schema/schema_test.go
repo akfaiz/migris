@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/afkdevs/go-schema"
+	"github.com/afkdevs/migris"
+	"github.com/afkdevs/migris/schema"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -55,7 +56,7 @@ func (s *schemaTestSuite) SetupSuite() {
 			s.Error(fn(), "Expected error when dialect is not set")
 		}
 	})
-	schema.SetDialect("postgres")
+	migris.SetDialect("postgres")
 }
 
 func (s *schemaTestSuite) TearDownSuite() {

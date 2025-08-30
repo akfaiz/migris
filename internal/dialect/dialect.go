@@ -1,5 +1,7 @@
 package dialect
 
+import "github.com/pressly/goose/v3/database"
+
 // Dialect is the type of database dialect.
 type Dialect string
 
@@ -11,6 +13,17 @@ const (
 
 func (d Dialect) String() string {
 	return string(d)
+}
+
+func (d Dialect) GooseDialect() database.Dialect {
+	switch d {
+	case MySQL:
+		return database.DialectMySQL
+	case Postgres:
+		return database.DialectPostgres
+	default:
+		return database.DialectCustom
+	}
 }
 
 func FromString(dialect string) Dialect {

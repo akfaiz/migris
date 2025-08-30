@@ -3,7 +3,7 @@ package parser_test
 import (
 	"testing"
 
-	"github.com/afkdevs/go-schema/internal/parser"
+	"github.com/afkdevs/migris/internal/parser"
 )
 
 func TestParseMigrationName(t *testing.T) {

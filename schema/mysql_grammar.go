@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/afkdevs/go-schema/internal/util"
+	"github.com/afkdevs/migris/internal/util"
 )
 
 type mysqlGrammar struct {
