@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/afkdevs/migris/examples/basic/cmd"
+	"github.com/akfaiz/migris/examples/basic/cmd"
 )
 
 func main() {

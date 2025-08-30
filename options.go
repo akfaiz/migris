@@ -11,10 +11,10 @@ func WithTableName(name string) Option {
 	}
 }
 
-// WithMigrationPath sets the directory for the migration files.
-func WithMigrationPath(path string) Option {
+// WithMigrationDir sets the directory for the migration files.
+func WithMigrationDir(dir string) Option {
 	return func(m *Migrate) {
-		m.migrationPath = path
+		m.migrationDir = dir
 	}
 }
 

@@ -1,6 +1,6 @@
 package schema
 
-import "github.com/afkdevs/migris/internal/util"
+import "github.com/akfaiz/migris/internal/util"
 
 // ForeignKeyDefinition defines the interface for defining a foreign key constraint in a database table.
 type ForeignKeyDefinition interface {

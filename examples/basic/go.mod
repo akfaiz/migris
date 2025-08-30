@@ -1,9 +1,9 @@
-module github.com/afkdevs/migris/examples/basic
+module github.com/akfaiz/migris/examples/basic
 
 go 1.23.0
 
 require (
-	github.com/afkdevs/migris v0.0.0
+	github.com/akfaiz/migris v0.0.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
 	github.com/urfave/cli/v3 v3.3.8
@@ -22,4 +22,4 @@ require (
 	golang.org/x/term v0.34.0 // indirect
 )
 
-replace github.com/afkdevs/migris => ../..
+replace github.com/akfaiz/migris => ../..

@@ -1,8 +1,8 @@
 package migrations
 
 import (
-	"github.com/afkdevs/migris"
-	"github.com/afkdevs/migris/schema"
+	"github.com/akfaiz/migris"
+	"github.com/akfaiz/migris/schema"
 )
 
 func init() {

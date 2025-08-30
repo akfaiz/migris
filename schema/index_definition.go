@@ -1,6 +1,6 @@
 package schema
 
-import "github.com/afkdevs/migris/internal/util"
+import "github.com/akfaiz/migris/internal/util"
 
 // IndexDefinition defines the interface for defining an index in a database table.
 type IndexDefinition interface {

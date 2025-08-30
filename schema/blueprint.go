@@ -3,8 +3,8 @@ package schema
 import (
 	"fmt"
 
-	"github.com/afkdevs/migris/internal/dialect"
-	"github.com/afkdevs/migris/internal/util"
+	"github.com/akfaiz/migris/internal/dialect"
+	"github.com/akfaiz/migris/internal/util"
 )
 
 const (

@@ -3,14 +3,14 @@ package migris
 import (
 	"text/template"
 
-	"github.com/afkdevs/migris/internal/parser"
+	"github.com/akfaiz/migris/internal/parser"
 	"github.com/pressly/goose/v3"
 )
 
 // Create creates a new migration file with the given name in the specified directory.
 func (m *Migrate) Create(name string) error {
 	tmpl := getMigrationTemplate(name)
-	return goose.CreateWithTemplate(nil, m.migrationPath, tmpl, name, "go")
+	return goose.CreateWithTemplate(nil, m.migrationDir, tmpl, name, "go")
 }
 
 func getMigrationTemplate(name string) *template.Template {
@@ -27,8 +27,8 @@ func getMigrationTemplate(name string) *template.Template {
 var migrationTemplate = template.Must(template.New("migrator.go-migration").Parse(`package migrations
 
 import (
-	"github.com/afkdevs/migris"
-	"github.com/afkdevs/migris/schema"
+	"github.com/akfaiz/migris"
+	"github.com/akfaiz/migris/schema"
 )
 
 func init() {
@@ -50,8 +50,8 @@ func migrationCreateTemplate(table string) *template.Template {
 	tmpl := `package migrations
 
 import (
-	"github.com/afkdevs/migris"
-	"github.com/afkdevs/migris/schema"
+	"github.com/akfaiz/migris"
+	"github.com/akfaiz/migris/schema"
 )
 
 func init() {
@@ -75,8 +75,8 @@ func migrationUpdateTemplate(table string) *template.Template {
 	tmpl := `package migrations
 
 import (
-	"github.com/afkdevs/migris"
-	"github.com/afkdevs/migris/schema"
+	"github.com/akfaiz/migris"
+	"github.com/akfaiz/migris/schema"
 )
 
 func init() {

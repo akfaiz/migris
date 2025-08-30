@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/afkdevs/migris/internal/config"
-	"github.com/afkdevs/migris/internal/dialect"
+	"github.com/akfaiz/migris/internal/config"
+	"github.com/akfaiz/migris/internal/dialect"
 )
 
 // Column represents a database column with its properties.

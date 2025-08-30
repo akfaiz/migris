@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/afkdevs/migris/internal/config"
-	"github.com/afkdevs/migris/internal/dialect"
-	"github.com/afkdevs/migris/schema"
+	"github.com/akfaiz/migris/internal/config"
+	"github.com/akfaiz/migris/internal/dialect"
+	"github.com/akfaiz/migris/schema"
 	"github.com/stretchr/testify/suite"
 )
 

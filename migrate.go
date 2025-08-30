@@ -5,18 +5,18 @@ import (
 	"errors"
 	"os"
 
-	"github.com/afkdevs/migris/internal/config"
-	"github.com/afkdevs/migris/internal/dialect"
+	"github.com/akfaiz/migris/internal/config"
+	"github.com/akfaiz/migris/internal/dialect"
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
 )
 
 // Migrate handles database migrations
 type Migrate struct {
-	dialect       dialect.Dialect
-	migrationPath string
-	db            *sql.DB
-	tableName     string
+	dialect      dialect.Dialect
+	db           *sql.DB
+	migrationDir string
+	tableName    string
 }
 
 // New creates a new Migrate instance
@@ -28,9 +28,9 @@ func New(dialectValue string, opts ...Option) (*Migrate, error) {
 	config.SetDialect(dialectVal)
 
 	m := &Migrate{
-		dialect:       dialectVal,
-		migrationPath: "migrations",
-		tableName:     "migris_db_version",
+		dialect:      dialectVal,
+		migrationDir: "migrations",
+		tableName:    "migris_db_version",
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -51,7 +51,7 @@ func (m *Migrate) newProvider() (*goose.Provider, error) {
 	if err != nil {
 		return nil, err
 	}
-	provider, err := goose.NewProvider(database.DialectCustom, m.db, os.DirFS(m.migrationPath),
+	provider, err := goose.NewProvider(database.DialectCustom, m.db, os.DirFS(m.migrationDir),
 		goose.WithStore(store),
 		goose.WithDisableGlobalRegistry(true),
 		goose.WithGoMigrations(gooseMigrations()...),

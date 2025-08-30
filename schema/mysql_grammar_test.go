@@ -3,7 +3,7 @@ package schema
 import (
 	"testing"
 
-	"github.com/afkdevs/migris/internal/dialect"
+	"github.com/akfaiz/migris/internal/dialect"
 	"github.com/stretchr/testify/assert"
 )
 

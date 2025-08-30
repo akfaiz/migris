@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/afkdevs/migris/internal/logger"
+	"github.com/akfaiz/migris/internal/logger"
 	"github.com/pressly/goose/v3"
 )
 

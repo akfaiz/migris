@@ -3,7 +3,7 @@ package config
 import (
 	"sync/atomic"
 
-	"github.com/afkdevs/migris/internal/dialect"
+	"github.com/akfaiz/migris/internal/dialect"
 )
 
 type Config struct {

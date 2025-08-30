@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/afkdevs/migris/internal/util"
+	"github.com/akfaiz/migris/internal/util"
 )
 
 type mysqlGrammar struct {

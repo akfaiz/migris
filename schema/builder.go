@@ -3,7 +3,7 @@ package schema
 import (
 	"errors"
 
-	"github.com/afkdevs/migris/internal/dialect"
+	"github.com/akfaiz/migris/internal/dialect"
 )
 
 // Builder is an interface that defines methods for creating, dropping, and managing database tables.

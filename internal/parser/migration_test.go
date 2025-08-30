@@ -3,7 +3,7 @@ package parser_test
 import (
 	"testing"
 
-	"github.com/afkdevs/migris/internal/parser"
+	"github.com/akfaiz/migris/internal/parser"
 )
 
 func TestParseMigrationName(t *testing.T) {

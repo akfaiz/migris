@@ -7,7 +7,7 @@ import (
 	"path"
 	"runtime"
 
-	"github.com/afkdevs/migris/schema"
+	"github.com/akfaiz/migris/schema"
 	"github.com/pressly/goose/v3"
 )
 

@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/afkdevs/migris"
-	"github.com/afkdevs/migris/examples/basic/config"
-	_ "github.com/afkdevs/migris/examples/basic/migrations"
+	"github.com/akfaiz/migris"
+	"github.com/akfaiz/migris/examples/basic/config"
+	_ "github.com/akfaiz/migris/examples/basic/migrations"
 	_ "github.com/lib/pq" // PostgreSQL driver
 )
 

@@ -3,7 +3,7 @@ package migris
 import (
 	"context"
 
-	"github.com/afkdevs/migris/internal/logger"
+	"github.com/akfaiz/migris/internal/logger"
 )
 
 // Status returns the status of the migrations.

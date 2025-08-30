@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/afkdevs/migris/schema"
+	"github.com/akfaiz/migris/schema"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/suite"
 )

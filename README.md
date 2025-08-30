@@ -14,7 +14,7 @@ It combines the power of [pressly/goose](https://github.com/pressly/goose) with 
 ## 🚀 Installation
 
 ```bash
-go get github.com/afkdevs/migris
+go get -u github.com/akfaiz/migris
 ```
 
 ## 📚 Usage
@@ -27,8 +27,8 @@ Migrations are defined in Go files using the schema builder:
 package migrations
 
 import (
-    "github.com/afkdevs/migris"
-    "github.com/afkdevs/migris/schema"
+    "github.com/akfaiz/migris"
+    "github.com/akfaiz/migris/schema"
 )
 
 func init() {
@@ -64,9 +64,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/afkdevs/migris"
-	"github.com/afkdevs/migris/examples/basic/config"
-	_ "github.com/afkdevs/migris/examples/basic/migrations"
+	"github.com/akfaiz/migris"
+	_ "migrations" // Import migrations
 	_ "github.com/lib/pq" // PostgreSQL driver
 )
 
@@ -111,21 +110,17 @@ func Status() error {
 }
 
 func newMigrate() (*migris.Migrate, error) {
-	if err := migris.SetDialect("postgres"); err != nil {
-		return nil, fmt.Errorf("failed to set schema dialect: %w", err)
-	}
 	dsn := "postgres://user:pass@localhost:5432/mydb?sslmode=disable"
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	return migris.New("postgres", migris.WithDB(db), migris.WithMigrationPath("migrations")), nil
+	return migris.New("postgres", migris.WithDB(db), migris.WithMigrationDir("migrations")), nil
 }
 ```
 
 ## 📖 Roadmap
 
-- [ ] Add dry-run mode
 - [ ] Add SQLite support
 - [ ] CLI wrapper for quick usage
 

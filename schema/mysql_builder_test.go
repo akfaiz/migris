@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/afkdevs/migris/schema"
+	"github.com/akfaiz/migris/schema"
 	_ "github.com/go-sql-driver/mysql" // MySQL driver
 	"github.com/stretchr/testify/suite"
 )

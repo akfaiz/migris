@@ -3,7 +3,7 @@ package schema
 import (
 	"slices"
 
-	"github.com/afkdevs/migris/internal/util"
+	"github.com/akfaiz/migris/internal/util"
 )
 
 // ColumnDefinition defines the interface for defining a column in a database table.

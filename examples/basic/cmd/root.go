@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 
-	"github.com/afkdevs/migris/examples/basic/cmd/migrate"
+	"github.com/akfaiz/migris/examples/basic/cmd/migrate"
 	"github.com/urfave/cli/v3"
 )
 

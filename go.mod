@@ -1,4 +1,4 @@
-module github.com/afkdevs/migris
+module github.com/akfaiz/migris
 
 go 1.23.0
 
