@@ -1,12 +1,9 @@
 package schema
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"strings"
-
-	"github.com/afkdevs/migris/internal/config"
 )
 
 type mysqlBuilder struct {
@@ -18,17 +15,16 @@ var _ Builder = (*mysqlBuilder)(nil)
 
 func newMysqlBuilder() Builder {
 	grammar := newMysqlGrammar()
-	cfg := config.Get()
 
 	return &mysqlBuilder{
-		baseBuilder: baseBuilder{grammar: grammar, verbose: cfg.Verbose},
+		baseBuilder: baseBuilder{grammar: grammar},
 		grammar:     grammar,
 	}
 }
 
-func (b *mysqlBuilder) getCurrentDatabase(ctx context.Context, tx *sql.Tx) (string, error) {
+func (b *mysqlBuilder) getCurrentDatabase(c *Context) (string, error) {
 	query := b.grammar.CompileCurrentDatabase()
-	row := tx.QueryRowContext(ctx, query)
+	row := c.QueryRow(query)
 	var dbName string
 	if err := row.Scan(&dbName); err != nil {
 		return "", err
@@ -36,12 +32,12 @@ func (b *mysqlBuilder) getCurrentDatabase(ctx context.Context, tx *sql.Tx) (stri
 	return dbName, nil
 }
 
-func (b *mysqlBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, error) {
-	if tx == nil || tableName == "" {
-		return nil, errors.New("invalid arguments: transaction is nil or table name is empty")
+func (b *mysqlBuilder) GetColumns(c *Context, tableName string) ([]*Column, error) {
+	if c == nil || tableName == "" {
+		return nil, errors.New("invalid arguments: context is nil or table name is empty")
 	}
 
-	database, err := b.getCurrentDatabase(ctx, tx)
+	database, err := b.getCurrentDatabase(c)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +47,7 @@ func (b *mysqlBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName str
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, query)
+	rows, err := c.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -77,12 +73,12 @@ func (b *mysqlBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName str
 	return columns, nil
 }
 
-func (b *mysqlBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName string) ([]*Index, error) {
-	if tx == nil || tableName == "" {
-		return nil, errors.New("invalid arguments: transaction is nil or table name is empty")
+func (b *mysqlBuilder) GetIndexes(c *Context, tableName string) ([]*Index, error) {
+	if c == nil || tableName == "" {
+		return nil, errors.New("invalid arguments: context is nil or table name is empty")
 	}
 
-	database, err := b.getCurrentDatabase(ctx, tx)
+	database, err := b.getCurrentDatabase(c)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +88,7 @@ func (b *mysqlBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName str
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, query)
+	rows, err := c.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -111,12 +107,12 @@ func (b *mysqlBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName str
 	return indexes, nil
 }
 
-func (b *mysqlBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo, error) {
-	if tx == nil {
-		return nil, errors.New("invalid arguments: transaction is nil")
+func (b *mysqlBuilder) GetTables(c *Context) ([]*TableInfo, error) {
+	if c == nil {
+		return nil, errors.New("invalid arguments: context is nil")
 	}
 
-	database, err := b.getCurrentDatabase(ctx, tx)
+	database, err := b.getCurrentDatabase(c)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +121,7 @@ func (b *mysqlBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo,
 	if err != nil {
 		return nil, err
 	}
-	rows, err := tx.QueryContext(ctx, query)
+	rows, err := c.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -142,22 +138,22 @@ func (b *mysqlBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo,
 	return tables, nil
 }
 
-func (b *mysqlBuilder) HasColumn(ctx context.Context, tx *sql.Tx, tableName string, columnName string) (bool, error) {
-	if tx == nil || columnName == "" {
-		return false, errors.New("invalid arguments: transaction is nil or column name is empty")
+func (b *mysqlBuilder) HasColumn(c *Context, tableName string, columnName string) (bool, error) {
+	if c == nil || columnName == "" {
+		return false, errors.New("invalid arguments: context is nil or column name is empty")
 	}
-	return b.HasColumns(ctx, tx, tableName, []string{columnName})
+	return b.HasColumns(c, tableName, []string{columnName})
 }
 
-func (b *mysqlBuilder) HasColumns(ctx context.Context, tx *sql.Tx, tableName string, columnNames []string) (bool, error) {
-	if tx == nil || tableName == "" {
-		return false, errors.New("invalid arguments: transaction is nil or table name is empty")
+func (b *mysqlBuilder) HasColumns(c *Context, tableName string, columnNames []string) (bool, error) {
+	if c == nil || tableName == "" {
+		return false, errors.New("invalid arguments: context is nil or table name is empty")
 	}
 	if len(columnNames) == 0 {
 		return false, errors.New("no column names provided")
 	}
 
-	columns, err := b.GetColumns(ctx, tx, tableName)
+	columns, err := b.GetColumns(c, tableName)
 	if err != nil {
 		return false, err
 	}
@@ -173,12 +169,12 @@ func (b *mysqlBuilder) HasColumns(ctx context.Context, tx *sql.Tx, tableName str
 	return true, nil // All specified columns exist
 }
 
-func (b *mysqlBuilder) HasIndex(ctx context.Context, tx *sql.Tx, tableName string, indexes []string) (bool, error) {
-	if tx == nil || tableName == "" {
-		return false, errors.New("invalid arguments: transaction is nil or table name is empty")
+func (b *mysqlBuilder) HasIndex(c *Context, tableName string, indexes []string) (bool, error) {
+	if c == nil || tableName == "" {
+		return false, errors.New("invalid arguments: context is nil or table name is empty")
 	}
 
-	existingIndexes, err := b.GetIndexes(ctx, tx, tableName)
+	existingIndexes, err := b.GetIndexes(c, tableName)
 	if err != nil {
 		return false, err
 	}
@@ -217,12 +213,12 @@ func (b *mysqlBuilder) HasIndex(ctx context.Context, tx *sql.Tx, tableName strin
 	return false, nil // If no specified index exists, return false
 }
 
-func (b *mysqlBuilder) HasTable(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
-	if tx == nil || name == "" {
-		return false, errors.New("invalid arguments: transaction is nil or table name is empty")
+func (b *mysqlBuilder) HasTable(c *Context, name string) (bool, error) {
+	if c == nil || name == "" {
+		return false, errors.New("invalid arguments: context is nil or table name is empty")
 	}
 
-	database, err := b.getCurrentDatabase(ctx, tx)
+	database, err := b.getCurrentDatabase(c)
 	if err != nil {
 		return false, err
 	}
@@ -232,7 +228,7 @@ func (b *mysqlBuilder) HasTable(ctx context.Context, tx *sql.Tx, name string) (b
 		return false, err
 	}
 
-	row := tx.QueryRowContext(ctx, query)
+	row := c.QueryRow(query)
 	var exists bool
 	if err := row.Scan(&exists); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

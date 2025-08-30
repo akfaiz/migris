@@ -9,7 +9,6 @@ import (
 type Config struct {
 	Dialect   dialect.Dialect
 	TableName string
-	Verbose   bool
 }
 
 var config = atomic.Pointer[Config]{}
@@ -18,7 +17,6 @@ func init() {
 	config.Store(&Config{
 		Dialect:   dialect.Unknown,
 		TableName: "migris_db_version",
-		Verbose:   true,
 	})
 }
 

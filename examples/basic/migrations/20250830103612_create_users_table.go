@@ -1,9 +1,6 @@
 package migrations
 
 import (
-	"context"
-	"database/sql"
-
 	"github.com/afkdevs/migris"
 	"github.com/afkdevs/migris/schema"
 )
@@ -12,8 +9,8 @@ func init() {
 	migris.AddMigrationContext(upCreateUsersTable, downCreateUsersTable)
 }
 
-func upCreateUsersTable(ctx context.Context, tx *sql.Tx) error {
-	return schema.Create(ctx, tx, "users", func(table *schema.Blueprint) {
+func upCreateUsersTable(c *schema.Context) error {
+	return schema.Create(c, "users", func(table *schema.Blueprint) {
 		table.ID()
 		table.String("name")
 		table.String("email")
@@ -23,6 +20,6 @@ func upCreateUsersTable(ctx context.Context, tx *sql.Tx) error {
 	})
 }
 
-func downCreateUsersTable(ctx context.Context, tx *sql.Tx) error {
-	return schema.DropIfExists(ctx, tx, "users")
+func downCreateUsersTable(c *schema.Context) error {
+	return schema.DropIfExists(c, "users")
 }

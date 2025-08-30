@@ -1,9 +1,6 @@
 package migrations
 
 import (
-	"context"
-	"database/sql"
-
 	"github.com/afkdevs/migris"
 	"github.com/afkdevs/migris/schema"
 )
@@ -12,8 +9,8 @@ func init() {
 	migris.AddMigrationContext(upCreateUserRolesTable, downCreateUserRolesTable)
 }
 
-func upCreateUserRolesTable(ctx context.Context, tx *sql.Tx) error {
-	return schema.Create(ctx, tx, "user_roles", func(table *schema.Blueprint) {
+func upCreateUserRolesTable(c *schema.Context) error {
+	return schema.Create(c, "user_roles", func(table *schema.Blueprint) {
 		table.BigInteger("user_id")
 		table.Integer("role_id")
 		table.Primary("user_id", "role_id")
@@ -22,6 +19,6 @@ func upCreateUserRolesTable(ctx context.Context, tx *sql.Tx) error {
 	})
 }
 
-func downCreateUserRolesTable(ctx context.Context, tx *sql.Tx) error {
-	return schema.DropIfExists(ctx, tx, "user_roles")
+func downCreateUserRolesTable(c *schema.Context) error {
+	return schema.DropIfExists(c, "user_roles")
 }

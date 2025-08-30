@@ -24,8 +24,7 @@ func newProvider(db *sql.DB, dir string) (*goose.Provider, error) {
 	provider, err := goose.NewProvider(database.DialectCustom, db, os.DirFS(dir),
 		goose.WithStore(store),
 		goose.WithDisableGlobalRegistry(true),
-		goose.WithGoMigrations(getMigrations()...),
-		goose.WithVerbose(cfg.Verbose),
+		goose.WithGoMigrations(registeredMigrations...),
 	)
 	if err != nil {
 		return nil, err

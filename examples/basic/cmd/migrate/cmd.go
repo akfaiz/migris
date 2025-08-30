@@ -29,14 +29,6 @@ func Command() *cli.Command {
 			{
 				Name:  "up",
 				Usage: "Run all pending migrations",
-				Flags: []cli.Flag{
-					&cli.BoolFlag{
-						Name:     "dry-run",
-						Aliases:  []string{"d"},
-						Usage:    "Preview the migration without applying changes",
-						Required: false,
-					},
-				},
 				Action: func(ctx context.Context, c *cli.Command) error {
 					return Up()
 				},
@@ -44,16 +36,22 @@ func Command() *cli.Command {
 			{
 				Name:  "reset",
 				Usage: "Reset all migrations",
-				Flags: []cli.Flag{
-					&cli.BoolFlag{
-						Name:     "dry-run",
-						Aliases:  []string{"d"},
-						Usage:    "Preview the migration without applying changes",
-						Required: false,
-					},
-				},
 				Action: func(ctx context.Context, c *cli.Command) error {
 					return Reset()
+				},
+			},
+			{
+				Name:  "down",
+				Usage: "Revert the last migration",
+				Action: func(ctx context.Context, c *cli.Command) error {
+					return Down()
+				},
+			},
+			{
+				Name:  "status",
+				Usage: "Show the status of migrations",
+				Action: func(ctx context.Context, c *cli.Command) error {
+					return Status()
 				},
 			},
 		},

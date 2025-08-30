@@ -34,6 +34,22 @@ func Reset() error {
 	return migris.Reset(db, directory)
 }
 
+func Down() error {
+	db, err := initMigrator()
+	if err != nil {
+		return err
+	}
+	return migris.Down(db, directory)
+}
+
+func Status() error {
+	db, err := initMigrator()
+	if err != nil {
+		return err
+	}
+	return migris.Status(db, directory)
+}
+
 func initMigrator() (*sql.DB, error) {
 	if err := migris.SetDialect("postgres"); err != nil {
 		return nil, fmt.Errorf("failed to set schema dialect: %w", err)

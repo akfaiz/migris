@@ -36,26 +36,6 @@ func (s *schemaTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.db = db
-
-	s.Run("when dialect is not set should return error", func() {
-		builderFuncs := []func() error{
-			func() error { return schema.Create(ctx, nil, "", nil) },
-			func() error { return schema.Drop(ctx, nil, "") },
-			func() error { return schema.DropIfExists(ctx, nil, "") },
-			func() error { _, err := schema.GetColumns(ctx, nil, ""); return err },
-			func() error { _, err := schema.GetIndexes(ctx, nil, ""); return err },
-			func() error { _, err := schema.GetTables(ctx, nil); return err },
-			func() error { _, err := schema.HasColumn(ctx, nil, "", ""); return err },
-			func() error { _, err := schema.HasColumns(ctx, nil, "", nil); return err },
-			func() error { _, err := schema.HasIndex(ctx, nil, "", nil); return err },
-			func() error { _, err := schema.HasTable(ctx, nil, ""); return err },
-			func() error { return schema.Rename(ctx, nil, "", "") },
-			func() error { return schema.Table(ctx, nil, "", nil) },
-		}
-		for _, fn := range builderFuncs {
-			s.Error(fn(), "Expected error when dialect is not set")
-		}
-	})
 	migris.SetDialect("postgres")
 }
 
@@ -68,8 +48,10 @@ func (s *schemaTestSuite) TestCreate() {
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
 
+	c := schema.NewContext(s.ctx, tx)
+
 	s.Run("when parameters are valid should create table", func() {
-		err := schema.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name")
 			table.String("email").Unique()
@@ -80,28 +62,21 @@ func (s *schemaTestSuite) TestCreate() {
 		s.NoError(err)
 	})
 	s.Run("when table already exists should return error", func() {
-		err := schema.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
 		})
 		s.Error(err)
 		s.ErrorContains(err, "\"users\" already exists")
 	})
 	s.Run("when table name is empty should return error", func() {
-		err := schema.Create(s.ctx, tx, "", func(table *schema.Blueprint) {
+		err := schema.Create(c, "", func(table *schema.Blueprint) {
 			table.ID()
 		})
 		s.Error(err)
 		s.ErrorContains(err, "invalid arguments")
 	})
 	s.Run("when blueprint function is nil should return error", func() {
-		err := schema.Create(s.ctx, tx, "test", nil)
-		s.Error(err)
-		s.ErrorContains(err, "invalid arguments")
-	})
-	s.Run("when transaction is nil should return error", func() {
-		err := schema.Create(s.ctx, nil, "test", func(table *schema.Blueprint) {
-			table.ID()
-		})
+		err := schema.Create(c, "test", nil)
 		s.Error(err)
 		s.ErrorContains(err, "invalid arguments")
 	})
@@ -112,8 +87,10 @@ func (s *schemaTestSuite) TestDrop() {
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
 
+	c := schema.NewContext(s.ctx, tx)
+
 	s.Run("when parameters are valid should drop table", func() {
-		err := schema.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name")
 			table.String("email").Unique()
@@ -122,20 +99,20 @@ func (s *schemaTestSuite) TestDrop() {
 			table.Timestamp("updated_at").UseCurrent()
 		})
 		s.Require().NoError(err)
-		err = schema.Drop(s.ctx, tx, "users")
+		err = schema.Drop(c, "users")
 		s.NoError(err)
 	})
 	s.Run("when table does not exist should return error", func() {
-		err := schema.Drop(s.ctx, tx, "non_existing_table")
+		err := schema.Drop(c, "non_existing_table")
 		s.Error(err)
 	})
 	s.Run("when table name is empty should return error", func() {
-		err := schema.Drop(s.ctx, tx, "")
+		err := schema.Drop(c, "")
 		s.Error(err)
 		s.ErrorContains(err, "invalid arguments")
 	})
-	s.Run("when transaction is nil should return error", func() {
-		err := schema.Drop(s.ctx, nil, "test")
+	s.Run("when context is nil should return error", func() {
+		err := schema.Drop(nil, "test")
 		s.Error(err)
 		s.ErrorContains(err, "invalid arguments")
 	})
@@ -146,8 +123,10 @@ func (s *schemaTestSuite) TestDropIfExists() {
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
 
+	c := schema.NewContext(s.ctx, tx)
+
 	s.Run("when parameters are valid should drop table", func() {
-		err := schema.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name")
 			table.String("email").Unique()
@@ -156,20 +135,20 @@ func (s *schemaTestSuite) TestDropIfExists() {
 			table.Timestamp("updated_at").UseCurrent()
 		})
 		s.Require().NoError(err)
-		err = schema.DropIfExists(s.ctx, tx, "users")
+		err = schema.DropIfExists(c, "users")
 		s.NoError(err)
 	})
 	s.Run("when table does not exist should return no error", func() {
-		err := schema.DropIfExists(s.ctx, tx, "non_existing_table")
+		err := schema.DropIfExists(c, "non_existing_table")
 		s.NoError(err)
 	})
 	s.Run("when table name is empty should return error", func() {
-		err := schema.DropIfExists(s.ctx, tx, "")
+		err := schema.DropIfExists(c, "")
 		s.Error(err)
 		s.ErrorContains(err, "invalid arguments")
 	})
-	s.Run("when transaction is nil should return error", func() {
-		err := schema.DropIfExists(s.ctx, nil, "test")
+	s.Run("when context is nil should return error", func() {
+		err := schema.DropIfExists(nil, "test")
 		s.Error(err)
 		s.ErrorContains(err, "invalid arguments")
 	})
@@ -180,8 +159,10 @@ func (s *schemaTestSuite) TestGetColumns() {
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
 
+	c := schema.NewContext(s.ctx, tx)
+
 	s.Run("when parameters are valid should return columns", func() {
-		err := schema.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name")
 			table.String("email").Unique()
@@ -190,23 +171,23 @@ func (s *schemaTestSuite) TestGetColumns() {
 			table.Timestamp("updated_at").UseCurrent()
 		})
 		s.Require().NoError(err)
-		columns, err := schema.GetColumns(s.ctx, tx, "users")
+		columns, err := schema.GetColumns(c, "users")
 		s.NoError(err)
 		s.NotEmpty(columns)
 		s.Len(columns, 6)
 	})
 	s.Run("when table does not exist should empty columns", func() {
-		columns, err := schema.GetColumns(s.ctx, tx, "non_existing_table")
+		columns, err := schema.GetColumns(c, "non_existing_table")
 		s.NoError(err)
 		s.Nil(columns)
 	})
 	s.Run("when table name is empty should return error", func() {
-		columns, err := schema.GetColumns(s.ctx, tx, "")
+		columns, err := schema.GetColumns(c, "")
 		s.Error(err)
 		s.Nil(columns)
 	})
-	s.Run("when transaction is nil should return error", func() {
-		columns, err := schema.GetColumns(s.ctx, nil, "test")
+	s.Run("when context is nil should return error", func() {
+		columns, err := schema.GetColumns(nil, "test")
 		s.Error(err)
 		s.Nil(columns)
 	})
@@ -217,8 +198,10 @@ func (s *schemaTestSuite) TestGetIndexes() {
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
 
+	c := schema.NewContext(s.ctx, tx)
+
 	s.Run("when parameters are valid should return indexes", func() {
-		err := schema.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name")
 			table.String("email").Unique()
@@ -227,23 +210,23 @@ func (s *schemaTestSuite) TestGetIndexes() {
 			table.Timestamp("updated_at").UseCurrent()
 		})
 		s.Require().NoError(err)
-		indexes, err := schema.GetIndexes(s.ctx, tx, "users")
+		indexes, err := schema.GetIndexes(c, "users")
 		s.NoError(err)
 		s.NotEmpty(indexes)
 		s.Len(indexes, 2) // Expecting the unique index on email and the primary key index on id
 	})
 	s.Run("when table does not exist should return empty indexes", func() {
-		indexes, err := schema.GetIndexes(s.ctx, tx, "non_existing_table")
+		indexes, err := schema.GetIndexes(c, "non_existing_table")
 		s.NoError(err)
 		s.Nil(indexes)
 	})
 	s.Run("when table name is empty should return error", func() {
-		indexes, err := schema.GetIndexes(s.ctx, tx, "")
+		indexes, err := schema.GetIndexes(c, "")
 		s.Error(err)
 		s.Nil(indexes)
 	})
-	s.Run("when transaction is nil should return error", func() {
-		indexes, err := schema.GetIndexes(s.ctx, nil, "test")
+	s.Run("when context is nil should return error", func() {
+		indexes, err := schema.GetIndexes(nil, "test")
 		s.Error(err)
 		s.Nil(indexes)
 	})
@@ -254,13 +237,15 @@ func (s *schemaTestSuite) TestGetTables() {
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
 
+	c := schema.NewContext(s.ctx, tx)
+
 	s.Run("when no tables exist should return empty", func() {
-		tables, err := schema.GetTables(s.ctx, tx)
+		tables, err := schema.GetTables(c)
 		s.NoError(err)
 		s.Empty(tables)
 	})
 	s.Run("when transaction is valid should return tables", func() {
-		err := schema.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name")
 			table.String("email").Unique()
@@ -269,13 +254,13 @@ func (s *schemaTestSuite) TestGetTables() {
 			table.Timestamp("updated_at").UseCurrent()
 		})
 		s.Require().NoError(err)
-		tables, err := schema.GetTables(s.ctx, tx)
+		tables, err := schema.GetTables(c)
 		s.NoError(err)
 		s.NotEmpty(tables)
 		s.Len(tables, 1) // Expecting at least the 'users' table created in previous tests
 	})
-	s.Run("when transaction is nil should return error", func() {
-		tables, err := schema.GetTables(s.ctx, nil)
+	s.Run("when context is nil should return error", func() {
+		tables, err := schema.GetTables(nil)
 		s.Error(err)
 		s.Nil(tables)
 	})
@@ -286,8 +271,10 @@ func (s *schemaTestSuite) TestHasColumn() {
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
 
+	c := schema.NewContext(s.ctx, tx)
+
 	s.Run("when column exists should return true", func() {
-		err := schema.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name")
 			table.String("email").Unique()
@@ -297,19 +284,19 @@ func (s *schemaTestSuite) TestHasColumn() {
 		})
 		s.Require().NoError(err)
 
-		exists, err := schema.HasColumn(s.ctx, tx, "users", "email")
+		exists, err := schema.HasColumn(c, "users", "email")
 		s.NoError(err)
 		s.True(exists)
 	})
 
 	s.Run("when column does not exist should return false", func() {
-		exists, err := schema.HasColumn(s.ctx, tx, "users", "non_existing_column")
+		exists, err := schema.HasColumn(c, "users", "non_existing_column")
 		s.NoError(err)
 		s.False(exists)
 	})
 
-	s.Run("when transaction is nil should return error", func() {
-		exists, err := schema.HasColumn(s.ctx, nil, "users", "email")
+	s.Run("when context is nil should return error", func() {
+		exists, err := schema.HasColumn(nil, "users", "email")
 		s.Error(err)
 		s.False(exists)
 	})
@@ -320,8 +307,10 @@ func (s *schemaTestSuite) TestHasColumns() {
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
 
+	c := schema.NewContext(s.ctx, tx)
+
 	s.Run("when all columns exist should return true", func() {
-		err := schema.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name")
 			table.String("email").Unique()
@@ -331,17 +320,17 @@ func (s *schemaTestSuite) TestHasColumns() {
 		})
 		s.Require().NoError(err)
 
-		exists, err := schema.HasColumns(s.ctx, tx, "users", []string{"email", "name"})
+		exists, err := schema.HasColumns(c, "users", []string{"email", "name"})
 		s.NoError(err)
 		s.True(exists)
 	})
 	s.Run("when some columns do not exist should return false", func() {
-		exists, err := schema.HasColumns(s.ctx, tx, "users", []string{"email", "non_existing_column"})
+		exists, err := schema.HasColumns(c, "users", []string{"email", "non_existing_column"})
 		s.NoError(err)
 		s.False(exists)
 	})
 	s.Run("when no columns are provided should return error", func() {
-		exists, err := schema.HasColumns(s.ctx, tx, "users", []string{})
+		exists, err := schema.HasColumns(c, "users", []string{})
 		s.Error(err)
 		s.False(exists)
 	})
@@ -352,8 +341,10 @@ func (s *schemaTestSuite) TestHasIndex() {
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
 
+	c := schema.NewContext(s.ctx, tx)
+
 	s.Run("when index exists should return true", func() {
-		err := schema.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.Integer("company_id")
 			table.String("name")
@@ -366,20 +357,20 @@ func (s *schemaTestSuite) TestHasIndex() {
 		})
 		s.Require().NoError(err)
 
-		exists, err := schema.HasIndex(s.ctx, tx, "users", []string{"email"})
+		exists, err := schema.HasIndex(c, "users", []string{"email"})
 		s.NoError(err)
 		s.True(exists)
 
-		exists, err = schema.HasIndex(s.ctx, tx, "users", []string{"company_id", "id"})
+		exists, err = schema.HasIndex(c, "users", []string{"company_id", "id"})
 		s.NoError(err)
 		s.True(exists)
 
-		exists, err = schema.HasIndex(s.ctx, tx, "users", []string{"uk_users_email"})
+		exists, err = schema.HasIndex(c, "users", []string{"uk_users_email"})
 		s.NoError(err)
 		s.True(exists)
 	})
 	s.Run("when index does not exist should return false", func() {
-		exists, err := schema.HasIndex(s.ctx, tx, "users", []string{"non_existing_index"})
+		exists, err := schema.HasIndex(c, "users", []string{"non_existing_index"})
 		s.NoError(err)
 		s.False(exists)
 	})
@@ -390,8 +381,10 @@ func (s *schemaTestSuite) TestHasTable() {
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
 
+	c := schema.NewContext(s.ctx, tx)
+
 	s.Run("when table exists should return true", func() {
-		err := schema.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name")
 			table.String("email").Unique()
@@ -401,22 +394,22 @@ func (s *schemaTestSuite) TestHasTable() {
 		})
 		s.Require().NoError(err)
 
-		exists, err := schema.HasTable(s.ctx, tx, "users")
+		exists, err := schema.HasTable(c, "users")
 		s.NoError(err)
 		s.True(exists)
 	})
 	s.Run("when table does not exist should return false", func() {
-		exists, err := schema.HasTable(s.ctx, tx, "non_existing_table")
+		exists, err := schema.HasTable(c, "non_existing_table")
 		s.NoError(err)
 		s.False(exists)
 	})
 	s.Run("when table name is empty should return error", func() {
-		exists, err := schema.HasTable(s.ctx, tx, "")
+		exists, err := schema.HasTable(c, "")
 		s.Error(err)
 		s.False(exists)
 	})
-	s.Run("when transaction is nil should return error", func() {
-		exists, err := schema.HasTable(s.ctx, nil, "users")
+	s.Run("when context is nil should return error", func() {
+		exists, err := schema.HasTable(nil, "users")
 		s.Error(err)
 		s.False(exists)
 	})
@@ -427,8 +420,10 @@ func (s *schemaTestSuite) TestRename() {
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
 
+	c := schema.NewContext(s.ctx, tx)
+
 	s.Run("when parameters are valid should rename table", func() {
-		err := schema.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name")
 			table.String("email").Unique()
@@ -438,27 +433,27 @@ func (s *schemaTestSuite) TestRename() {
 		})
 		s.Require().NoError(err)
 
-		err = schema.Rename(s.ctx, tx, "users", "members")
+		err = schema.Rename(c, "users", "members")
 		s.NoError(err)
 
-		columns, err := schema.GetColumns(s.ctx, tx, "members")
+		columns, err := schema.GetColumns(c, "members")
 		s.NoError(err)
 		s.NotEmpty(columns)
 		s.Len(columns, 6)
 	})
 
 	s.Run("when table does not exist should return error", func() {
-		err := schema.Rename(s.ctx, tx, "non_existing_table", "new_name")
+		err := schema.Rename(c, "non_existing_table", "new_name")
 		s.Error(err)
 	})
 
 	s.Run("when new name is empty should return error", func() {
-		err := schema.Rename(s.ctx, tx, "users", "")
+		err := schema.Rename(c, "users", "")
 		s.Error(err)
 	})
 
-	s.Run("when transaction is nil should return error", func() {
-		err := schema.Rename(s.ctx, nil, "users", "new_name")
+	s.Run("when context is nil should return error", func() {
+		err := schema.Rename(nil, "users", "new_name")
 		s.Error(err)
 	})
 }
@@ -468,8 +463,10 @@ func (s *schemaTestSuite) TestTable() {
 	s.Require().NoError(err)
 	defer tx.Rollback() //nolint:errcheck
 
+	c := schema.NewContext(s.ctx, tx)
+
 	s.Run("when parameters are valid should alter table", func() {
-		err := schema.Create(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
 			table.String("name")
 			table.String("email").Unique()
@@ -479,25 +476,25 @@ func (s *schemaTestSuite) TestTable() {
 		})
 		s.Require().NoError(err)
 
-		err = schema.Table(s.ctx, tx, "users", func(table *schema.Blueprint) {
+		err = schema.Table(c, "users", func(table *schema.Blueprint) {
 			table.String("phone").Nullable()
 		})
 		s.NoError(err)
 
-		columns, err := schema.GetColumns(s.ctx, tx, "users")
+		columns, err := schema.GetColumns(c, "users")
 		s.NoError(err)
 		s.Len(columns, 7) // Expecting the new 'phone' column to be added
 	})
 
 	s.Run("when table does not exist should return error", func() {
-		err := schema.Table(s.ctx, tx, "non_existing_table", func(table *schema.Blueprint) {
+		err := schema.Table(c, "non_existing_table", func(table *schema.Blueprint) {
 			table.String("new_column")
 		})
 		s.Error(err)
 	})
 
-	s.Run("when transaction is nil should return error", func() {
-		err := schema.Table(s.ctx, nil, "users", func(table *schema.Blueprint) {
+	s.Run("when context is nil should return error", func() {
+		err := schema.Table(nil, "users", func(table *schema.Blueprint) {
 			table.String("new_column")
 		})
 		s.Error(err)

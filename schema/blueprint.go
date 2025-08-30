@@ -1,10 +1,7 @@
 package schema
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
-	"log"
 
 	"github.com/afkdevs/migris/internal/dialect"
 	"github.com/afkdevs/migris/internal/util"
@@ -59,7 +56,6 @@ type Blueprint struct {
 	charset   string
 	collation string
 	engine    string
-	verbose   bool
 }
 
 // Charset sets the character set for the table in the blueprint.
@@ -588,16 +584,16 @@ func (b *Blueprint) getFluentStatements() []string {
 	return statements
 }
 
-func (b *Blueprint) build(ctx context.Context, tx *sql.Tx) error {
+func (b *Blueprint) build(ctx *Context) error {
 	statements, err := b.toSql()
 	if err != nil {
 		return err
 	}
 	for _, statement := range statements {
-		if b.verbose {
-			log.Println(statement)
-		}
-		if _, err := tx.ExecContext(ctx, statement); err != nil {
+		// if b.verbose {
+		// 	log.Println(statement)
+		// }
+		if _, err := ctx.Exec(statement); err != nil {
 			return err
 		}
 	}

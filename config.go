@@ -19,13 +19,6 @@ func SetDialect(d string) error {
 	return nil
 }
 
-// SetVerbose enables or disables verbose mode
-func SetVerbose(enabled bool) {
-	cfg := config.Get()
-	cfg.Verbose = enabled
-	config.Set(cfg)
-}
-
 // SetTableName sets the table name for the migrator
 func SetTableName(name string) {
 	cfg := config.Get()

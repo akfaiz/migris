@@ -1,7 +1,6 @@
 package schema
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 
@@ -69,13 +68,13 @@ func newBuilder() (Builder, error) {
 //	    table.Timestamp("created_at").Default("CURRENT_TIMESTAMP").Nullable(false)
 //	    table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP").Nullable(false)
 //	})
-func Create(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
+func Create(c *Context, name string, blueprint func(table *Blueprint)) error {
 	builder, err := newBuilder()
 	if err != nil {
 		return err
 	}
 
-	return builder.Create(ctx, tx, name, blueprint)
+	return builder.Create(c, name, blueprint)
 }
 
 // Drop removes the table with the given name.
@@ -84,13 +83,13 @@ func Create(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *
 // Example:
 //
 //	err := schema.Drop(ctx, tx, "users")
-func Drop(ctx context.Context, tx *sql.Tx, name string) error {
+func Drop(c *Context, name string) error {
 	builder, err := newBuilder()
 	if err != nil {
 		return err
 	}
 
-	return builder.Drop(ctx, tx, name)
+	return builder.Drop(c, name)
 }
 
 // DropIfExists removes the table with the given name if it exists.
@@ -99,13 +98,13 @@ func Drop(ctx context.Context, tx *sql.Tx, name string) error {
 // Example:
 //
 //	err := schema.DropIfExists(ctx, tx, "users")
-func DropIfExists(ctx context.Context, tx *sql.Tx, name string) error {
+func DropIfExists(c *Context, name string) error {
 	builder, err := newBuilder()
 	if err != nil {
 		return err
 	}
 
-	return builder.DropIfExists(ctx, tx, name)
+	return builder.DropIfExists(c, name)
 }
 
 // GetColumns retrieves the columns of the specified table.
@@ -114,13 +113,13 @@ func DropIfExists(ctx context.Context, tx *sql.Tx, name string) error {
 // Example:
 //
 //	columns, err := schema.GetColumns(ctx, tx, "users")
-func GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, error) {
+func GetColumns(c *Context, tableName string) ([]*Column, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return nil, err
 	}
 
-	return builder.GetColumns(ctx, tx, tableName)
+	return builder.GetColumns(c, tableName)
 }
 
 // GetIndexes retrieves the indexes of the specified table.
@@ -129,13 +128,13 @@ func GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, e
 // Example:
 //
 //	indexes, err := schema.GetIndexes(ctx, tx, "users")
-func GetIndexes(ctx context.Context, tx *sql.Tx, tableName string) ([]*Index, error) {
+func GetIndexes(c *Context, tableName string) ([]*Index, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return nil, err
 	}
 
-	return builder.GetIndexes(ctx, tx, tableName)
+	return builder.GetIndexes(c, tableName)
 }
 
 // GetTables retrieves all tables in the database.
@@ -144,13 +143,13 @@ func GetIndexes(ctx context.Context, tx *sql.Tx, tableName string) ([]*Index, er
 // Example:
 //
 //	tables, err := schema.GetTables(ctx, tx)
-func GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo, error) {
+func GetTables(c *Context) ([]*TableInfo, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return nil, err
 	}
 
-	return builder.GetTables(ctx, tx)
+	return builder.GetTables(c)
 }
 
 // HasColumn checks if a column with the given name exists in the specified table.
@@ -159,13 +158,13 @@ func GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo, error) {
 // Example:
 //
 //	exists, err := schema.HasColumn(ctx, tx, "users", "email")
-func HasColumn(ctx context.Context, tx *sql.Tx, tableName string, columnName string) (bool, error) {
+func HasColumn(c *Context, tableName string, columnName string) (bool, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return false, err
 	}
 
-	return builder.HasColumn(ctx, tx, tableName, columnName)
+	return builder.HasColumn(c, tableName, columnName)
 }
 
 // HasColumns checks if the specified columns exist in the given table.
@@ -176,13 +175,13 @@ func HasColumn(ctx context.Context, tx *sql.Tx, tableName string, columnName str
 //	exists, err := schema.HasColumns(ctx, tx, "users", []string{"email", "name"})
 //
 // If any of the specified columns do not exist, it returns false.
-func HasColumns(ctx context.Context, tx *sql.Tx, tableName string, columnNames []string) (bool, error) {
+func HasColumns(c *Context, tableName string, columnNames []string) (bool, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return false, err
 	}
 
-	return builder.HasColumns(ctx, tx, tableName, columnNames)
+	return builder.HasColumns(c, tableName, columnNames)
 }
 
 // HasIndex checks if an index with the given name exists in the specified table.
@@ -193,13 +192,13 @@ func HasColumns(ctx context.Context, tx *sql.Tx, tableName string, columnNames [
 //	exists, err := schema.HasIndex(ctx, tx, "users", []string{"uk_users_email"}) // Checks if the index with name "uk_users_email" exists in the "users" table.
 //
 //	exists, err := schema.HasIndex(ctx, tx, "users", []string{"email", "name"}) // Checks if a composite index exists on the "email" and "name" columns in the "users" table.
-func HasIndex(ctx context.Context, tx *sql.Tx, tableName string, indexes []string) (bool, error) {
+func HasIndex(c *Context, tableName string, indexes []string) (bool, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return false, err
 	}
 
-	return builder.HasIndex(ctx, tx, tableName, indexes)
+	return builder.HasIndex(c, tableName, indexes)
 }
 
 // HasTable checks if a table with the given name exists in the database.
@@ -209,13 +208,13 @@ func HasIndex(ctx context.Context, tx *sql.Tx, tableName string, indexes []strin
 // Example:
 //
 //	exists, err := schema.HasTable(ctx, tx, "users")
-func HasTable(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
+func HasTable(c *Context, name string) (bool, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return false, err
 	}
 
-	return builder.HasTable(ctx, tx, name)
+	return builder.HasTable(c, name)
 }
 
 // Rename changes the name of the table from name to newName.
@@ -224,13 +223,13 @@ func HasTable(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
 // Example:
 //
 //	err := schema.Rename(ctx, tx, "users", "people")
-func Rename(ctx context.Context, tx *sql.Tx, name string, newName string) error {
+func Rename(c *Context, name string, newName string) error {
 	builder, err := newBuilder()
 	if err != nil {
 		return err
 	}
 
-	return builder.Rename(ctx, tx, name, newName)
+	return builder.Rename(c, name, newName)
 }
 
 // Table modifies an existing table with the given name and blueprint.
@@ -244,11 +243,11 @@ func Rename(ctx context.Context, tx *sql.Tx, name string, newName string) error 
 //	    table.DropColumn("password")
 //	    table.RenameColumn("email", "contact_email")
 //	})
-func Table(ctx context.Context, tx *sql.Tx, name string, blueprint func(table *Blueprint)) error {
+func Table(c *Context, name string, blueprint func(table *Blueprint)) error {
 	builder, err := newBuilder()
 	if err != nil {
 		return err
 	}
 
-	return builder.Table(ctx, tx, name, blueprint)
+	return builder.Table(c, name, blueprint)
 }

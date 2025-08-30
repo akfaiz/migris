@@ -1,12 +1,9 @@
 package schema
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"strings"
-
-	"github.com/afkdevs/migris/internal/config"
 )
 
 type postgresBuilder struct {
@@ -16,10 +13,9 @@ type postgresBuilder struct {
 
 func newPostgresBuilder() Builder {
 	grammar := newPostgresGrammar()
-	cfg := config.Get()
 
 	return &postgresBuilder{
-		baseBuilder: baseBuilder{grammar: grammar, verbose: cfg.Verbose},
+		baseBuilder: baseBuilder{grammar: grammar},
 		grammar:     grammar,
 	}
 }
@@ -32,9 +28,9 @@ func (b *postgresBuilder) parseSchemaAndTable(name string) (string, string) {
 	return "", names[0]
 }
 
-func (b *postgresBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName string) ([]*Column, error) {
-	if tx == nil || tableName == "" {
-		return nil, errors.New("invalid arguments: transaction is nil or table name is empty")
+func (b *postgresBuilder) GetColumns(c *Context, tableName string) ([]*Column, error) {
+	if c == nil || tableName == "" {
+		return nil, errors.New("invalid arguments: context is nil or table name is empty")
 	}
 
 	schema, name := b.parseSchemaAndTable(tableName)
@@ -46,7 +42,7 @@ func (b *postgresBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName 
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, query)
+	rows, err := c.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -67,9 +63,9 @@ func (b *postgresBuilder) GetColumns(ctx context.Context, tx *sql.Tx, tableName 
 	return columns, nil
 }
 
-func (b *postgresBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName string) ([]*Index, error) {
-	if tx == nil || tableName == "" {
-		return nil, errors.New("invalid arguments: transaction is nil or table name is empty")
+func (b *postgresBuilder) GetIndexes(c *Context, tableName string) ([]*Index, error) {
+	if c == nil || tableName == "" {
+		return nil, errors.New("invalid arguments: context is nil or table name is empty")
 	}
 	schema, name := b.parseSchemaAndTable(tableName)
 	if schema == "" {
@@ -79,7 +75,7 @@ func (b *postgresBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName 
 	if err != nil {
 		return nil, err
 	}
-	rows, err := tx.QueryContext(ctx, query)
+	rows, err := c.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +95,9 @@ func (b *postgresBuilder) GetIndexes(ctx context.Context, tx *sql.Tx, tableName 
 	return indexes, nil
 }
 
-func (b *postgresBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableInfo, error) {
-	if tx == nil {
-		return nil, errors.New("transaction is nil")
+func (b *postgresBuilder) GetTables(c *Context) ([]*TableInfo, error) {
+	if c == nil {
+		return nil, errors.New("invalid arguments: context is nil")
 	}
 
 	query, err := b.grammar.CompileTables()
@@ -109,7 +105,7 @@ func (b *postgresBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableIn
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, query)
+	rows, err := c.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -127,18 +123,18 @@ func (b *postgresBuilder) GetTables(ctx context.Context, tx *sql.Tx) ([]*TableIn
 	return tables, nil
 }
 
-func (b *postgresBuilder) HasColumn(ctx context.Context, tx *sql.Tx, tableName string, columnName string) (bool, error) {
-	return b.HasColumns(ctx, tx, tableName, []string{columnName})
+func (b *postgresBuilder) HasColumn(c *Context, tableName string, columnName string) (bool, error) {
+	return b.HasColumns(c, tableName, []string{columnName})
 }
 
-func (b *postgresBuilder) HasColumns(ctx context.Context, tx *sql.Tx, tableName string, columnNames []string) (bool, error) {
-	if tx == nil || tableName == "" {
-		return false, errors.New("invalid arguments: transaction is nil or table name is empty")
+func (b *postgresBuilder) HasColumns(c *Context, tableName string, columnNames []string) (bool, error) {
+	if c == nil || tableName == "" {
+		return false, errors.New("invalid arguments: context is nil or table name is empty")
 	}
 	if len(columnNames) == 0 {
 		return false, errors.New("no column names provided")
 	}
-	existingColumns, err := b.GetColumns(ctx, tx, tableName)
+	existingColumns, err := b.GetColumns(c, tableName)
 	if err != nil {
 		return false, err
 	}
@@ -163,12 +159,12 @@ func (b *postgresBuilder) HasColumns(ctx context.Context, tx *sql.Tx, tableName 
 	return true, nil // All specified columns exist
 }
 
-func (b *postgresBuilder) HasIndex(ctx context.Context, tx *sql.Tx, tableName string, indexes []string) (bool, error) {
-	if tx == nil || tableName == "" {
-		return false, errors.New("invalid arguments: transaction is nil or table name is empty")
+func (b *postgresBuilder) HasIndex(c *Context, tableName string, indexes []string) (bool, error) {
+	if c == nil || tableName == "" {
+		return false, errors.New("invalid arguments: context is nil or table name is empty")
 	}
 
-	existingIndexes, err := b.GetIndexes(ctx, tx, tableName)
+	existingIndexes, err := b.GetIndexes(c, tableName)
 	if err != nil {
 		return false, err
 	}
@@ -207,9 +203,9 @@ func (b *postgresBuilder) HasIndex(ctx context.Context, tx *sql.Tx, tableName st
 	return false, nil // If no specified index exists, return false
 }
 
-func (b *postgresBuilder) HasTable(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
-	if tx == nil || name == "" {
-		return false, errors.New("invalid arguments: transaction is nil or table name is empty")
+func (b *postgresBuilder) HasTable(c *Context, name string) (bool, error) {
+	if c == nil || name == "" {
+		return false, errors.New("invalid arguments: context is nil or table name is empty")
 	}
 
 	schema, name := b.parseSchemaAndTable(name)
@@ -222,7 +218,7 @@ func (b *postgresBuilder) HasTable(ctx context.Context, tx *sql.Tx, name string)
 	}
 
 	var exists bool
-	if err := tx.QueryRowContext(ctx, query).Scan(&exists); err != nil {
+	if err := c.QueryRow(query).Scan(&exists); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil // Table does not exist
 		}

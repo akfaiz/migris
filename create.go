@@ -27,9 +27,6 @@ func getMigrationTemplate(name string) *template.Template {
 var migrationTemplate = template.Must(template.New("migrator.go-migration").Parse(`package migrations
 
 import (
-	"context"
-	"database/sql"
-
 	"github.com/afkdevs/migris"
 	"github.com/afkdevs/migris/schema"
 )
@@ -38,12 +35,12 @@ func init() {
 	migris.AddMigrationContext(up{{.CamelName}}, down{{.CamelName}})
 }
 
-func up{{.CamelName}}(ctx context.Context, tx *sql.Tx) error {
+func up{{.CamelName}}(c *schema.Context) error {
 	// This code is executed when the migration is applied.
 	return nil
 }
 
-func down{{.CamelName}}(ctx context.Context, tx *sql.Tx) error {
+func down{{.CamelName}}(c *schema.Context) error {
 	// This code is executed when the migration is rolled back.
 	return nil
 }
@@ -53,9 +50,6 @@ func migrationCreateTemplate(table string) *template.Template {
 	tmpl := `package migrations
 
 import (
-	"context"
-	"database/sql"
-
 	"github.com/afkdevs/migris"
 	"github.com/afkdevs/migris/schema"
 )
@@ -64,14 +58,14 @@ func init() {
 	migris.AddMigrationContext(up{{.CamelName}}, down{{.CamelName}})
 }
 
-func up{{.CamelName}}(ctx context.Context, tx *sql.Tx) error {
-	return schema.Create(ctx, tx, "` + table + `", func(table *schema.Blueprint) {
+func up{{.CamelName}}(c *schema.Context) error {
+	return schema.Create(c, "` + table + `", func(table *schema.Blueprint) {
 		// Define your table schema here
 	})
 }
 
-func down{{.CamelName}}(ctx context.Context, tx *sql.Tx) error {
-	return schema.DropIfExists(ctx, tx, "` + table + `")
+func down{{.CamelName}}(c *schema.Context) error {
+	return schema.DropIfExists(c, "` + table + `")
 }
 `
 	return template.Must(template.New("migration-create").Parse(tmpl))
@@ -81,9 +75,6 @@ func migrationUpdateTemplate(table string) *template.Template {
 	tmpl := `package migrations
 
 import (
-	"context"
-	"database/sql"
-
 	"github.com/afkdevs/migris"
 	"github.com/afkdevs/migris/schema"
 )
@@ -92,14 +83,14 @@ func init() {
 	migris.AddMigrationContext(up{{.CamelName}}, down{{.CamelName}})
 }
 
-func up{{.CamelName}}(ctx context.Context, tx *sql.Tx) error {
-	return schema.Table(ctx, tx, "` + table + `", func(table *schema.Blueprint) {
+func up{{.CamelName}}(c *schema.Context) error {
+	return schema.Table(c, "` + table + `", func(table *schema.Blueprint) {
 		// Define your table schema changes here
 	})
 }
 
-func down{{.CamelName}}(ctx context.Context, tx *sql.Tx) error {
-	return schema.Table(ctx, tx, "` + table + `", func(table *schema.Blueprint) {
+func down{{.CamelName}}(c *schema.Context) error {
+	return schema.Table(c, "` + table + `", func(table *schema.Blueprint) {
 		// Define your table schema changes here
 	})
 }

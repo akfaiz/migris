@@ -3,6 +3,10 @@ package migris
 import (
 	"context"
 	"database/sql"
+	"errors"
+
+	"github.com/afkdevs/migris/internal/logger"
+	"github.com/pressly/goose/v3"
 )
 
 // Up applies the migrations in the specified directory.
@@ -17,9 +21,26 @@ func UpContext(ctx context.Context, db *sql.DB, dir string) error {
 	if err != nil {
 		return err
 	}
-	_, err = provider.Up(ctx)
+	hasPending, err := provider.HasPending(ctx)
 	if err != nil {
 		return err
 	}
+	if !hasPending {
+		logger.Info("Nothing to migrate.")
+		return nil
+	}
+	logger.Infof("Running migrations.\n")
+
+	results, err := provider.Up(ctx)
+	if err != nil {
+		var partialErr *goose.PartialError
+		if errors.As(err, &partialErr) {
+			logger.PrintResults(partialErr.Applied)
+			logger.PrintResult(partialErr.Failed)
+		}
+
+		return err
+	}
+	logger.PrintResults(results)
 	return nil
 }
