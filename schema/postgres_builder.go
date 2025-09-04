@@ -8,7 +8,6 @@ import (
 
 type postgresBuilder struct {
 	baseBuilder
-	grammar *postgresGrammar
 }
 
 func newPostgresBuilder() Builder {
@@ -16,7 +15,6 @@ func newPostgresBuilder() Builder {
 
 	return &postgresBuilder{
 		baseBuilder: baseBuilder{grammar: grammar},
-		grammar:     grammar,
 	}
 }
 
@@ -100,7 +98,7 @@ func (b *postgresBuilder) GetTables(c *Context) ([]*TableInfo, error) {
 		return nil, errors.New("invalid arguments: context is nil")
 	}
 
-	query, err := b.grammar.CompileTables()
+	query, err := b.grammar.CompileTables("")
 	if err != nil {
 		return nil, err
 	}

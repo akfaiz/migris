@@ -7,7 +7,11 @@ import (
 	"github.com/akfaiz/migris"
 	"github.com/akfaiz/migris/examples/basic/config"
 	_ "github.com/akfaiz/migris/examples/basic/migrations"
-	_ "github.com/lib/pq" // PostgreSQL driver
+	_ "github.com/jackc/pgx/v5/stdlib"
+)
+
+const (
+	migrationDir = "migrations"
 )
 
 func Up() error {
@@ -19,11 +23,7 @@ func Up() error {
 }
 
 func Create(name string) error {
-	m, err := newMigrate()
-	if err != nil {
-		return err
-	}
-	return m.Create(name)
+	return migris.Create(migrationDir, name)
 }
 
 func Reset() error {
@@ -59,7 +59,7 @@ func newMigrate() (*migris.Migrate, error) {
 	if err != nil {
 		return nil, err
 	}
-	migrate, err := migris.New("postgres", migris.WithDB(db))
+	migrate, err := migris.New("pgx", migris.WithDB(db), migris.WithMigrationDir(migrationDir))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create migris instance: %w", err)
 	}
@@ -68,7 +68,7 @@ func newMigrate() (*migris.Migrate, error) {
 
 func openDatabase(cfg config.Database) (*sql.DB, error) {
 	dsn := cfg.DSN()
-	db, err := sql.Open("postgres", dsn)
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}

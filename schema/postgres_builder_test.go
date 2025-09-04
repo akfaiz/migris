@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/akfaiz/migris/schema"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -51,7 +51,7 @@ func (s *postgresBuilderSuite) SetupSuite() {
 
 	dsn := fmt.Sprintf("host=localhost port=5432 user=%s password=%s dbname=%s sslmode=disable", config.Username, config.Password, config.Database)
 
-	db, err := sql.Open("postgres", dsn)
+	db, err := sql.Open("pgx", dsn)
 	s.Require().NoError(err)
 
 	err = db.Ping()

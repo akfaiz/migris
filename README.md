@@ -1,27 +1,26 @@
 # Migris
 
-**Migris** is a database migration library for Go, inspired by Laravel's migrations.  
-It combines the power of [pressly/goose](https://github.com/pressly/goose) with a fluent schema builder, making migrations easy to write, run, and maintain.
+**Migris** is a database migration library for Go, inspired by Laravel's migrations. It combines the power of [pressly/goose](https://github.com/pressly/goose) with a fluent schema builder, making migrations easy to write, run, and maintain.
 
-## ✨ Features
+## Features
 
-- 📦 Migration management (`up`, `down`, `reset`, `status`, `create`)
-- 🏗️ Fluent schema builder (similar to Laravel migrations)
-- 🗄️ Supports PostgreSQL, MySQL, and MariaDB
-- 🔄 Transaction-based migrations
-- 🛠️ Integration with Go projects (no external CLI required)
+- **Migration management** - Run up, down, reset, status, and create operations
+- **Fluent schema builder** - Laravel-inspired API for defining database schemas
+- **Multi-database support** - Works with PostgreSQL, MySQL, and MariaDB
+- **Transaction safety** - All migrations run within database transactions
+- **Native Go integration** - No external CLI tools required
 
-## 🚀 Installation
+## Installation
 
 ```bash
 go get -u github.com/akfaiz/migris
 ```
 
-## 📚 Usage
+## Quick Start
 
-### 1. Create a Migration
+### Creating Migrations
 
-Migrations are defined in Go files using the schema builder:
+Define migrations using the fluent schema builder API:
 
 ```go
 package migrations
@@ -39,7 +38,7 @@ func upCreateUsersTable(c *schema.Context) error {
     return schema.Create(c, "users", func(table *schema.Blueprint) {
         table.ID()
         table.String("name")
-        table.String("email")
+        table.String("email").Unique()
         table.Timestamp("email_verified_at").Nullable()
         table.String("password")
         table.Timestamps()
@@ -51,80 +50,98 @@ func downCreateUsersTable(c *schema.Context) error {
 }
 ```
 
-This creates a `users` table with common fields.
+### Running Migrations
 
-### 2. Run Migrations
-
-You can manage migrations directly from Go code:
+Execute migrations programmatically within your Go application:
 
 ```go
-package migrate
+package main
 
 import (
-	"database/sql"
-	"fmt"
+    "database/sql"
+    "log"
 
-	"github.com/akfaiz/migris"
-	_ "migrations" // Import migrations
-	_ "github.com/lib/pq" // PostgreSQL driver
+    "github.com/akfaiz/migris"
+    _ "migrations" // Import migrations directory
+    _ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func Up() error {
-	m, err := newMigrate()
-	if err != nil {
-		return err
-	}
-	return m.Up()
-}
+func main() {
+    db, err := sql.Open("pgx", "postgres://user:password@localhost:5432/mydb?sslmode=disable")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
 
-func Create(name string) error {
-	m, err := newMigrate()
-	if err != nil {
-		return err
-	}
-	return m.Create(name)
-}
-
-func Reset() error {
-	m, err := newMigrate()
-	if err != nil {
-		return err
-	}
-	return m.Reset()
-}
-
-func Down() error {
-	m, err := newMigrate()
-	if err != nil {
-		return err
-	}
-	return m.Down()
-}
-
-func Status() error {
-	m, err := newMigrate()
-	if err != nil {
-		return err
-	}
-	return m.Status()
-}
-
-func newMigrate() (*migris.Migrate, error) {
-	dsn := "postgres://user:pass@localhost:5432/mydb?sslmode=disable"
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
-	return migris.New("postgres", migris.WithDB(db), migris.WithMigrationDir("migrations")), nil
+    m, err := migris.New("pgx", migris.WithDB(db), migris.WithMigrationDir("migrations"))
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    if err := m.Up(); err != nil {
+        log.Fatal(err)
+    }
+    
+    log.Println("Migrations completed successfully")
 }
 ```
 
-## 📖 Roadmap
+## Schema Builder API
 
-- [ ] Add SQLite support
-- [ ] CLI wrapper for quick usage
+The schema builder provides a fluent interface for defining database schemas:
 
-## 📄 License
+```go
+// Creating tables
+schema.Create(c, "posts", func(table *schema.Blueprint) {
+    table.ID()
+    table.String("title")
+    table.Text("content")
+    table.UnsignedBigInteger("user_id")
+    table.Boolean("published").Default(false)
+    table.Timestamps()
+    
+    // Foreign key constraints
+    table.Foreign("user_id").References("id").On("users")
+    
+    // Indexes
+    table.Index([]string{"title", "published"})
+})
 
-MIT License.  
-See [LICENSE](./LICENSE) for details.
+// Modifying existing tables
+schema.Table(c, "posts", func(table *schema.Blueprint) {
+    table.String("slug")
+    table.DropColumn("old_column")
+})
+```
+
+## Migration Operations
+
+Migris supports all standard migration operations:
+
+```go
+migrator.Up()           // Run all pending migrations
+migrator.Down()         // Rollback the last migration
+migrator.Reset()        // Rollback all migrations
+migrator.Status()       // Show migration status
+migrator.Create(name)   // Create a new migration file
+```
+
+## Database Support
+
+Currently supported databases:
+- **PostgreSQL** (via pgx driver)
+- **MySQL** 
+- **MariaDB**
+
+## Roadmap
+
+- [ ] SQLite support
+- [ ] Advanced schema introspection
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
+
+## License
+
+Released under the MIT License. See [LICENSE](./LICENSE) for details.
