@@ -9,6 +9,10 @@ import (
 )
 
 type grammar interface {
+	CompileTableExists(schema string, table string) (string, error)
+	CompileTables(schema string) (string, error)
+	CompileColumns(schema, table string) (string, error)
+	CompileIndexes(schema, table string) (string, error)
 	CompileCreate(bp *Blueprint) (string, error)
 	CompileAdd(bp *Blueprint) (string, error)
 	CompileChange(bp *Blueprint, command *command) (string, error)

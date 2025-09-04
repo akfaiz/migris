@@ -11,12 +11,10 @@ func init() {
 
 func upCreateUsersTable(c *schema.Context) error {
 	return schema.Create(c, "users", func(table *schema.Blueprint) {
-		table.ID()
-		table.String("name")
-		table.String("email")
-		table.Timestamp("email_verified_at").Nullable()
-		table.String("password")
-		table.Timestamps()
+		table.Increments("id").Primary()
+		table.String("username")
+		table.String("email").Unique()
+		table.Timestamp("created_at").UseCurrent()
 	})
 }
 

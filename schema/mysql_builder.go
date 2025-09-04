@@ -8,7 +8,6 @@ import (
 
 type mysqlBuilder struct {
 	baseBuilder
-	grammar *mysqlGrammar
 }
 
 var _ Builder = (*mysqlBuilder)(nil)
@@ -18,18 +17,7 @@ func newMysqlBuilder() Builder {
 
 	return &mysqlBuilder{
 		baseBuilder: baseBuilder{grammar: grammar},
-		grammar:     grammar,
 	}
-}
-
-func (b *mysqlBuilder) getCurrentDatabase(c *Context) (string, error) {
-	query := b.grammar.CompileCurrentDatabase()
-	row := c.QueryRow(query)
-	var dbName string
-	if err := row.Scan(&dbName); err != nil {
-		return "", err
-	}
-	return dbName, nil
 }
 
 func (b *mysqlBuilder) GetColumns(c *Context, tableName string) ([]*Column, error) {
@@ -37,12 +25,7 @@ func (b *mysqlBuilder) GetColumns(c *Context, tableName string) ([]*Column, erro
 		return nil, errors.New("invalid arguments: context is nil or table name is empty")
 	}
 
-	database, err := b.getCurrentDatabase(c)
-	if err != nil {
-		return nil, err
-	}
-
-	query, err := b.grammar.CompileColumns(database, tableName)
+	query, err := b.grammar.CompileColumns("", tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -78,12 +61,7 @@ func (b *mysqlBuilder) GetIndexes(c *Context, tableName string) ([]*Index, error
 		return nil, errors.New("invalid arguments: context is nil or table name is empty")
 	}
 
-	database, err := b.getCurrentDatabase(c)
-	if err != nil {
-		return nil, err
-	}
-
-	query, err := b.grammar.CompileIndexes(database, tableName)
+	query, err := b.grammar.CompileIndexes("", tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -112,12 +90,7 @@ func (b *mysqlBuilder) GetTables(c *Context) ([]*TableInfo, error) {
 		return nil, errors.New("invalid arguments: context is nil")
 	}
 
-	database, err := b.getCurrentDatabase(c)
-	if err != nil {
-		return nil, err
-	}
-
-	query, err := b.grammar.CompileTables(database)
+	query, err := b.grammar.CompileTables("")
 	if err != nil {
 		return nil, err
 	}
@@ -218,12 +191,7 @@ func (b *mysqlBuilder) HasTable(c *Context, name string) (bool, error) {
 		return false, errors.New("invalid arguments: context is nil or table name is empty")
 	}
 
-	database, err := b.getCurrentDatabase(c)
-	if err != nil {
-		return false, err
-	}
-
-	query, err := b.grammar.CompileTableExists(database, name)
+	query, err := b.grammar.CompileTableExists("", name)
 	if err != nil {
 		return false, err
 	}

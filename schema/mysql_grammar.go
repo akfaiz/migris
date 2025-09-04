@@ -23,47 +23,43 @@ func newMysqlGrammar() *mysqlGrammar {
 	}
 }
 
-func (g *mysqlGrammar) CompileCurrentDatabase() string {
-	return "SELECT DATABASE()"
-}
-
-func (g *mysqlGrammar) CompileTableExists(database string, table string) (string, error) {
+func (g *mysqlGrammar) CompileTableExists(schema string, table string) (string, error) {
 	return fmt.Sprintf(
 		"SELECT 1 FROM information_schema.tables WHERE table_schema = %s AND table_name = %s AND table_type = 'BASE TABLE'",
-		g.QuoteString(database),
+		util.Ternary(schema != "", g.QuoteString(schema), "schema()"),
 		g.QuoteString(table),
 	), nil
 }
 
-func (g *mysqlGrammar) CompileTables(database string) (string, error) {
+func (g *mysqlGrammar) CompileTables(schema string) (string, error) {
 	return fmt.Sprintf(
 		"select table_name as `name`, (data_length + index_length) as `size`, "+
 			"table_comment as `comment`, engine as `engine`, table_collation as `collation` "+
 			"from information_schema.tables where table_schema = %s and table_type in ('BASE TABLE', 'SYSTEM VERSIONED') "+
 			"order by table_name",
-		g.QuoteString(database),
+		util.Ternary(schema != "", g.QuoteString(schema), "schema()"),
 	), nil
 }
 
-func (g *mysqlGrammar) CompileColumns(database, table string) (string, error) {
+func (g *mysqlGrammar) CompileColumns(schema, table string) (string, error) {
 	return fmt.Sprintf(
 		"select column_name as `name`, data_type as `type_name`, column_type as `type`, "+
 			"collation_name as `collation`, is_nullable as `nullable`, "+
 			"column_default as `default`, column_comment as `comment`, extra as `extra` "+
 			"from information_schema.columns where table_schema = %s and table_name = %s "+
 			"order by ordinal_position asc",
-		g.QuoteString(database),
+		util.Ternary(schema != "", g.QuoteString(schema), "schema()"),
 		g.QuoteString(table),
 	), nil
 }
 
-func (g *mysqlGrammar) CompileIndexes(database, table string) (string, error) {
+func (g *mysqlGrammar) CompileIndexes(schema, table string) (string, error) {
 	return fmt.Sprintf(
 		"select index_name as `name`, group_concat(column_name order by seq_in_index) as `columns`, "+
 			"index_type as `type`, not non_unique as `unique` "+
 			"from information_schema.statistics where table_schema = %s and table_name = %s "+
 			"group by index_name, index_type, non_unique",
-		g.QuoteString(database),
+		util.Ternary(schema != "", g.QuoteString(schema), "schema()"),
 		g.QuoteString(table),
 	), nil
 }
