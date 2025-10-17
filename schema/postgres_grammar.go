@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -22,7 +23,7 @@ func (g *postgresGrammar) CompileTableExists(schema string, table string) (strin
 	), nil
 }
 
-func (g *postgresGrammar) CompileTables(schema string) (string, error) {
+func (g *postgresGrammar) CompileTables(_ string) (string, error) {
 	return "select c.relname as name, n.nspname as schema, pg_total_relation_size(c.oid) as size, " +
 		"obj_description(c.oid, 'pg_class') as comment from pg_class c, pg_namespace n " +
 		"where c.relkind in ('r', 'p') and n.oid = c.relnamespace and n.nspname not in ('pg_catalog', 'information_schema') " +
@@ -96,7 +97,7 @@ func (g *postgresGrammar) CompileAdd(blueprint *Blueprint) (string, error) {
 func (g *postgresGrammar) CompileChange(bp *Blueprint, command *command) (string, error) {
 	column := command.column
 	if column.name == "" {
-		return "", fmt.Errorf("column name cannot be empty for change operation")
+		return "", errors.New("column name cannot be empty for change operation")
 	}
 
 	var changes []string
@@ -137,14 +138,14 @@ func (g *postgresGrammar) CompileDropColumn(blueprint *Blueprint, command *comma
 
 func (g *postgresGrammar) CompileRenameColumn(blueprint *Blueprint, command *command) (string, error) {
 	if command.from == "" || command.to == "" {
-		return "", fmt.Errorf("table name, old column name, and new column name cannot be empty for rename operation")
+		return "", errors.New("table name, old column name, and new column name cannot be empty for rename operation")
 	}
 	return fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", blueprint.name, command.from, command.to), nil
 }
 
 func (g *postgresGrammar) CompileFullText(blueprint *Blueprint, command *command) (string, error) {
 	if slices.Contains(command.columns, "") {
-		return "", fmt.Errorf("fulltext index column cannot be empty")
+		return "", errors.New("fulltext index column cannot be empty")
 	}
 	indexName := command.index
 	if indexName == "" {
@@ -159,12 +160,17 @@ func (g *postgresGrammar) CompileFullText(blueprint *Blueprint, command *command
 		columns = append(columns, fmt.Sprintf("to_tsvector(%s, %s)", g.QuoteString(language), col))
 	}
 
-	return fmt.Sprintf("CREATE INDEX %s ON %s USING GIN (%s)", indexName, blueprint.name, strings.Join(columns, " || ")), nil
+	return fmt.Sprintf(
+		"CREATE INDEX %s ON %s USING GIN (%s)",
+		indexName,
+		blueprint.name,
+		strings.Join(columns, " || "),
+	), nil
 }
 
 func (g *postgresGrammar) CompileIndex(blueprint *Blueprint, command *command) (string, error) {
 	if slices.Contains(command.columns, "") {
-		return "", fmt.Errorf("index column cannot be empty")
+		return "", errors.New("index column cannot be empty")
 	}
 	indexName := command.index
 	if indexName == "" {
@@ -180,7 +186,7 @@ func (g *postgresGrammar) CompileIndex(blueprint *Blueprint, command *command) (
 
 func (g *postgresGrammar) CompileUnique(blueprint *Blueprint, command *command) (string, error) {
 	if slices.Contains(command.columns, "") {
-		return "", fmt.Errorf("unique index column cannot be empty")
+		return "", errors.New("unique index column cannot be empty")
 	}
 	indexName := command.index
 	if indexName == "" {
@@ -212,18 +218,23 @@ func (g *postgresGrammar) CompileUnique(blueprint *Blueprint, command *command) 
 
 func (g *postgresGrammar) CompilePrimary(blueprint *Blueprint, command *command) (string, error) {
 	if slices.Contains(command.columns, "") {
-		return "", fmt.Errorf("primary key index column cannot be empty")
+		return "", errors.New("primary key index column cannot be empty")
 	}
 	indexName := command.index
 	if indexName == "" {
 		indexName = g.CreateIndexName(blueprint, "primary", command.columns...)
 	}
-	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, g.Columnize(command.columns)), nil
+	return fmt.Sprintf(
+		"ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)",
+		blueprint.name,
+		indexName,
+		g.Columnize(command.columns),
+	), nil
 }
 
 func (g *postgresGrammar) CompileDropIndex(_ *Blueprint, command *command) (string, error) {
 	if command.index == "" {
-		return "", fmt.Errorf("index name cannot be empty for drop operation")
+		return "", errors.New("index name cannot be empty for drop operation")
 	}
 	return fmt.Sprintf("DROP INDEX %s", command.index), nil
 }
@@ -234,7 +245,7 @@ func (g *postgresGrammar) CompileDropFulltext(blueprint *Blueprint, command *com
 
 func (g *postgresGrammar) CompileDropUnique(blueprint *Blueprint, command *command) (string, error) {
 	if command.index == "" {
-		return "", fmt.Errorf("index name cannot be empty for drop operation")
+		return "", errors.New("index name cannot be empty for drop operation")
 	}
 	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", blueprint.name, command.index), nil
 }
@@ -249,7 +260,11 @@ func (g *postgresGrammar) CompileDropPrimary(blueprint *Blueprint, command *comm
 
 func (g *postgresGrammar) CompileRenameIndex(_ *Blueprint, command *command) (string, error) {
 	if command.from == "" || command.to == "" {
-		return "", fmt.Errorf("index names for rename operation cannot be empty: oldName=%s, newName=%s", command.from, command.to)
+		return "", fmt.Errorf(
+			"index names for rename operation cannot be empty: oldName=%s, newName=%s",
+			command.from,
+			command.to,
+		)
 	}
 	return fmt.Sprintf("ALTER INDEX %s RENAME TO %s", command.from, command.to), nil
 }
@@ -280,7 +295,7 @@ func (g *postgresGrammar) CompileForeign(blueprint *Blueprint, command *command)
 
 func (g *postgresGrammar) CompileDropForeign(blueprint *Blueprint, command *command) (string, error) {
 	if command.index == "" {
-		return "", fmt.Errorf("foreign key name cannot be empty for drop operation")
+		return "", errors.New("foreign key name cannot be empty for drop operation")
 	}
 	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", blueprint.name, command.index), nil
 }
@@ -296,9 +311,8 @@ func (g *postgresGrammar) CompileComment(blueprint *Blueprint, command *command)
 		sql := fmt.Sprintf("COMMENT ON COLUMN %s.%s IS ", blueprint.name, command.column.name)
 		if command.column.comment == nil {
 			return sql + "NULL"
-		} else {
-			return sql + fmt.Sprintf("'%s'", *command.column.comment)
 		}
+		return sql + fmt.Sprintf("'%s'", *command.column.comment)
 	}
 	return ""
 }
@@ -307,7 +321,7 @@ func (g *postgresGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 	var columns []string
 	for _, col := range blueprint.getAddedColumns() {
 		if col.name == "" {
-			return nil, fmt.Errorf("column name cannot be empty")
+			return nil, errors.New("column name cannot be empty")
 		}
 		sql := col.name + " " + g.getType(col)
 		for _, modifier := range g.modifiers() {
@@ -333,6 +347,7 @@ func (g *postgresGrammar) getConstraints(blueprint *Blueprint) []string {
 	return constrains
 }
 
+// nolint: dupl // Similar code exists in other grammar files
 func (g *postgresGrammar) getType(col *columnDefinition) string {
 	typeMapFunc := map[string]func(*columnDefinition) string{
 		columnTypeChar:          g.typeChar,
@@ -351,8 +366,8 @@ func (g *postgresGrammar) getType(col *columnDefinition) string {
 		columnTypeDecimal:       g.typeDecimal,
 		columnTypeBoolean:       g.typeBoolean,
 		columnTypeEnum:          g.typeEnum,
-		columnTypeJson:          g.typeJson,
-		columnTypeJsonb:         g.typeJsonb,
+		columnTypeJSON:          g.typeJSON,
+		columnTypeJSONB:         g.typeJSONB,
 		columnTypeDate:          g.typeDate,
 		columnTypeDateTime:      g.typeDateTime,
 		columnTypeDateTimeTz:    g.typeDateTimeTz,
@@ -362,7 +377,7 @@ func (g *postgresGrammar) getType(col *columnDefinition) string {
 		columnTypeTimestampTz:   g.typeTimestampTz,
 		columnTypeYear:          g.typeYear,
 		columnTypeBinary:        g.typeBinary,
-		columnTypeUuid:          g.typeUuid,
+		columnTypeUUID:          g.typeUUID,
 		columnTypeGeography:     g.typeGeography,
 		columnTypeGeometry:      g.typeGeometry,
 		columnTypePoint:         g.typePoint,
@@ -456,11 +471,11 @@ func (g *postgresGrammar) typeEnum(col *columnDefinition) string {
 	return "VARCHAR(255) CHECK (" + col.name + " IN (" + strings.Join(enumValues, ", ") + "))"
 }
 
-func (g *postgresGrammar) typeJson(_ *columnDefinition) string {
+func (g *postgresGrammar) typeJSON(_ *columnDefinition) string {
 	return "JSON"
 }
 
-func (g *postgresGrammar) typeJsonb(_ *columnDefinition) string {
+func (g *postgresGrammar) typeJSONB(_ *columnDefinition) string {
 	return "JSONB"
 }
 
@@ -518,7 +533,7 @@ func (g *postgresGrammar) typeBinary(_ *columnDefinition) string {
 	return "BYTEA"
 }
 
-func (g *postgresGrammar) typeUuid(_ *columnDefinition) string {
+func (g *postgresGrammar) typeUUID(_ *columnDefinition) string {
 	return "UUID"
 }
 

@@ -1,10 +1,11 @@
-package schema
+package schema //nolint:testpackage // Need to access unexported members for testing
 
 import (
 	"testing"
 
 	"github.com/akfaiz/migris/internal/dialect"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMysqlGrammar_CompileCreate(t *testing.T) {
@@ -85,10 +86,10 @@ func TestMysqlGrammar_CompileCreate(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := g.CompileCreate(bp)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -153,7 +154,7 @@ func TestMysqlGrammar_CompileAdd(t *testing.T) {
 		{
 			name:  "no columns to add returns empty string",
 			table: "users",
-			blueprint: func(table *Blueprint) {
+			blueprint: func(_ *Blueprint) {
 				// No columns added
 			},
 			want:    "",
@@ -175,10 +176,10 @@ func TestMysqlGrammar_CompileAdd(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := g.CompileAdd(bp)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -197,7 +198,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 		{
 			name:      "no changed columns returns nil",
 			table:     "users",
-			blueprint: func(table *Blueprint) {},
+			blueprint: func(_ *Blueprint) {},
 			want:      nil,
 			wantErr:   false,
 		},
@@ -274,7 +275,9 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 					Comment("User email address").
 					Change()
 			},
-			want:    []string{"ALTER TABLE users MODIFY COLUMN email VARCHAR(255) NOT NULL DEFAULT 'example@test.com' COMMENT 'User email address'"},
+			want: []string{
+				"ALTER TABLE users MODIFY COLUMN email VARCHAR(255) NOT NULL DEFAULT 'example@test.com' COMMENT 'User email address'",
+			},
 			wantErr: false,
 		},
 		{
@@ -304,12 +307,12 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table, grammar: g, dialect: dialect.MySQL}
 			tt.blueprint(bp)
-			statements, err := bp.toSql()
+			statements, err := bp.toSQL()
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, statements, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -356,10 +359,10 @@ func TestMysqlGrammar_CompileRename(t *testing.T) {
 			bp.rename(tt.newName)
 			got, err := g.CompileRename(bp, bp.commands[0])
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -410,10 +413,10 @@ func TestMysqlGrammar_CompileDrop(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			got, err := g.CompileDrop(bp)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -464,10 +467,10 @@ func TestMysqlGrammar_CompileDropIfExists(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			got, err := g.CompileDropIfExists(bp)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -527,10 +530,10 @@ func TestMysqlGrammar_CompileDropColumn(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := g.CompileDropColumn(bp, bp.commands[0])
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -584,10 +587,10 @@ func TestMysqlGrammar_CompileRenameColumn(t *testing.T) {
 			command := &command{from: tt.oldName, to: tt.newName}
 			got, err := g.CompileRenameColumn(bp, command)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -706,10 +709,10 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := g.CompileForeign(bp, bp.commands[0])
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -746,10 +749,10 @@ func TestMysqlGrammar_CompileDropForeign(t *testing.T) {
 			command := &command{index: tt.fkName}
 			got, err := g.CompileDropForeign(bp, command)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -826,10 +829,10 @@ func TestMysqlGrammar_CompileIndex(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := g.CompileIndex(bp, bp.commands[0])
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -914,10 +917,10 @@ func TestMysqlGrammar_CompileUnique(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := g.CompileUnique(bp, bp.commands[0])
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -1010,10 +1013,10 @@ func TestMysqlGrammar_CompilePrimary(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := g.CompilePrimary(bp, bp.commands[0])
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -1106,10 +1109,10 @@ func TestMysqlGrammar_CompileFullText(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := g.CompileFullText(bp, bp.commands[0])
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -1146,10 +1149,10 @@ func TestMysqlGrammar_CompileDropIndex(t *testing.T) {
 			command := &command{index: tt.indexName}
 			got, err := g.CompileDropIndex(bp, command)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -1185,10 +1188,10 @@ func TestMysqlGrammar_CompileDropUnique(t *testing.T) {
 			command := &command{index: tt.indexName}
 			got, err := g.CompileDropUnique(bp, command)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -1224,10 +1227,10 @@ func TestMysqlGrammar_CompileDropFulltext(t *testing.T) {
 			command := &command{index: tt.indexName}
 			got, err := g.CompileDropFulltext(bp, command)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -1286,10 +1289,10 @@ func TestMysqlGrammar_CompileDropPrimary(t *testing.T) {
 			command := &command{index: tt.indexName}
 			got, err := g.CompileDropPrimary(bp, command)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -1375,10 +1378,10 @@ func TestMysqlGrammar_CompileRenameIndex(t *testing.T) {
 			command := &command{from: tt.oldName, to: tt.newName}
 			got, err := g.CompileRenameIndex(bp, command)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected SQL to match for test case: %s", tt.name)
 		})
 	}
@@ -1795,10 +1798,10 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := g.getColumns(bp)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				return
 			}
-			assert.NoError(t, err, "Did not expect error for test case: %s", tt.name)
+			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
 			assert.Equal(t, tt.want, got, "Expected columns to match for test case: %s", tt.name)
 		})
 	}

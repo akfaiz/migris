@@ -1,9 +1,10 @@
-package schema
+package schema //nolint:testpackage // Need to access unexported members for testing
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPgGrammar_CompileCreate(t *testing.T) {
@@ -57,11 +58,11 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := grammar.CompileCreate(bp)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got, "SQL statement mismatch for %s", tt.name)
 		})
 	}
@@ -167,7 +168,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 		{
 			name:      "No columns to add",
 			table:     "users",
-			blueprint: func(table *Blueprint) {},
+			blueprint: func(_ *Blueprint) {},
 			want:      "",
 			wantErr:   false,
 		},
@@ -205,11 +206,11 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := grammar.CompileAdd(bp)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -239,7 +240,9 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("email", 500).Default("user@mail.com").Change()
 			},
-			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email SET DEFAULT 'user@mail.com'"},
+			want: []string{
+				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email SET DEFAULT 'user@mail.com'",
+			},
 		},
 		{
 			name:  "Change multiple columns",
@@ -259,7 +262,9 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("email", 500).Default(nil).Change()
 			},
-			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email SET DEFAULT NULL"},
+			want: []string{
+				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email SET DEFAULT NULL",
+			},
 		},
 		{
 			name:  "Add comment to column",
@@ -278,7 +283,10 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("email", 500).Comment("").Change()
 			},
-			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500)", "COMMENT ON COLUMN users.email IS ''"},
+			want: []string{
+				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500)",
+				"COMMENT ON COLUMN users.email IS ''",
+			},
 		},
 		{
 			name:  "Set column to not nullable",
@@ -299,7 +307,7 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 		{
 			name:      "No changes",
 			table:     "users",
-			blueprint: func(table *Blueprint) {},
+			blueprint: func(_ *Blueprint) {},
 			wantErr:   false,
 		},
 	}
@@ -308,13 +316,13 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table, grammar: grammar}
 			tt.blueprint(bp)
-			got, err := bp.toSql()
+			got, err := bp.toSQL()
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -342,11 +350,11 @@ func TestPgGrammar_CompileDrop(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			got, err := grammar.CompileDrop(bp)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -374,11 +382,11 @@ func TestPgGrammar_CompileDropIfExists(t *testing.T) {
 			bp := &Blueprint{name: tt.table}
 			got, err := grammar.CompileDropIfExists(bp)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -409,11 +417,11 @@ func TestPgGrammar_CompileRename(t *testing.T) {
 			bp.rename(tt.newName)
 			got, err := grammar.CompileRename(bp, bp.commands[0])
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -512,13 +520,16 @@ func TestPgGrammar_CompileDropColumn(t *testing.T) {
 				table.DropColumn("email", "phone")
 				table.DropColumn("address")
 			},
-			wants:   []string{"ALTER TABLE users DROP COLUMN email, DROP COLUMN phone", "ALTER TABLE users DROP COLUMN address"},
+			wants: []string{
+				"ALTER TABLE users DROP COLUMN email, DROP COLUMN phone",
+				"ALTER TABLE users DROP COLUMN address",
+			},
 			wantErr: false,
 		},
 		{
 			name:      "No columns to drop",
 			table:     "users",
-			blueprint: func(table *Blueprint) {},
+			blueprint: func(_ *Blueprint) {},
 			wants:     nil,
 			wantErr:   false,
 		},
@@ -528,13 +539,13 @@ func TestPgGrammar_CompileDropColumn(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bp := &Blueprint{name: tt.table, grammar: grammar}
 			tt.blueprint(bp)
-			got, err := bp.toSql()
+			got, err := bp.toSQL()
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.wants, got)
 		})
 	}
@@ -588,11 +599,11 @@ func TestPgGrammar_CompileRenameColumn(t *testing.T) {
 			command := &command{from: tt.oldName, to: tt.newName}
 			got, err := grammar.CompileRenameColumn(bp, command)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -633,12 +644,12 @@ func TestPgGrammar_CompileDropIndex(t *testing.T) {
 			command := &command{index: tt.indexName}
 			got, err := grammar.CompileDropIndex(bp, command)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Empty(t, got)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -679,11 +690,11 @@ func TestPgGrammar_CompileDropPrimary(t *testing.T) {
 			command := &command{index: tt.indexName}
 			got, err := grammar.CompileDropPrimary(tt.blueprint, command)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -745,11 +756,11 @@ func TestPgGrammar_CompileRenameIndex(t *testing.T) {
 			command := &command{from: tt.oldName, to: tt.newName}
 			got, err := grammar.CompileRenameIndex(bp, command)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -923,11 +934,11 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := grammar.CompileForeign(bp, bp.commands[0])
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -972,11 +983,11 @@ func TestPgGrammar_CompileDropForeign(t *testing.T) {
 			command := &command{index: tt.foreignKeyName}
 			got, err := grammar.CompileDropForeign(bp, command)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -1052,11 +1063,11 @@ func TestPgGrammar_CompileIndex(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := grammar.CompileIndex(bp, bp.commands[0])
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -1160,11 +1171,11 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := grammar.CompileUnique(bp, bp.commands[0])
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -1258,11 +1269,11 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := grammar.CompileFullText(bp, bp.commands[0])
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -1309,12 +1320,12 @@ func TestPgGrammar_CompileDropUnique(t *testing.T) {
 			command := &command{index: tt.indexName}
 			got, err := grammar.CompileDropUnique(bp, command)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Empty(t, got)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -1367,12 +1378,12 @@ func TestPgGrammar_CompileDropFulltext(t *testing.T) {
 			command := &command{index: tt.indexName}
 			got, err := grammar.CompileDropFulltext(bp, command)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Empty(t, got)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -1448,11 +1459,11 @@ func TestPgGrammar_CompilePrimary(t *testing.T) {
 			tt.blueprint(bp)
 			got, err := grammar.CompilePrimary(bp, bp.commands[0])
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}

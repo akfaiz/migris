@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -127,7 +128,7 @@ func (g *mysqlGrammar) CompileAdd(blueprint *Blueprint) (string, error) {
 func (g *mysqlGrammar) CompileChange(bp *Blueprint, command *command) (string, error) {
 	column := command.column
 	if column.name == "" {
-		return "", fmt.Errorf("column name cannot be empty for change operation")
+		return "", errors.New("column name cannot be empty for change operation")
 	}
 
 	sql := fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s %s", bp.name, column.name, g.getType(column))
@@ -144,26 +145,26 @@ func (g *mysqlGrammar) CompileRename(blueprint *Blueprint, command *command) (st
 
 func (g *mysqlGrammar) CompileDrop(blueprint *Blueprint) (string, error) {
 	if blueprint.name == "" {
-		return "", fmt.Errorf("table name cannot be empty")
+		return "", errors.New("table name cannot be empty")
 	}
 	return fmt.Sprintf("DROP TABLE %s", blueprint.name), nil
 }
 
 func (g *mysqlGrammar) CompileDropIfExists(blueprint *Blueprint) (string, error) {
 	if blueprint.name == "" {
-		return "", fmt.Errorf("table name cannot be empty")
+		return "", errors.New("table name cannot be empty")
 	}
 	return fmt.Sprintf("DROP TABLE IF EXISTS %s", blueprint.name), nil
 }
 
 func (g *mysqlGrammar) CompileDropColumn(blueprint *Blueprint, command *command) (string, error) {
 	if len(command.columns) == 0 {
-		return "", fmt.Errorf("no columns to drop")
+		return "", errors.New("no columns to drop")
 	}
 	columns := make([]string, len(command.columns))
 	for i, col := range command.columns {
 		if col == "" {
-			return "", fmt.Errorf("column name cannot be empty")
+			return "", errors.New("column name cannot be empty")
 		}
 		columns[i] = col
 	}
@@ -173,14 +174,14 @@ func (g *mysqlGrammar) CompileDropColumn(blueprint *Blueprint, command *command)
 
 func (g *mysqlGrammar) CompileRenameColumn(blueprint *Blueprint, command *command) (string, error) {
 	if command.from == "" || command.to == "" {
-		return "", fmt.Errorf("old and new column names cannot be empty")
+		return "", errors.New("old and new column names cannot be empty")
 	}
 	return fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", blueprint.name, command.from, command.to), nil
 }
 
 func (g *mysqlGrammar) CompileIndex(blueprint *Blueprint, command *command) (string, error) {
 	if slices.Contains(command.columns, "") {
-		return "", fmt.Errorf("index column cannot be empty")
+		return "", errors.New("index column cannot be empty")
 	}
 
 	indexName := command.index
@@ -198,7 +199,7 @@ func (g *mysqlGrammar) CompileIndex(blueprint *Blueprint, command *command) (str
 
 func (g *mysqlGrammar) CompileUnique(blueprint *Blueprint, command *command) (string, error) {
 	if slices.Contains(command.columns, "") {
-		return "", fmt.Errorf("unique column cannot be empty")
+		return "", errors.New("unique column cannot be empty")
 	}
 
 	indexName := command.index
@@ -215,7 +216,7 @@ func (g *mysqlGrammar) CompileUnique(blueprint *Blueprint, command *command) (st
 
 func (g *mysqlGrammar) CompileFullText(blueprint *Blueprint, command *command) (string, error) {
 	if slices.Contains(command.columns, "") {
-		return "", fmt.Errorf("fulltext index column cannot be empty")
+		return "", errors.New("fulltext index column cannot be empty")
 	}
 
 	indexName := command.index
@@ -223,12 +224,17 @@ func (g *mysqlGrammar) CompileFullText(blueprint *Blueprint, command *command) (
 		indexName = g.CreateIndexName(blueprint, "fulltext", command.columns...)
 	}
 
-	return fmt.Sprintf("CREATE FULLTEXT INDEX %s ON %s (%s)", indexName, blueprint.name, g.Columnize(command.columns)), nil
+	return fmt.Sprintf(
+		"CREATE FULLTEXT INDEX %s ON %s (%s)",
+		indexName,
+		blueprint.name,
+		g.Columnize(command.columns),
+	), nil
 }
 
 func (g *mysqlGrammar) CompilePrimary(blueprint *Blueprint, command *command) (string, error) {
 	if slices.Contains(command.columns, "") {
-		return "", fmt.Errorf("primary key column cannot be empty")
+		return "", errors.New("primary key column cannot be empty")
 	}
 
 	indexName := command.index
@@ -236,19 +242,24 @@ func (g *mysqlGrammar) CompilePrimary(blueprint *Blueprint, command *command) (s
 		indexName = g.CreateIndexName(blueprint, "primary", command.columns...)
 	}
 
-	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)", blueprint.name, indexName, g.Columnize(command.columns)), nil
+	return fmt.Sprintf(
+		"ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)",
+		blueprint.name,
+		indexName,
+		g.Columnize(command.columns),
+	), nil
 }
 
 func (g *mysqlGrammar) CompileDropIndex(blueprint *Blueprint, command *command) (string, error) {
 	if command.index == "" {
-		return "", fmt.Errorf("index name cannot be empty")
+		return "", errors.New("index name cannot be empty")
 	}
 	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", blueprint.name, command.index), nil
 }
 
 func (g *mysqlGrammar) CompileDropUnique(blueprint *Blueprint, command *command) (string, error) {
 	if command.index == "" {
-		return "", fmt.Errorf("unique index name cannot be empty")
+		return "", errors.New("unique index name cannot be empty")
 	}
 	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", blueprint.name, command.index), nil
 }
@@ -263,14 +274,14 @@ func (g *mysqlGrammar) CompileDropPrimary(blueprint *Blueprint, _ *command) (str
 
 func (g *mysqlGrammar) CompileRenameIndex(blueprint *Blueprint, command *command) (string, error) {
 	if command.from == "" || command.to == "" {
-		return "", fmt.Errorf("old and new index names cannot be empty")
+		return "", errors.New("old and new index names cannot be empty")
 	}
 	return fmt.Sprintf("ALTER TABLE %s RENAME INDEX %s TO %s", blueprint.name, command.from, command.to), nil
 }
 
 func (g *mysqlGrammar) CompileDropForeign(blueprint *Blueprint, command *command) (string, error) {
 	if command.index == "" {
-		return "", fmt.Errorf("foreign key name cannot be empty")
+		return "", errors.New("foreign key name cannot be empty")
 	}
 	return fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s", blueprint.name, command.index), nil
 }
@@ -283,7 +294,7 @@ func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 	var columns []string
 	for _, col := range blueprint.getAddedColumns() {
 		if col.name == "" {
-			return nil, fmt.Errorf("column name cannot be empty")
+			return nil, errors.New("column name cannot be empty")
 		}
 		sql := col.name + " " + g.getType(col)
 		sql += g.modifyUnsigned(col)
@@ -315,6 +326,7 @@ func (g *mysqlGrammar) getConstraints(blueprint *Blueprint) []string {
 	return constrains
 }
 
+// nolint: dupl // Similar code exists in other grammar files
 func (g *mysqlGrammar) getType(col *columnDefinition) string {
 	typeFuncMap := map[string]func(*columnDefinition) string{
 		columnTypeChar:          g.typeChar,
@@ -333,8 +345,8 @@ func (g *mysqlGrammar) getType(col *columnDefinition) string {
 		columnTypeDecimal:       g.typeDecimal,
 		columnTypeBoolean:       g.typeBoolean,
 		columnTypeEnum:          g.typeEnum,
-		columnTypeJson:          g.typeJson,
-		columnTypeJsonb:         g.typeJsonb,
+		columnTypeJSON:          g.typeJSON,
+		columnTypeJSONB:         g.typeJSONB,
 		columnTypeDate:          g.typeDate,
 		columnTypeDateTime:      g.typeDateTime,
 		columnTypeDateTimeTz:    g.typeDateTimeTz,
@@ -344,7 +356,7 @@ func (g *mysqlGrammar) getType(col *columnDefinition) string {
 		columnTypeTimestampTz:   g.typeTimestampTz,
 		columnTypeYear:          g.typeYear,
 		columnTypeBinary:        g.typeBinary,
-		columnTypeUuid:          g.typeUuid,
+		columnTypeUUID:          g.typeUUID,
 		columnTypeGeography:     g.typeGeography,
 		columnTypeGeometry:      g.typeGeometry,
 		columnTypePoint:         g.typePoint,
@@ -363,39 +375,39 @@ func (g *mysqlGrammar) typeString(col *columnDefinition) string {
 	return fmt.Sprintf("VARCHAR(%d)", *col.length)
 }
 
-func (g *mysqlGrammar) typeTinyText(col *columnDefinition) string {
+func (g *mysqlGrammar) typeTinyText(_ *columnDefinition) string {
 	return "TINYTEXT"
 }
 
-func (g *mysqlGrammar) typeText(col *columnDefinition) string {
+func (g *mysqlGrammar) typeText(_ *columnDefinition) string {
 	return "TEXT"
 }
 
-func (g *mysqlGrammar) typeMediumText(col *columnDefinition) string {
+func (g *mysqlGrammar) typeMediumText(_ *columnDefinition) string {
 	return "MEDIUMTEXT"
 }
 
-func (g *mysqlGrammar) typeLongText(col *columnDefinition) string {
+func (g *mysqlGrammar) typeLongText(_ *columnDefinition) string {
 	return "LONGTEXT"
 }
 
-func (g *mysqlGrammar) typeBigInteger(col *columnDefinition) string {
+func (g *mysqlGrammar) typeBigInteger(_ *columnDefinition) string {
 	return "BIGINT"
 }
 
-func (g *mysqlGrammar) typeInteger(col *columnDefinition) string {
+func (g *mysqlGrammar) typeInteger(_ *columnDefinition) string {
 	return "INT"
 }
 
-func (g *mysqlGrammar) typeMediumInteger(col *columnDefinition) string {
+func (g *mysqlGrammar) typeMediumInteger(_ *columnDefinition) string {
 	return "MEDIUMINT"
 }
 
-func (g *mysqlGrammar) typeSmallInteger(col *columnDefinition) string {
+func (g *mysqlGrammar) typeSmallInteger(_ *columnDefinition) string {
 	return "SMALLINT"
 }
 
-func (g *mysqlGrammar) typeTinyInteger(col *columnDefinition) string {
+func (g *mysqlGrammar) typeTinyInteger(_ *columnDefinition) string {
 	return "TINYINT"
 }
 
@@ -406,7 +418,7 @@ func (g *mysqlGrammar) typeFloat(col *columnDefinition) string {
 	return "FLOAT"
 }
 
-func (g *mysqlGrammar) typeDouble(col *columnDefinition) string {
+func (g *mysqlGrammar) typeDouble(_ *columnDefinition) string {
 	return "DOUBLE"
 }
 
@@ -414,7 +426,7 @@ func (g *mysqlGrammar) typeDecimal(col *columnDefinition) string {
 	return fmt.Sprintf("DECIMAL(%d, %d)", *col.total, *col.places)
 }
 
-func (g *mysqlGrammar) typeBoolean(col *columnDefinition) string {
+func (g *mysqlGrammar) typeBoolean(_ *columnDefinition) string {
 	return "TINYINT(1)"
 }
 
@@ -426,15 +438,15 @@ func (g *mysqlGrammar) typeEnum(col *columnDefinition) string {
 	return fmt.Sprintf("ENUM(%s)", strings.Join(allowedValues, ", "))
 }
 
-func (g *mysqlGrammar) typeJson(col *columnDefinition) string {
+func (g *mysqlGrammar) typeJSON(_ *columnDefinition) string {
 	return "JSON"
 }
 
-func (g *mysqlGrammar) typeJsonb(col *columnDefinition) string {
+func (g *mysqlGrammar) typeJSONB(_ *columnDefinition) string {
 	return "JSON"
 }
 
-func (g *mysqlGrammar) typeDate(col *columnDefinition) string {
+func (g *mysqlGrammar) typeDate(_ *columnDefinition) string {
 	return "DATE"
 }
 
@@ -491,7 +503,7 @@ func (g *mysqlGrammar) typeTimestampTz(col *columnDefinition) string {
 	return g.typeTimestamp(col)
 }
 
-func (g *mysqlGrammar) typeYear(col *columnDefinition) string {
+func (g *mysqlGrammar) typeYear(_ *columnDefinition) string {
 	return "YEAR"
 }
 
@@ -502,14 +514,17 @@ func (g *mysqlGrammar) typeBinary(col *columnDefinition) string {
 	return "BLOB"
 }
 
-func (g *mysqlGrammar) typeUuid(col *columnDefinition) string {
+func (g *mysqlGrammar) typeUUID(_ *columnDefinition) string {
 	return "CHAR(36)" // Default UUID length
 }
 
 func (g *mysqlGrammar) typeGeometry(col *columnDefinition) string {
 	subtype := util.Ternary(col.subtype != nil, util.PtrOf(strings.ToUpper(*col.subtype)), nil)
 	if subtype != nil {
-		if !slices.Contains([]string{"POINT", "LINESTRING", "POLYGON", "GEOMETRYCOLLECTION", "MULTIPOINT", "MULTILINESTRING"}, *subtype) {
+		if !slices.Contains(
+			[]string{"POINT", "LINESTRING", "POLYGON", "GEOMETRYCOLLECTION", "MULTIPOINT", "MULTILINESTRING"},
+			*subtype,
+		) {
 			subtype = nil
 		}
 	}

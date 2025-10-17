@@ -2,7 +2,7 @@ package parser
 
 import "regexp"
 
-func ParseMigrationName(filename string) (tableName string, create bool) {
+func ParseMigrationName(filename string) (string, bool) {
 	// Regex patterns for common migration styles
 	createPattern := regexp.MustCompile(`^create_(?P<table>[a-z0-9_]+?)(?:_table)?$`)
 	addColPattern := regexp.MustCompile(`^add_(?P<columns>[a-z0-9_]+?)_to_(?P<table>[a-z0-9_]+?)(?:_table)?$`)

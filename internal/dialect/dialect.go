@@ -21,6 +21,8 @@ func (d Dialect) GooseDialect() database.Dialect {
 		return database.DialectMySQL
 	case Postgres:
 		return database.DialectPostgres
+	case Unknown:
+		return database.DialectCustom
 	default:
 		return database.DialectCustom
 	}

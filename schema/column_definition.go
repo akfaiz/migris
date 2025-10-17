@@ -72,7 +72,7 @@ type columnDefinition struct {
 //
 // Example:
 //
-// schema.Timestamp("created_at").Default(schema.Expression("CURRENT_TIMESTAMP"))
+// schema.Timestamp("created_at").Default(schema.Expression("CURRENT_TIMESTAMP")).
 type Expression string
 
 func (e Expression) String() string {

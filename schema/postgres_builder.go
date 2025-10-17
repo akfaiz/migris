@@ -26,6 +26,8 @@ func (b *postgresBuilder) parseSchemaAndTable(name string) (string, string) {
 	return "", names[0]
 }
 
+const defaultPostgresSchema = "public"
+
 func (b *postgresBuilder) GetColumns(c *Context, tableName string) ([]*Column, error) {
 	if c == nil || tableName == "" {
 		return nil, errors.New("invalid arguments: context is nil or table name is empty")
@@ -33,7 +35,7 @@ func (b *postgresBuilder) GetColumns(c *Context, tableName string) ([]*Column, e
 
 	schema, name := b.parseSchemaAndTable(tableName)
 	if schema == "" {
-		schema = "public" // Default schema for PostgreSQL
+		schema = defaultPostgresSchema
 	}
 	query, err := b.grammar.CompileColumns(schema, name)
 	if err != nil {
@@ -44,18 +46,21 @@ func (b *postgresBuilder) GetColumns(c *Context, tableName string) ([]*Column, e
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close()
 
 	var columns []*Column
 	for rows.Next() {
 		var col Column
-		if err := rows.Scan(
+		if err = rows.Scan(
 			&col.Name, &col.TypeName, &col.TypeFull, &col.Collation,
 			&col.Nullable, &col.DefaultVal, &col.Comment,
 		); err != nil {
 			return nil, err
 		}
 		columns = append(columns, &col)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return columns, nil
@@ -77,17 +82,20 @@ func (b *postgresBuilder) GetIndexes(c *Context, tableName string) ([]*Index, er
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close()
 
 	var indexes []*Index
 	for rows.Next() {
 		var index Index
 		var columnsStr string
-		if err := rows.Scan(&index.Name, &columnsStr, &index.Type, &index.Unique, &index.Primary); err != nil {
+		if err = rows.Scan(&index.Name, &columnsStr, &index.Type, &index.Unique, &index.Primary); err != nil {
 			return nil, err
 		}
 		index.Columns = strings.Split(columnsStr, ",")
 		indexes = append(indexes, &index)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return indexes, nil
@@ -107,15 +115,18 @@ func (b *postgresBuilder) GetTables(c *Context) ([]*TableInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close()
 
 	var tables []*TableInfo
 	for rows.Next() {
 		var table TableInfo
-		if err := rows.Scan(&table.Name, &table.Schema, &table.Size, &table.Comment); err != nil {
+		if err = rows.Scan(&table.Name, &table.Schema, &table.Size, &table.Comment); err != nil {
 			return nil, err
 		}
 		tables = append(tables, &table)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return tables, nil
@@ -157,6 +168,7 @@ func (b *postgresBuilder) HasColumns(c *Context, tableName string, columnNames [
 	return true, nil // All specified columns exist
 }
 
+// nolint: dupl,godoclint // Similar code exists in other builder files
 func (b *postgresBuilder) HasIndex(c *Context, tableName string, indexes []string) (bool, error) {
 	if c == nil || tableName == "" {
 		return false, errors.New("invalid arguments: context is nil or table name is empty")
@@ -216,7 +228,7 @@ func (b *postgresBuilder) HasTable(c *Context, name string) (bool, error) {
 	}
 
 	var exists bool
-	if err := c.QueryRow(query).Scan(&exists); err != nil {
+	if err = c.QueryRow(query).Scan(&exists); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil // Table does not exist
 		}
