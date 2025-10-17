@@ -1,0 +1,24 @@
+pre-commit:
+  parallel: true
+  commands:
+    fmt:
+      glob: "*.go"
+      run: go fmt ./...
+
+    mod-tidy:
+      glob: "{go.mod,go.sum}"
+      run: go mod tidy
+
+    golangci-lint:
+      glob: "*.go"
+      run: golangci-lint run --fix --timeout 5m
+
+commit-msg:
+  commands:
+    check-message:
+      run: |
+        if ! grep -qE "^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?: .+" {1}; then
+          echo "Commit message must follow conventional commits format"
+          echo "Example: feat: add new feature"
+          exit 1
+        fi

@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -41,7 +42,7 @@ type baseGrammar struct{}
 func (g *baseGrammar) CompileForeign(blueprint *Blueprint, command *command) (string, error) {
 	if len(command.columns) == 0 || slices.Contains(command.columns, "") || command.on == "" ||
 		len(command.references) == 0 || slices.Contains(command.references, "") {
-		return "", fmt.Errorf("foreign key definition is incomplete: column, on, and references must be set")
+		return "", errors.New("foreign key definition is incomplete: column, on, and references must be set")
 	}
 	onDelete := ""
 	if command.onDelete != "" {
