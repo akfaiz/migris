@@ -584,7 +584,7 @@ func (b *Blueprint) getFluentStatements() []string {
 	return statements
 }
 
-func (b *Blueprint) build(ctx *Context) error {
+func (b *Blueprint) build(ctx Context) error {
 	statements, err := b.toSql()
 	if err != nil {
 		return err

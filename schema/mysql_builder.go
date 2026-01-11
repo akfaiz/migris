@@ -20,7 +20,7 @@ func newMysqlBuilder() Builder {
 	}
 }
 
-func (b *mysqlBuilder) GetColumns(c *Context, tableName string) ([]*Column, error) {
+func (b *mysqlBuilder) GetColumns(c Context, tableName string) ([]*Column, error) {
 	if c == nil || tableName == "" {
 		return nil, errors.New("invalid arguments: context is nil or table name is empty")
 	}
@@ -56,7 +56,7 @@ func (b *mysqlBuilder) GetColumns(c *Context, tableName string) ([]*Column, erro
 	return columns, nil
 }
 
-func (b *mysqlBuilder) GetIndexes(c *Context, tableName string) ([]*Index, error) {
+func (b *mysqlBuilder) GetIndexes(c Context, tableName string) ([]*Index, error) {
 	if c == nil || tableName == "" {
 		return nil, errors.New("invalid arguments: context is nil or table name is empty")
 	}
@@ -85,7 +85,7 @@ func (b *mysqlBuilder) GetIndexes(c *Context, tableName string) ([]*Index, error
 	return indexes, nil
 }
 
-func (b *mysqlBuilder) GetTables(c *Context) ([]*TableInfo, error) {
+func (b *mysqlBuilder) GetTables(c Context) ([]*TableInfo, error) {
 	if c == nil {
 		return nil, errors.New("invalid arguments: context is nil")
 	}
@@ -111,14 +111,14 @@ func (b *mysqlBuilder) GetTables(c *Context) ([]*TableInfo, error) {
 	return tables, nil
 }
 
-func (b *mysqlBuilder) HasColumn(c *Context, tableName string, columnName string) (bool, error) {
+func (b *mysqlBuilder) HasColumn(c Context, tableName string, columnName string) (bool, error) {
 	if c == nil || columnName == "" {
 		return false, errors.New("invalid arguments: context is nil or column name is empty")
 	}
 	return b.HasColumns(c, tableName, []string{columnName})
 }
 
-func (b *mysqlBuilder) HasColumns(c *Context, tableName string, columnNames []string) (bool, error) {
+func (b *mysqlBuilder) HasColumns(c Context, tableName string, columnNames []string) (bool, error) {
 	if c == nil || tableName == "" {
 		return false, errors.New("invalid arguments: context is nil or table name is empty")
 	}
@@ -142,7 +142,7 @@ func (b *mysqlBuilder) HasColumns(c *Context, tableName string, columnNames []st
 	return true, nil // All specified columns exist
 }
 
-func (b *mysqlBuilder) HasIndex(c *Context, tableName string, indexes []string) (bool, error) {
+func (b *mysqlBuilder) HasIndex(c Context, tableName string, indexes []string) (bool, error) {
 	if c == nil || tableName == "" {
 		return false, errors.New("invalid arguments: context is nil or table name is empty")
 	}
@@ -186,7 +186,7 @@ func (b *mysqlBuilder) HasIndex(c *Context, tableName string, indexes []string) 
 	return false, nil // If no specified index exists, return false
 }
 
-func (b *mysqlBuilder) HasTable(c *Context, name string) (bool, error) {
+func (b *mysqlBuilder) HasTable(c Context, name string) (bool, error) {
 	if c == nil || name == "" {
 		return false, errors.New("invalid arguments: context is nil or table name is empty")
 	}

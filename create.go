@@ -40,12 +40,12 @@ func init() {
 	migris.AddMigrationContext(up{{.CamelName}}, down{{.CamelName}})
 }
 
-func up{{.CamelName}}(c *schema.Context) error {
+func up{{.CamelName}}(c schema.Context) error {
 	// This code is executed when the migration is applied.
 	return nil
 }
 
-func down{{.CamelName}}(c *schema.Context) error {
+func down{{.CamelName}}(c schema.Context) error {
 	// This code is executed when the migration is rolled back.
 	return nil
 }
@@ -63,13 +63,13 @@ func init() {
 	migris.AddMigrationContext(up{{.CamelName}}, down{{.CamelName}})
 }
 
-func up{{.CamelName}}(c *schema.Context) error {
+func up{{.CamelName}}(c schema.Context) error {
 	return schema.Create(c, "` + table + `", func(table *schema.Blueprint) {
 		// Define your table schema here
 	})
 }
 
-func down{{.CamelName}}(c *schema.Context) error {
+func down{{.CamelName}}(c schema.Context) error {
 	return schema.DropIfExists(c, "` + table + `")
 }
 `
@@ -88,13 +88,13 @@ func init() {
 	migris.AddMigrationContext(up{{.CamelName}}, down{{.CamelName}})
 }
 
-func up{{.CamelName}}(c *schema.Context) error {
+func up{{.CamelName}}(c schema.Context) error {
 	return schema.Table(c, "` + table + `", func(table *schema.Blueprint) {
 		// Define your table schema changes here
 	})
 }
 
-func down{{.CamelName}}(c *schema.Context) error {
+func down{{.CamelName}}(c schema.Context) error {
 	return schema.Table(c, "` + table + `", func(table *schema.Blueprint) {
 		// Define your table schema changes here
 	})

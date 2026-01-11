@@ -9,6 +9,7 @@
 ## Features
 
 - **Migration management** - Run up, down, reset, status, and create operations
+- **Dry-run mode** - Preview migrations without executing them to see generated SQL
 - **Fluent schema builder** - Laravel-inspired API for defining database schemas
 - **Multi-database support** - Works with PostgreSQL, MySQL, and MariaDB
 - **Transaction safety** - All migrations run within database transactions
@@ -38,7 +39,7 @@ func init() {
     migris.AddMigrationContext(upCreateUsersTable, downCreateUsersTable)
 }
 
-func upCreateUsersTable(c *schema.Context) error {
+func upCreateUsersTable(c schema.Context) error {
     return schema.Create(c, "users", func(table *schema.Blueprint) {
         table.ID()
         table.String("name")
@@ -49,7 +50,7 @@ func upCreateUsersTable(c *schema.Context) error {
     })
 }
 
-func downCreateUsersTable(c *schema.Context) error {
+func downCreateUsersTable(c schema.Context) error {
     return schema.DropIfExists(c, "users")
 }
 ```
@@ -88,18 +89,31 @@ func loadDatabaseURL() string {
     return databaseURL
 }
 
-func main() {
+func createMigrator(dryRun bool) (*migris.Migrate, error) {
     databaseURL := loadDatabaseURL()
     db, err := sql.Open("pgx", databaseURL)
     if err != nil {
-        log.Fatalf("Failed to open database: %v", err)
+        return nil, err
     }
-    defer db.Close()
 
-    migrator, err := migris.New("pgx", migris.WithDB(db), migris.WithMigrationDir(migrationDir))
-    if err != nil {
-        log.Fatalf("Failed to create migrator: %v", err)
+    options := []migris.Option{
+        migris.WithDB(db),
+        migris.WithMigrationDir(migrationDir),
     }
+
+    if dryRun {
+        dryRunConfig := migris.DryRunConfig{
+            PrintMigrations: true,
+            PrintSQL:        true,
+            ColorOutput:     true,
+        }
+        options = append(options, migris.WithDryRun(), migris.WithDryRunConfig(dryRunConfig))
+    }
+
+    return migris.New("pgx", options...)
+}
+
+func main() {
 
     cmd := &cli.Command{
         Name:  "migrate",
@@ -117,27 +131,61 @@ func main() {
                     },
                 },
                 Action: func(ctx context.Context, c *cli.Command) error {
+                    migrator, err := createMigrator(false)
+                    if err != nil {
+                        return err
+                    }
                     return migrator.Create(c.String("name"))
                 },
             },
             {
                 Name:  "up",
                 Usage: "Run all pending migrations",
+                Flags: []cli.Flag{
+                    &cli.BoolFlag{
+                        Name:  "dry-run",
+                        Usage: "Preview migrations without executing them",
+                    },
+                },
                 Action: func(ctx context.Context, c *cli.Command) error {
+                    migrator, err := createMigrator(c.Bool("dry-run"))
+                    if err != nil {
+                        return err
+                    }
                     return migrator.UpContext(ctx)
                 },
             },
             {
                 Name:  "reset",
                 Usage: "Rollback all migrations",
+                Flags: []cli.Flag{
+                    &cli.BoolFlag{
+                        Name:  "dry-run",
+                        Usage: "Preview rollback without executing",
+                    },
+                },
                 Action: func(ctx context.Context, c *cli.Command) error {
+                    migrator, err := createMigrator(c.Bool("dry-run"))
+                    if err != nil {
+                        return err
+                    }
                     return migrator.ResetContext(ctx)
                 },
             },
             {
                 Name:  "down",
                 Usage: "Rollback the last migration",
+                Flags: []cli.Flag{
+                    &cli.BoolFlag{
+                        Name:  "dry-run",
+                        Usage: "Preview rollback without executing",
+                    },
+                },
                 Action: func(ctx context.Context, c *cli.Command) error {
+                    migrator, err := createMigrator(c.Bool("dry-run"))
+                    if err != nil {
+                        return err
+                    }
                     return migrator.DownContext(ctx)
                 },
             },
@@ -145,6 +193,10 @@ func main() {
                 Name:  "status",
                 Usage: "Show the status of migrations",
                 Action: func(ctx context.Context, c *cli.Command) error {
+                    migrator, err := createMigrator(false)
+                    if err != nil {
+                        return err
+                    }
                     return migrator.StatusContext(ctx)
                 },
             },
@@ -195,6 +247,45 @@ migrator.Down()         // Rollback the last migration
 migrator.Reset()        // Rollback all migrations
 migrator.Status()       // Show migration status
 migrator.Create(name)   // Create a new migration file
+```
+
+### Dry-Run Mode
+
+Preview migrations without executing them:
+
+```bash
+# Preview pending migrations
+go run main.go up --dry-run
+
+# Preview rollback operations
+go run main.go down --dry-run
+go run main.go reset --dry-run
+```
+
+Dry-run mode shows:
+- Which migrations would be executed
+- The exact SQL statements that would be generated
+- Execution timing and summary statistics
+- Clear indication that no database changes are made
+
+## Dry-Run Configuration
+
+Customize dry-run behavior:
+
+```go
+dryRunConfig := migris.DryRunConfig{
+    PrintMigrations: true,  // Show migration progress
+    PrintSQL:        true,  // Show generated SQL statements
+    ColorOutput:     true,  // Use colored terminal output
+    OutputWriter:    os.Stdout, // Custom output destination
+}
+
+migrator, err := migris.New("pgx", 
+    migris.WithDB(db),
+    migris.WithMigrationDir(migrationDir),
+    migris.WithDryRun(),
+    migris.WithDryRunConfig(dryRunConfig),
+)
 ```
 
 ## Database Support

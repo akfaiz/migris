@@ -9,7 +9,7 @@ func init() {
 	migris.AddMigrationContext(upInsertData, downInsertData)
 }
 
-func upInsertData(c *schema.Context) error {
+func upInsertData(c schema.Context) error {
 	sqls := []string{
 		`INSERT INTO users (id, username, email)
 VALUES
@@ -36,7 +36,7 @@ VALUES
 	return nil
 }
 
-func downInsertData(c *schema.Context) error {
+func downInsertData(c schema.Context) error {
 	sqls := []string{
 		"DELETE FROM comments",
 		"DELETE FROM posts",

@@ -68,7 +68,7 @@ func newBuilder() (Builder, error) {
 //	    table.Timestamp("created_at").Default("CURRENT_TIMESTAMP").Nullable(false)
 //	    table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP").Nullable(false)
 //	})
-func Create(c *Context, name string, blueprint func(table *Blueprint)) error {
+func Create(c Context, name string, blueprint func(table *Blueprint)) error {
 	builder, err := newBuilder()
 	if err != nil {
 		return err
@@ -83,7 +83,7 @@ func Create(c *Context, name string, blueprint func(table *Blueprint)) error {
 // Example:
 //
 //	err := schema.Drop(ctx, tx, "users")
-func Drop(c *Context, name string) error {
+func Drop(c Context, name string) error {
 	builder, err := newBuilder()
 	if err != nil {
 		return err
@@ -98,7 +98,7 @@ func Drop(c *Context, name string) error {
 // Example:
 //
 //	err := schema.DropIfExists(ctx, tx, "users")
-func DropIfExists(c *Context, name string) error {
+func DropIfExists(c Context, name string) error {
 	builder, err := newBuilder()
 	if err != nil {
 		return err
@@ -113,7 +113,7 @@ func DropIfExists(c *Context, name string) error {
 // Example:
 //
 //	columns, err := schema.GetColumns(ctx, tx, "users")
-func GetColumns(c *Context, tableName string) ([]*Column, error) {
+func GetColumns(c Context, tableName string) ([]*Column, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return nil, err
@@ -128,7 +128,7 @@ func GetColumns(c *Context, tableName string) ([]*Column, error) {
 // Example:
 //
 //	indexes, err := schema.GetIndexes(ctx, tx, "users")
-func GetIndexes(c *Context, tableName string) ([]*Index, error) {
+func GetIndexes(c Context, tableName string) ([]*Index, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func GetIndexes(c *Context, tableName string) ([]*Index, error) {
 // Example:
 //
 //	tables, err := schema.GetTables(ctx, tx)
-func GetTables(c *Context) ([]*TableInfo, error) {
+func GetTables(c Context) ([]*TableInfo, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return nil, err
@@ -158,7 +158,7 @@ func GetTables(c *Context) ([]*TableInfo, error) {
 // Example:
 //
 //	exists, err := schema.HasColumn(ctx, tx, "users", "email")
-func HasColumn(c *Context, tableName string, columnName string) (bool, error) {
+func HasColumn(c Context, tableName string, columnName string) (bool, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return false, err
@@ -175,7 +175,7 @@ func HasColumn(c *Context, tableName string, columnName string) (bool, error) {
 //	exists, err := schema.HasColumns(ctx, tx, "users", []string{"email", "name"})
 //
 // If any of the specified columns do not exist, it returns false.
-func HasColumns(c *Context, tableName string, columnNames []string) (bool, error) {
+func HasColumns(c Context, tableName string, columnNames []string) (bool, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return false, err
@@ -192,7 +192,7 @@ func HasColumns(c *Context, tableName string, columnNames []string) (bool, error
 //	exists, err := schema.HasIndex(ctx, tx, "users", []string{"uk_users_email"}) // Checks if the index with name "uk_users_email" exists in the "users" table.
 //
 //	exists, err := schema.HasIndex(ctx, tx, "users", []string{"email", "name"}) // Checks if a composite index exists on the "email" and "name" columns in the "users" table.
-func HasIndex(c *Context, tableName string, indexes []string) (bool, error) {
+func HasIndex(c Context, tableName string, indexes []string) (bool, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return false, err
@@ -208,7 +208,7 @@ func HasIndex(c *Context, tableName string, indexes []string) (bool, error) {
 // Example:
 //
 //	exists, err := schema.HasTable(ctx, tx, "users")
-func HasTable(c *Context, name string) (bool, error) {
+func HasTable(c Context, name string) (bool, error) {
 	builder, err := newBuilder()
 	if err != nil {
 		return false, err
@@ -223,7 +223,7 @@ func HasTable(c *Context, name string) (bool, error) {
 // Example:
 //
 //	err := schema.Rename(ctx, tx, "users", "people")
-func Rename(c *Context, name string, newName string) error {
+func Rename(c Context, name string, newName string) error {
 	builder, err := newBuilder()
 	if err != nil {
 		return err
@@ -243,7 +243,7 @@ func Rename(c *Context, name string, newName string) error {
 //	    table.DropColumn("password")
 //	    table.RenameColumn("email", "contact_email")
 //	})
-func Table(c *Context, name string, blueprint func(table *Blueprint)) error {
+func Table(c Context, name string, blueprint func(table *Blueprint)) error {
 	builder, err := newBuilder()
 	if err != nil {
 		return err

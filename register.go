@@ -24,12 +24,27 @@ type Migration struct {
 
 // MigrationContext is a Go migration func that is run within a transaction and receives a
 // context.
-type MigrationContext func(ctx *schema.Context) error
+type MigrationContext func(ctx schema.Context) error
 
 func (m MigrationContext) runTxFunc(source string) func(ctx context.Context, tx *sql.Tx) error {
 	return func(ctx context.Context, tx *sql.Tx) error {
 		filename := path.Base(source)
-		c := schema.NewContext(ctx, tx, schema.WithFilename(filename))
+
+		// Check if we're in dry-run mode
+		isDryRun, dryRunConfig := getGlobalDryRunState()
+
+		var c schema.Context
+		if isDryRun {
+			// Create dry-run context
+			c = schema.NewDryRunContext(ctx, dryRunConfig)
+			if dryRunConfig.PrintMigrations {
+				fmt.Fprintf(dryRunConfig.OutputWriter, "🚀 [DRY RUN] Executing migration: %s\n", filename)
+			}
+		} else {
+			// Create regular context
+			c = schema.NewContext(ctx, tx, schema.WithFilename(filename))
+		}
+
 		return m(c)
 	}
 }

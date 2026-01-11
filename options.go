@@ -1,6 +1,11 @@
 package migris
 
-import "database/sql"
+import (
+	"database/sql"
+	"os"
+
+	"github.com/akfaiz/migris/schema"
+)
 
 type Option func(*Migrate)
 
@@ -22,5 +27,28 @@ func WithMigrationDir(dir string) Option {
 func WithDB(db *sql.DB) Option {
 	return func(m *Migrate) {
 		m.db = db
+	}
+}
+
+// WithDryRun enables or disables dry-run mode.
+func WithDryRun(enabled bool) Option {
+	return func(m *Migrate) {
+		m.dryRun = enabled
+		if enabled && m.dryRunConfig.OutputWriter == nil {
+			m.dryRunConfig.OutputWriter = os.Stdout
+			m.dryRunConfig.PrintSQL = true
+			m.dryRunConfig.PrintMigrations = true
+		}
+	}
+}
+
+// WithDryRunConfig sets the complete dry-run configuration.
+func WithDryRunConfig(config schema.DryRunConfig) Option {
+	return func(m *Migrate) {
+		m.dryRun = true
+		m.dryRunConfig = config
+		if config.OutputWriter == nil {
+			m.dryRunConfig.OutputWriter = os.Stdout
+		}
 	}
 }
