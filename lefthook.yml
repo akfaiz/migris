@@ -11,7 +11,7 @@ pre-commit:
 
     golangci-lint:
       glob: "*.go"
-      run: golangci-lint run --fix --timeout 5m
+      run: golangci-lint run --timeout=2m --verbose
 
 commit-msg:
   commands:

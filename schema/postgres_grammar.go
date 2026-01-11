@@ -349,7 +349,7 @@ func (g *postgresGrammar) getConstraints(blueprint *Blueprint) []string {
 	return constrains
 }
 
-// nolint: dupl // Similar code exists in other grammar files
+//nolint:dupl // Similar code exists in other grammar files
 func (g *postgresGrammar) getType(col *columnDefinition) string {
 	typeMapFunc := map[string]func(*columnDefinition) string{
 		columnTypeChar:          g.typeChar,
