@@ -113,6 +113,13 @@ func main() {
     cmd := &cli.Command{
         Name:  "migrate",
         Usage: "Migration tool",
+        Flags: []cli.Flag{
+            &cli.BoolFlag{
+                Name:    "dry-run",
+                Aliases: []string{"d"},
+                Usage:   "Run migrations in dry-run mode (print SQL without executing)",
+            },
+        },
         Commands: []*cli.Command{
             {
                 Name:  "create",
@@ -136,12 +143,6 @@ func main() {
             {
                 Name:  "up",
                 Usage: "Run all pending migrations",
-                Flags: []cli.Flag{
-                    &cli.BoolFlag{
-                        Name:  "dry-run",
-                        Usage: "Preview migrations without executing them",
-                    },
-                },
                 Action: func(ctx context.Context, c *cli.Command) error {
                     migrator, err := createMigrator(c.Bool("dry-run"))
                     if err != nil {
@@ -153,12 +154,6 @@ func main() {
             {
                 Name:  "reset",
                 Usage: "Rollback all migrations",
-                Flags: []cli.Flag{
-                    &cli.BoolFlag{
-                        Name:  "dry-run",
-                        Usage: "Preview rollback without executing",
-                    },
-                },
                 Action: func(ctx context.Context, c *cli.Command) error {
                     migrator, err := createMigrator(c.Bool("dry-run"))
                     if err != nil {
@@ -170,12 +165,6 @@ func main() {
             {
                 Name:  "down",
                 Usage: "Rollback the last migration",
-                Flags: []cli.Flag{
-                    &cli.BoolFlag{
-                        Name:  "dry-run",
-                        Usage: "Preview rollback without executing",
-                    },
-                },
                 Action: func(ctx context.Context, c *cli.Command) error {
                     migrator, err := createMigrator(c.Bool("dry-run"))
                     if err != nil {
@@ -217,10 +206,10 @@ schema.Create(c, "posts", func(table *schema.Blueprint) {
     table.UnsignedBigInteger("user_id")
     table.Boolean("published").Default(false)
     table.Timestamps()
-    
+
     // Foreign key constraints
     table.Foreign("user_id").References("id").On("users")
-    
+
     // Indexes
     table.Index([]string{"title", "published"})
 })
@@ -250,14 +239,15 @@ Preview migrations without executing them:
 
 ```bash
 # Preview pending migrations
-go run main.go up --dry-run
+go run main.go --dry-run up
 
 # Preview rollback operations
-go run main.go down --dry-run
-go run main.go reset --dry-run
+go run main.go --dry-run down
+go run main.go --dry-run reset
 ```
 
 Dry-run mode shows:
+
 - Which migrations would be executed
 - The exact SQL statements that would be generated
 - Execution timing and summary statistics
@@ -268,7 +258,7 @@ Dry-run mode shows:
 Enable dry-run mode to preview migrations without executing them:
 
 ```go
-migrator, err := migris.New("pgx", 
+migrator, err := migris.New("pgx",
     migris.WithDB(db),
     migris.WithMigrationDir(migrationDir),
     migris.WithDryRun(true),  // Enable dry-run mode
@@ -276,15 +266,17 @@ migrator, err := migris.New("pgx",
 ```
 
 Dry-run mode automatically displays:
+
 - Migration progress and status
-- All generated SQL statements  
+- All generated SQL statements
 - Summary of pending migrations
 
 ## Database Support
 
 Currently supported databases:
+
 - **PostgreSQL** (via pgx driver)
-- **MySQL** 
+- **MySQL**
 - **MariaDB**
 
 ## Roadmap

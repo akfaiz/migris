@@ -11,7 +11,7 @@ fmt: # Format code
 .PHONY: lint
 lint: # Lint code
 	@echo "Linting code..."
-	@golangci-lint run --timeout 5m
+	@golangci-lint run --timeout=2m --verbose
 
 .PHONY: install
 install: # Install dependencies

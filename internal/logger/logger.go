@@ -3,6 +3,7 @@ package logger
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/fatih/color"
@@ -10,7 +11,7 @@ import (
 	"golang.org/x/term"
 )
 
-// Constants
+// Constants.
 const (
 	DefaultTerminalWidth = 80
 	DotChar              = "."
@@ -23,7 +24,7 @@ var (
 	yellowBold = color.New(color.FgYellow, color.Bold).SprintFunc()
 	redBold    = color.New(color.FgRed, color.Bold).SprintFunc()
 
-	// Badge colors
+	// Badge colors.
 	whiteBgBlue  = color.New(color.FgWhite, color.BgBlue).SprintFunc()
 	whiteBgGreen = color.New(color.FgWhite, color.BgGreen).SprintFunc()
 	whiteBgRed   = color.New(color.FgWhite, color.BgRed).SprintFunc()
@@ -31,7 +32,7 @@ var (
 
 // Helper functions
 
-// getTerminalWidth returns the terminal width with a fallback
+// getTerminalWidth returns the terminal width with a fallback.
 func getTerminalWidth() int {
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil || width <= 0 {
@@ -40,7 +41,7 @@ func getTerminalWidth() int {
 	return width
 }
 
-// createDottedLine creates a line with dots to fill space between name and status
+// createDottedLine creates a line with dots to fill space between name and status.
 func createDottedLine(name, durText, statusText string) string {
 	width := getTerminalWidth()
 	fillLen := width - len(name) - len(durText) - len(statusText) - 1
@@ -50,12 +51,12 @@ func createDottedLine(name, durText, statusText string) string {
 	return strings.Repeat(DotChar, fillLen)
 }
 
-// formatDuration formats duration in milliseconds
+// formatDuration formats duration in milliseconds.
 func formatDuration(ms float64) string {
 	return fmt.Sprintf(" %.2fms", ms)
 }
 
-// printBulletPoint prints a formatted bullet point with colored text
+// printBulletPoint prints a formatted bullet point with colored text.
 func printBulletPoint(label, value string, colorFunc func(...interface{}) string) {
 	fmt.Printf("%s %s: %s\n", grey(BulletChar), label, colorFunc(value))
 }
@@ -148,8 +149,8 @@ func DryRunSQL(query string, args ...any) {
 
 func DryRunSummary(totalMigrations, totalStatements int, duration float64) {
 	fmt.Printf("%s DRY RUN Summary:\n", whiteBgBlue(" SUMMARY "))
-	printBulletPoint("Total migrations processed", fmt.Sprintf("%d", totalMigrations), greenBold)
-	printBulletPoint("Total SQL statements generated", fmt.Sprintf("%d", totalStatements), greenBold)
+	printBulletPoint("Total migrations processed", strconv.Itoa(totalMigrations), greenBold)
+	printBulletPoint("Total SQL statements generated", strconv.Itoa(totalStatements), greenBold)
 	printBulletPoint("Total execution time", fmt.Sprintf("%.2fms", duration), greenBold)
 	printBulletPoint("Mode", "DRY RUN (no changes applied to database)", yellowBold)
 }
@@ -167,8 +168,8 @@ func DryRunDownStart(version int64) {
 
 func DryRunDownSummary(totalMigrations, totalStatements int, duration float64, operation string) {
 	fmt.Printf("%s DRY RUN %s Summary:\n", whiteBgRed(" SUMMARY "), operation)
-	printBulletPoint("Total migrations processed", fmt.Sprintf("%d", totalMigrations), greenBold)
-	printBulletPoint("Total SQL statements generated", fmt.Sprintf("%d", totalStatements), greenBold)
+	printBulletPoint("Total migrations processed", strconv.Itoa(totalMigrations), greenBold)
+	printBulletPoint("Total SQL statements generated", strconv.Itoa(totalStatements), greenBold)
 	printBulletPoint("Total execution time", fmt.Sprintf("%.2fms", duration), greenBold)
 	printBulletPoint("Mode", "DRY RUN (no changes applied to database)", yellowBold)
 }

@@ -68,7 +68,7 @@ func (m *Migrate) UpToContext(ctx context.Context, version int64) error {
 	return nil
 }
 
-// executeDryRunUp executes migrations in dry-run mode
+// executeDryRunUp executes migrations in dry-run mode.
 func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
 	// Create provider to check migration status
 	provider, err := m.newProvider()
@@ -88,15 +88,30 @@ func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
 
 	logger.DryRunStart(version)
 
-	startTime := time.Now()
-	totalStatements := 0
-	totalMigrations := 0
-
 	// Get current database version
 	currentVersion, err := provider.GetDBVersion(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot get current database version: %w", err)
 	}
+
+	// Get migrations to apply
+	migrationsToApply := m.determineMigrationsToApply(version, currentVersion)
+
+	// Process migrations in dry-run mode
+	totalMigrations, totalStatements, duration, err := m.processDryRunUpMigrations(ctx, migrationsToApply)
+	if err != nil {
+		return err
+	}
+
+	// Print summary
+	logger.DryRunSummary(totalMigrations, totalStatements, duration)
+
+	return nil
+}
+
+// determineMigrationsToApply determines which migrations should be applied.
+func (m *Migrate) determineMigrationsToApply(version, currentVersion int64) []*Migration {
+	var migrationsToApply []*Migration
 
 	// Get all registered migrations that need to be applied (only pending ones)
 	for _, migration := range registeredMigrations {
@@ -109,6 +124,23 @@ func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
 			break
 		}
 
+		migrationsToApply = append(migrationsToApply, migration)
+	}
+
+	return migrationsToApply
+}
+
+// processDryRunMigrations processes migrations in dry-run mode (common logic for up and down).
+func (m *Migrate) processDryRunMigrations(
+	ctx context.Context,
+	migrations []*Migration,
+	isUp bool,
+) (int, int, float64, error) {
+	startTime := time.Now()
+	totalStatements := 0
+	totalMigrations := 0
+
+	for _, migration := range migrations {
 		migrationStartTime := time.Now()
 		totalMigrations++
 
@@ -118,10 +150,20 @@ func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
 		dryRunCtx := schema.NewDryRunContext(ctx)
 
 		// Execute the migration in dry-run mode
-		if migration.upFnContext != nil {
-			err := migration.upFnContext(dryRunCtx)
+		var migrationFunc MigrationContext
+		var direction string
+		if isUp {
+			migrationFunc = migration.upFnContext
+			direction = "up"
+		} else {
+			migrationFunc = migration.downFnContext
+			direction = "down"
+		}
+
+		if migrationFunc != nil {
+			err := migrationFunc(dryRunCtx)
 			if err != nil {
-				return fmt.Errorf("dry-run migration %s failed: %w", migration.source, err)
+				return 0, 0, 0, fmt.Errorf("dry-run %s migration %s failed: %w", direction, migration.source, err)
 			}
 
 			capturedSQL := dryRunCtx.GetCapturedSQL()
@@ -137,13 +179,17 @@ func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
 		}
 
 		migrationDuration := time.Since(migrationStartTime).Seconds() * 1000
-
 		logger.DryRunMigrationComplete(filepath.Base(migration.source), migrationDuration)
 	}
 
 	duration := time.Since(startTime).Seconds() * 1000
+	return totalMigrations, totalStatements, duration, nil
+}
 
-	logger.DryRunSummary(totalMigrations, totalStatements, duration)
-
-	return nil
+// processDryRunUpMigrations processes migrations to apply in dry-run mode.
+func (m *Migrate) processDryRunUpMigrations(
+	ctx context.Context,
+	migrationsToApply []*Migration,
+) (int, int, float64, error) {
+	return m.processDryRunMigrations(ctx, migrationsToApply, true)
 }

@@ -4,11 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
-	"time"
 
 	"github.com/akfaiz/migris/internal/logger"
-	"github.com/akfaiz/migris/schema"
 	"github.com/pressly/goose/v3"
 )
 
@@ -91,7 +88,7 @@ func (m *Migrate) DownToContext(ctx context.Context, version int64) error {
 	return nil
 }
 
-// executeDryRunDown executes migrations in dry-run mode for down operations
+// executeDryRunDown executes migrations in dry-run mode for down operations.
 func (m *Migrate) executeDryRunDown(ctx context.Context, version int64) error {
 	// Create provider to check migration status
 	provider, err := m.newProvider()
@@ -112,12 +109,33 @@ func (m *Migrate) executeDryRunDown(ctx context.Context, version int64) error {
 
 	logger.DryRunDownStart(version)
 
-	startTime := time.Now()
-	totalStatements := 0
-	totalMigrations := 0
+	// Determine which migrations to rollback
+	migrationsToRollback := m.determineMigrationsToRollback(version, currentVersion)
+	if len(migrationsToRollback) == 0 {
+		logger.Info("Nothing to rollback.")
+		return nil
+	}
 
-	// Determine which migrations to rollback based on current database state
-	migrationsToRollback := []*Migration{}
+	// Process migrations in dry-run mode
+	totalMigrations, totalStatements, duration, err := m.processDryRunDownMigrations(ctx, migrationsToRollback)
+	if err != nil {
+		return err
+	}
+
+	// Print summary
+	operation := "DOWN"
+	if version == 0 {
+		operation = "RESET"
+	}
+	logger.DryRunDownSummary(totalMigrations, totalStatements, duration, operation)
+
+	return nil
+}
+
+// determineMigrationsToRollback determines which migrations should be rolled back.
+func (m *Migrate) determineMigrationsToRollback(version, currentVersion int64) []*Migration {
+	var migrationsToRollback []*Migration
+
 	if version == -1 {
 		// Rollback last applied migration only
 		for i := len(registeredMigrations) - 1; i >= 0; i-- {
@@ -137,52 +155,13 @@ func (m *Migrate) executeDryRunDown(ctx context.Context, version int64) error {
 		}
 	}
 
-	if len(migrationsToRollback) == 0 {
-		logger.Info("Nothing to rollback.")
-		return nil
-	}
+	return migrationsToRollback
+}
 
-	// Process migrations to rollback (in reverse order for down)
-	for _, migration := range migrationsToRollback {
-		migrationStartTime := time.Now()
-		totalMigrations++
-
-		logger.DryRunMigrationStart(filepath.Base(migration.source), migration.version)
-
-		// Create dry-run context for this migration
-		dryRunCtx := schema.NewDryRunContext(ctx)
-
-		// Execute the down migration in dry-run mode
-		if migration.downFnContext != nil {
-			err := migration.downFnContext(dryRunCtx)
-			if err != nil {
-				return fmt.Errorf("dry-run down migration %s failed: %w", migration.source, err)
-			}
-
-			capturedSQL := dryRunCtx.GetCapturedSQL()
-			totalStatements += len(capturedSQL)
-
-			// Print captured SQL if enabled
-			if dryRunCtx.HasPendingQuery() {
-				queries := dryRunCtx.GetPendingQueries()
-				for _, q := range queries {
-					logger.DryRunSQL(q.Query, q.Args...)
-				}
-			}
-		}
-
-		migrationDuration := time.Since(migrationStartTime).Seconds() * 1000
-
-		logger.DryRunMigrationComplete(filepath.Base(migration.source), migrationDuration)
-	}
-
-	duration := time.Since(startTime).Seconds() * 1000
-
-	operation := "DOWN"
-	if version == 0 {
-		operation = "RESET"
-	}
-	logger.DryRunDownSummary(totalMigrations, totalStatements, duration, operation)
-
-	return nil
+// processDryRunDownMigrations processes migrations to rollback in dry-run mode.
+func (m *Migrate) processDryRunDownMigrations(
+	ctx context.Context,
+	migrationsToRollback []*Migration,
+) (int, int, float64, error) {
+	return m.processDryRunMigrations(ctx, migrationsToRollback, false)
 }

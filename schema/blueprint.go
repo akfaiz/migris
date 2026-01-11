@@ -32,12 +32,12 @@ const (
 	columnTypeTimestampTz   string = "timestampTz"
 	columnTypeYear          string = "year"
 	columnTypeBinary        string = "binary"
-	columnTypeJson          string = "json"
-	columnTypeJsonb         string = "jsonb"
+	columnTypeJSON          string = "json"
+	columnTypeJSONB         string = "jsonb"
 	columnTypeGeography     string = "geography"
 	columnTypeGeometry      string = "geometry"
 	columnTypePoint         string = "point"
-	columnTypeUuid          string = "uuid"
+	columnTypeUUID          string = "uuid"
 	columnTypeEnum          string = "enum"
 )
 
@@ -305,17 +305,17 @@ func (b *Blueprint) Binary(name string, length ...int) ColumnDefinition {
 
 // JSON creates a new JSON column definition in the blueprint.
 func (b *Blueprint) JSON(name string) ColumnDefinition {
-	return b.addColumn(columnTypeJson, name)
+	return b.addColumn(columnTypeJSON, name)
 }
 
 // JSONB creates a new JSONB column definition in the blueprint.
 func (b *Blueprint) JSONB(name string) ColumnDefinition {
-	return b.addColumn(columnTypeJsonb, name)
+	return b.addColumn(columnTypeJSONB, name)
 }
 
 // UUID creates a new UUID column definition in the blueprint.
 func (b *Blueprint) UUID(name string) ColumnDefinition {
-	return b.addColumn(columnTypeUuid, name)
+	return b.addColumn(columnTypeUUID, name)
 }
 
 // Geography creates a new geography column definition in the blueprint.
@@ -541,33 +541,48 @@ func (b *Blueprint) addImpliedCommands() {
 
 func (b *Blueprint) addFluentIndexes() {
 	for _, col := range b.columns {
-		if col.primary != nil {
-			if b.dialect == dialect.MySQL {
-				continue
-			}
-			if !*col.primary && col.change {
-				b.DropPrimary([]string{col.name})
-				col.primary = nil
-			}
+		skipped := b.addFluentIndexPrimary(col)
+		if skipped {
+			continue
 		}
-		if col.index != nil {
-			if *col.index {
-				b.Index(col.name).Name(col.indexName)
-				col.index = nil
-			} else if !*col.index && col.change {
-				b.DropIndex([]string{col.name})
-				col.index = nil
-			}
-		}
+		b.addFluentIndexIndex(col)
+		b.addFluentIndexUnique(col)
+	}
+}
 
-		if col.unique != nil {
-			if *col.unique {
-				b.Unique(col.name).Name(col.uniqueName)
-				col.unique = nil
-			} else if !*col.unique && col.change {
-				b.DropUnique([]string{col.name})
-				col.unique = nil
-			}
+func (b *Blueprint) addFluentIndexPrimary(col *columnDefinition) bool {
+	if col.primary != nil {
+		if b.dialect == dialect.MySQL {
+			return true
+		}
+		if !*col.primary && col.change {
+			b.DropPrimary([]string{col.name})
+			col.primary = nil
+		}
+	}
+	return false
+}
+
+func (b *Blueprint) addFluentIndexIndex(col *columnDefinition) {
+	if col.index != nil {
+		if *col.index {
+			b.Index(col.name).Name(col.indexName)
+			col.index = nil
+		} else if !*col.index && col.change {
+			b.DropIndex([]string{col.name})
+			col.index = nil
+		}
+	}
+}
+
+func (b *Blueprint) addFluentIndexUnique(col *columnDefinition) {
+	if col.unique != nil {
+		if *col.unique {
+			b.Unique(col.name).Name(col.uniqueName)
+			col.unique = nil
+		} else if !*col.unique && col.change {
+			b.DropUnique([]string{col.name})
+			col.unique = nil
 		}
 	}
 }
@@ -585,22 +600,19 @@ func (b *Blueprint) getFluentStatements() []string {
 }
 
 func (b *Blueprint) build(ctx Context) error {
-	statements, err := b.toSql()
+	statements, err := b.toSQL()
 	if err != nil {
 		return err
 	}
 	for _, statement := range statements {
-		// if b.verbose {
-		// 	log.Println(statement)
-		// }
-		if _, err := ctx.Exec(statement); err != nil {
+		if _, err = ctx.Exec(statement); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (b *Blueprint) toSql() ([]string, error) {
+func (b *Blueprint) toSQL() ([]string, error) {
 	b.addImpliedCommands()
 
 	var statements []string

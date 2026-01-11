@@ -45,6 +45,8 @@ func NewBuilder(dialectValue string) (Builder, error) {
 		return newMysqlBuilder(), nil
 	case dialect.Postgres:
 		return newPostgresBuilder(), nil
+	case dialect.Unknown:
+		return nil, errors.New("unsupported dialect: " + dialectValue)
 	default:
 		return nil, errors.New("unsupported dialect: " + dialectValue)
 	}

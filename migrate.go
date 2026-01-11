@@ -11,7 +11,7 @@ import (
 	"github.com/pressly/goose/v3/database"
 )
 
-// Migrate handles database migrations
+// Migrate handles database migrations.
 type Migrate struct {
 	dialect      dialect.Dialect
 	db           *sql.DB
@@ -20,7 +20,7 @@ type Migrate struct {
 	dryRun       bool
 }
 
-// New creates a new Migrate instance
+// New creates a new Migrate instance.
 func New(dialectValue string, opts ...Option) (*Migrate, error) {
 	dialectVal := dialect.FromString(dialectValue)
 	if dialectVal == dialect.Unknown {

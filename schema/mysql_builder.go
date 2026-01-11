@@ -34,13 +34,13 @@ func (b *mysqlBuilder) GetColumns(c Context, tableName string) ([]*Column, error
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close()
 
 	var columns []*Column
 	for rows.Next() {
 		var col Column
 		var nullableStr string
-		if err := rows.Scan(
+		if err = rows.Scan(
 			&col.Name, &col.TypeName, &col.TypeFull,
 			&col.Collation, &nullableStr,
 			&col.DefaultVal, &col.Comment,
@@ -53,6 +53,10 @@ func (b *mysqlBuilder) GetColumns(c Context, tableName string) ([]*Column, error
 		}
 		columns = append(columns, &col)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return columns, nil
 }
 
@@ -70,18 +74,22 @@ func (b *mysqlBuilder) GetIndexes(c Context, tableName string) ([]*Index, error)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close()
 
 	var indexes []*Index
 	for rows.Next() {
 		var idx Index
 		var columnsStr string
-		if err := rows.Scan(&idx.Name, &columnsStr, &idx.Type, &idx.Unique); err != nil {
+		if err = rows.Scan(&idx.Name, &columnsStr, &idx.Type, &idx.Unique); err != nil {
 			return nil, err
 		}
 		idx.Columns = strings.Split(columnsStr, ",")
 		indexes = append(indexes, &idx)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return indexes, nil
 }
 
@@ -98,16 +106,20 @@ func (b *mysqlBuilder) GetTables(c Context) ([]*TableInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close()
 
 	var tables []*TableInfo
 	for rows.Next() {
 		var table TableInfo
-		if err := rows.Scan(&table.Name, &table.Size, &table.Comment, &table.Engine, &table.Collation); err != nil {
+		if err = rows.Scan(&table.Name, &table.Size, &table.Comment, &table.Engine, &table.Collation); err != nil {
 			return nil, err
 		}
 		tables = append(tables, &table)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return tables, nil
 }
 
@@ -142,6 +154,7 @@ func (b *mysqlBuilder) HasColumns(c Context, tableName string, columnNames []str
 	return true, nil // All specified columns exist
 }
 
+//nolint:dupl // Similar code exists in other builder files
 func (b *mysqlBuilder) HasIndex(c Context, tableName string, indexes []string) (bool, error) {
 	if c == nil || tableName == "" {
 		return false, errors.New("invalid arguments: context is nil or table name is empty")
@@ -198,7 +211,7 @@ func (b *mysqlBuilder) HasTable(c Context, name string) (bool, error) {
 
 	row := c.QueryRow(query)
 	var exists bool
-	if err := row.Scan(&exists); err != nil {
+	if err = row.Scan(&exists); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil // Table does not exist
 		}
