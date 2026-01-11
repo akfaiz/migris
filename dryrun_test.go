@@ -37,10 +37,10 @@ func TestRegularContextInterface(t *testing.T) {
 	ctx := context.Background()
 
 	// This would normally require a real DB, but we're just testing the interface
-	var regularCtx schema.Context = schema.NewContext(ctx, nil)
+	regularCtx := schema.NewContext(ctx, nil)
 	assert.NotNil(t, regularCtx)
 
 	// Test that DryRunContext also implements Context interface
-	var dryRunCtx schema.Context = schema.NewDryRunContext(ctx)
+	dryRunCtx := schema.NewDryRunContext(ctx)
 	assert.NotNil(t, dryRunCtx)
 }
