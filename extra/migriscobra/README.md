@@ -34,7 +34,7 @@ func main() {
         MigrationsDir: "./migrations",
     }
 
-    cmd := migriscobra.NewCommand(cfg)
+    cmd := migriscobra.NewCLI(cfg)
     if err := cmd.Execute(); err != nil {
         log.Fatal(err)
     }

@@ -57,7 +57,13 @@ func downCreateUsersTable(c schema.Context) error {
 
 ### Running Migrations
 
-Create a CLI tool to manage migrations within your Go application:
+For a complete CLI setup example, see [examples/basic](examples/basic/). For quick setup, use the CLI helpers below.
+
+### CLI Helpers
+
+For simpler CLI integration, use the pre-built CLI helpers:
+
+#### Using urfave/cli
 
 ```go
 package main
@@ -68,130 +74,65 @@ import (
     "log"
     "os"
 
-    "github.com/akfaiz/migris"
-    _ "github.com/akfaiz/migris/examples/basic/migrations" // Import migrations directory
+    "github.com/akfaiz/migris/extra/migriscli"
     _ "github.com/jackc/pgx/v5/stdlib"
-    "github.com/joho/godotenv"
-    "github.com/urfave/cli/v3"
 )
 
-const migrationDir = "migrations"
-
-func loadDatabaseURL() string {
-    err := godotenv.Load()
-    if err != nil {
-        log.Fatal("Error loading .env file")
-    }
-    databaseURL := os.Getenv("DATABASE_URL")
-    if databaseURL == "" {
-        log.Fatal("DATABASE_URL is not set in the environment")
-    }
-    return databaseURL
-}
-
-func createMigrator(dryRun bool) (*migris.Migrate, error) {
-    databaseURL := loadDatabaseURL()
-    db, err := sql.Open("pgx", databaseURL)
-    if err != nil {
-        return nil, err
-    }
-
-    options := []migris.Option{
-        migris.WithDB(db),
-        migris.WithMigrationDir(migrationDir),
-    }
-
-    if dryRun {
-        options = append(options, migris.WithDryRun())
-    }
-
-    return migris.New("pgx", options...)
-}
-
 func main() {
-
-    cmd := &cli.Command{
-        Name:  "migrate",
-        Usage: "Migration tool",
-        Flags: []cli.Flag{
-            &cli.BoolFlag{
-                Name:    "dry-run",
-                Aliases: []string{"d"},
-                Usage:   "Run migrations in dry-run mode (print SQL without executing)",
-            },
-        },
-        Commands: []*cli.Command{
-            {
-                Name:  "create",
-                Usage: "Create a new migration file",
-                Flags: []cli.Flag{
-                    &cli.StringFlag{
-                        Name:     "name",
-                        Aliases:  []string{"n"},
-                        Usage:    "Name of the migration",
-                        Required: true,
-                    },
-                },
-                Action: func(ctx context.Context, c *cli.Command) error {
-                    migrator, err := createMigrator(false)
-                    if err != nil {
-                        return err
-                    }
-                    return migrator.Create(c.String("name"))
-                },
-            },
-            {
-                Name:  "up",
-                Usage: "Run all pending migrations",
-                Action: func(ctx context.Context, c *cli.Command) error {
-                    migrator, err := createMigrator(c.Bool("dry-run"))
-                    if err != nil {
-                        return err
-                    }
-                    return migrator.UpContext(ctx)
-                },
-            },
-            {
-                Name:  "reset",
-                Usage: "Rollback all migrations",
-                Action: func(ctx context.Context, c *cli.Command) error {
-                    migrator, err := createMigrator(c.Bool("dry-run"))
-                    if err != nil {
-                        return err
-                    }
-                    return migrator.ResetContext(ctx)
-                },
-            },
-            {
-                Name:  "down",
-                Usage: "Rollback the last migration",
-                Action: func(ctx context.Context, c *cli.Command) error {
-                    migrator, err := createMigrator(c.Bool("dry-run"))
-                    if err != nil {
-                        return err
-                    }
-                    return migrator.DownContext(ctx)
-                },
-            },
-            {
-                Name:  "status",
-                Usage: "Show the status of migrations",
-                Action: func(ctx context.Context, c *cli.Command) error {
-                    migrator, err := createMigrator(false)
-                    if err != nil {
-                        return err
-                    }
-                    return migrator.StatusContext(ctx)
-                },
-            },
-        },
+    db, err := sql.Open("pgx", os.Getenv("DATABASE_URL"))
+    if err != nil {
+        log.Fatal(err)
     }
+    defer db.Close()
+
+    cfg := migriscli.Config{
+        DB:            db,
+        Dialect:       "pgx",
+        MigrationsDir: "./migrations",
+    }
+
+    cmd := migriscli.NewCLI(cfg)
     if err := cmd.Run(context.Background(), os.Args); err != nil {
-        log.Printf("Error running app: %v\n", err)
-        os.Exit(1)
+        log.Fatal(err)
     }
 }
 ```
+
+#### Using Cobra
+
+```go
+package main
+
+import (
+    "database/sql"
+    "log"
+    "os"
+
+    "github.com/akfaiz/migris/extra/migriscobra"
+    _ "github.com/jackc/pgx/v5/stdlib"
+)
+
+func main() {
+    db, err := sql.Open("pgx", os.Getenv("DATABASE_URL"))
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
+
+    cfg := migriscobra.Config{
+        DB:            db,
+        Dialect:       "pgx",
+        MigrationsDir: "./migrations",
+    }
+
+    cmd := migriscobra.NewCLI(cfg)
+    if err := cmd.Execute(); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+Both CLI helpers support all migration commands: `create`, `up`, `up-to`, `down`, `down-to`, `reset`, `status` with `--dry-run` support.
 
 ## Schema Builder API
 
@@ -252,24 +193,6 @@ Dry-run mode shows:
 - The exact SQL statements that would be generated
 - Execution timing and summary statistics
 - Clear indication that no database changes are made
-
-## Dry-Run Mode
-
-Enable dry-run mode to preview migrations without executing them:
-
-```go
-migrator, err := migris.New("pgx",
-    migris.WithDB(db),
-    migris.WithMigrationDir(migrationDir),
-    migris.WithDryRun(true),  // Enable dry-run mode
-)
-```
-
-Dry-run mode automatically displays:
-
-- Migration progress and status
-- All generated SQL statements
-- Summary of pending migrations
 
 ## Database Support
 

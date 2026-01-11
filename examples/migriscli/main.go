@@ -34,7 +34,7 @@ func main() {
 	}
 	defer db.Close()
 
-	cmd := migriscli.NewCommand(migriscli.Config{
+	cmd := migriscli.NewCLI(migriscli.Config{
 		DB:            db,
 		Dialect:       "pgx",
 		MigrationsDir: migrationDir,

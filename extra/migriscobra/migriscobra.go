@@ -15,8 +15,8 @@ type Config struct {
 	MigrationsDir string  // Directory where migration files are stored
 }
 
-// NewCommand creates a new CLI command for migris with subcommands using Cobra.
-func NewCommand(cfg Config) *cobra.Command {
+// NewCLI creates a new CLI interface for migris with subcommands using Cobra.
+func NewCLI(cfg Config) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "migrate",
 		Short: "Database migration CLI tool",

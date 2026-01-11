@@ -5,10 +5,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/joho/godotenv"
 	_ "github.com/akfaiz/migris/examples/migriscobra/migrations" // Import migrations directory
 	"github.com/akfaiz/migris/extra/migriscobra"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
 )
 
 const migrationDir = "migrations"
@@ -33,7 +33,7 @@ func main() {
 	}
 	defer db.Close()
 
-	cmd := migriscobra.NewCommand(migriscobra.Config{
+	cmd := migriscobra.NewCLI(migriscobra.Config{
 		DB:            db,
 		Dialect:       "pgx",
 		MigrationsDir: migrationDir,
