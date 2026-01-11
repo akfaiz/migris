@@ -6,14 +6,14 @@ import (
 )
 
 // Context interface defines the contract for database operations
-// This allows us to switch between normal execution and dry-run mode
+// This allows us to switch between normal execution and dry-run mode.
 type Context interface {
 	Exec(query string, args ...any) (sql.Result, error)
 	Query(query string, args ...any) (*sql.Rows, error)
 	QueryRow(query string, args ...any) *sql.Row
 }
 
-// RegularContext implements Context for normal database operations
+// RegularContext implements Context for normal database operations.
 type RegularContext struct {
 	ctx      context.Context
 	tx       *sql.Tx

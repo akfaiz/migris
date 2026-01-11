@@ -6,20 +6,20 @@ import (
 	"strings"
 )
 
-// DryRunContext implements Context for dry-run mode (captures SQL without executing)
+// DryRunContext implements Context for dry-run mode (captures SQL without executing).
 type DryRunContext struct {
 	ctx            context.Context
 	capturedSQL    []string
 	pendingQueries []QueryWithArgs
 }
 
-// QueryWithArgs stores a query and its arguments
+// QueryWithArgs stores a query and its arguments.
 type QueryWithArgs struct {
 	Query string
 	Args  []any
 }
 
-// MockResult implements sql.Result for dry-run mode
+// MockResult implements sql.Result for dry-run mode.
 type MockResult struct {
 	lastInsertID int64
 	rowsAffected int64
@@ -33,7 +33,7 @@ func (m *MockResult) RowsAffected() (int64, error) {
 	return m.rowsAffected, nil
 }
 
-// MockRows implements basic sql.Rows functionality for dry-run mode
+// MockRows implements basic sql.Rows functionality for dry-run mode.
 type MockRows struct {
 	closed bool
 }
@@ -47,7 +47,7 @@ func (m *MockRows) Next() bool {
 	return false // No rows in dry-run mode
 }
 
-func (m *MockRows) Scan(dest ...interface{}) error {
+func (m *MockRows) Scan(_ ...interface{}) error {
 	return nil // No data to scan in dry-run mode
 }
 
@@ -59,14 +59,14 @@ func (m *MockRows) Err() error {
 	return nil
 }
 
-// MockRow implements basic sql.Row functionality for dry-run mode
+// MockRow implements basic sql.Row functionality for dry-run mode.
 type MockRow struct{}
 
-func (m *MockRow) Scan(dest ...interface{}) error {
+func (m *MockRow) Scan(_ ...interface{}) error {
 	return sql.ErrNoRows // Always return no rows in dry-run mode
 }
 
-// NewDryRunContext creates a new DryRunContext
+// NewDryRunContext creates a new DryRunContext.
 func NewDryRunContext(ctx context.Context) *DryRunContext {
 	return &DryRunContext{
 		ctx:         ctx,
@@ -110,24 +110,24 @@ func (drc *DryRunContext) QueryRow(query string, args ...any) *sql.Row {
 	return &sql.Row{}
 }
 
-// GetCapturedSQL returns all captured SQL statements
+// GetCapturedSQL returns all captured SQL statements.
 func (drc *DryRunContext) GetCapturedSQL() []string {
 	return drc.capturedSQL
 }
 
-// HasPendingQuery returns true if there's a pending SQL query to be printed
+// HasPendingQuery returns true if there's a pending SQL query to be printed.
 func (drc *DryRunContext) HasPendingQuery() bool {
 	return len(drc.pendingQueries) > 0
 }
 
-// GetPendingQueries returns all pending queries and clears them
+// GetPendingQueries returns all pending queries and clears them.
 func (drc *DryRunContext) GetPendingQueries() []QueryWithArgs {
 	queries := drc.pendingQueries
 	drc.pendingQueries = nil
 	return queries
 }
 
-// GetPendingQuery returns the first pending query and arguments (for backward compatibility)
+// GetPendingQuery returns the first pending query and arguments (for backward compatibility).
 func (drc *DryRunContext) GetPendingQuery() (string, []any) {
 	if len(drc.pendingQueries) == 0 {
 		return "", nil
@@ -137,7 +137,7 @@ func (drc *DryRunContext) GetPendingQuery() (string, []any) {
 	return first.Query, first.Args
 }
 
-// printSQL stores the query for later printing by logger
+// printSQL stores the query for later printing by logger.
 func (drc *DryRunContext) printSQL(query string, args ...any) {
 	// Store query and args for later printing
 	drc.pendingQueries = append(drc.pendingQueries, QueryWithArgs{

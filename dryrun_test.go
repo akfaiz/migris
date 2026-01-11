@@ -1,4 +1,4 @@
-package migris
+package migris_test
 
 import (
 	"context"
@@ -6,16 +6,8 @@ import (
 
 	"github.com/akfaiz/migris/schema"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-func TestDryRunMode(t *testing.T) {
-	// Test creating a migrator with dry-run mode enabled
-	migrator, err := New("postgres",
-		WithDryRun(true),
-	)
-	assert.NoError(t, err)
-	assert.True(t, migrator.dryRun)
-}
 
 func TestDryRunContext(t *testing.T) {
 	ctx := context.Background()
@@ -23,7 +15,7 @@ func TestDryRunContext(t *testing.T) {
 
 	// Test that SQL is captured instead of executed
 	result, err := dryRunCtx.Exec("CREATE TABLE test (id SERIAL PRIMARY KEY)")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	// Verify SQL was captured
