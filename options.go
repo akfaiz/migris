@@ -1,6 +1,8 @@
 package migris
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 type Option func(*Migrate)
 
@@ -22,5 +24,12 @@ func WithMigrationDir(dir string) Option {
 func WithDB(db *sql.DB) Option {
 	return func(m *Migrate) {
 		m.db = db
+	}
+}
+
+// WithDryRun enables or disables dry-run mode.
+func WithDryRun(enabled bool) Option {
+	return func(m *Migrate) {
+		m.dryRun = enabled
 	}
 }

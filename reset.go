@@ -16,6 +16,11 @@ func (m *Migrate) Reset() error {
 
 // ResetContext rolls back all migrations.
 func (m *Migrate) ResetContext(ctx context.Context) error {
+	// Check if dry-run mode is enabled
+	if m.dryRun {
+		return m.DownToContext(ctx, 0) // Use DownToContext with version 0 for reset
+	}
+
 	provider, err := m.newProvider()
 	if err != nil {
 		return err

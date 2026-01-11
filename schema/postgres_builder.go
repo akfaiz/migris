@@ -26,7 +26,7 @@ func (b *postgresBuilder) parseSchemaAndTable(name string) (string, string) {
 	return "", names[0]
 }
 
-func (b *postgresBuilder) GetColumns(c *Context, tableName string) ([]*Column, error) {
+func (b *postgresBuilder) GetColumns(c Context, tableName string) ([]*Column, error) {
 	if c == nil || tableName == "" {
 		return nil, errors.New("invalid arguments: context is nil or table name is empty")
 	}
@@ -61,7 +61,7 @@ func (b *postgresBuilder) GetColumns(c *Context, tableName string) ([]*Column, e
 	return columns, nil
 }
 
-func (b *postgresBuilder) GetIndexes(c *Context, tableName string) ([]*Index, error) {
+func (b *postgresBuilder) GetIndexes(c Context, tableName string) ([]*Index, error) {
 	if c == nil || tableName == "" {
 		return nil, errors.New("invalid arguments: context is nil or table name is empty")
 	}
@@ -93,7 +93,7 @@ func (b *postgresBuilder) GetIndexes(c *Context, tableName string) ([]*Index, er
 	return indexes, nil
 }
 
-func (b *postgresBuilder) GetTables(c *Context) ([]*TableInfo, error) {
+func (b *postgresBuilder) GetTables(c Context) ([]*TableInfo, error) {
 	if c == nil {
 		return nil, errors.New("invalid arguments: context is nil")
 	}
@@ -121,11 +121,11 @@ func (b *postgresBuilder) GetTables(c *Context) ([]*TableInfo, error) {
 	return tables, nil
 }
 
-func (b *postgresBuilder) HasColumn(c *Context, tableName string, columnName string) (bool, error) {
+func (b *postgresBuilder) HasColumn(c Context, tableName string, columnName string) (bool, error) {
 	return b.HasColumns(c, tableName, []string{columnName})
 }
 
-func (b *postgresBuilder) HasColumns(c *Context, tableName string, columnNames []string) (bool, error) {
+func (b *postgresBuilder) HasColumns(c Context, tableName string, columnNames []string) (bool, error) {
 	if c == nil || tableName == "" {
 		return false, errors.New("invalid arguments: context is nil or table name is empty")
 	}
@@ -157,7 +157,7 @@ func (b *postgresBuilder) HasColumns(c *Context, tableName string, columnNames [
 	return true, nil // All specified columns exist
 }
 
-func (b *postgresBuilder) HasIndex(c *Context, tableName string, indexes []string) (bool, error) {
+func (b *postgresBuilder) HasIndex(c Context, tableName string, indexes []string) (bool, error) {
 	if c == nil || tableName == "" {
 		return false, errors.New("invalid arguments: context is nil or table name is empty")
 	}
@@ -201,7 +201,7 @@ func (b *postgresBuilder) HasIndex(c *Context, tableName string, indexes []strin
 	return false, nil // If no specified index exists, return false
 }
 
-func (b *postgresBuilder) HasTable(c *Context, name string) (bool, error) {
+func (b *postgresBuilder) HasTable(c Context, name string) (bool, error) {
 	if c == nil || name == "" {
 		return false, errors.New("invalid arguments: context is nil or table name is empty")
 	}

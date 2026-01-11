@@ -9,7 +9,7 @@ func init() {
 	migris.AddMigrationContext(upCreatePostsTable, downCreatePostsTable)
 }
 
-func upCreatePostsTable(c *schema.Context) error {
+func upCreatePostsTable(c schema.Context) error {
 	return schema.Create(c, "posts", func(table *schema.Blueprint) {
 		table.Increments("id").Primary()
 		table.String("title")
@@ -20,6 +20,6 @@ func upCreatePostsTable(c *schema.Context) error {
 	})
 }
 
-func downCreatePostsTable(c *schema.Context) error {
+func downCreatePostsTable(c schema.Context) error {
 	return schema.DropIfExists(c, "posts")
 }

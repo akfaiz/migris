@@ -17,6 +17,7 @@ type Migrate struct {
 	db           *sql.DB
 	migrationDir string
 	tableName    string
+	dryRun       bool
 }
 
 // New creates a new Migrate instance

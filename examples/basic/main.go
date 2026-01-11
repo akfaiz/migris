@@ -27,6 +27,25 @@ func loadDatabaseURL() string {
 	return databaseURL
 }
 
+// createMigrator creates a migrator instance with dry-run configuration
+func createMigrator(db *sql.DB, dryRun bool) *migris.Migrate {
+	options := []migris.Option{
+		migris.WithDB(db),
+		migris.WithMigrationDir(migrationDir),
+	}
+
+	if dryRun {
+		options = append(options, migris.WithDryRun(true))
+	}
+
+	migrator, err := migris.New("pgx", options...)
+	if err != nil {
+		log.Fatalf("Failed to create migrator: %v", err)
+	}
+
+	return migrator
+}
+
 func main() {
 	databaseURL := loadDatabaseURL()
 	db, err := sql.Open("pgx", databaseURL)
@@ -35,14 +54,20 @@ func main() {
 	}
 	defer db.Close()
 
-	migrator, err := migris.New("pgx", migris.WithDB(db), migris.WithMigrationDir(migrationDir))
-	if err != nil {
-		log.Fatalf("Failed to create migrator: %v", err)
-	}
+	// Global flags for dry-run mode
+	var dryRun bool
 
 	cmd := &cli.Command{
 		Name:  "migrate",
 		Usage: "Migration tool",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:        "dry-run",
+				Aliases:     []string{"d"},
+				Usage:       "Run migrations in dry-run mode (print SQL without executing)",
+				Destination: &dryRun,
+			},
+		},
 		Commands: []*cli.Command{
 			{
 				Name:  "create",
@@ -56,6 +81,7 @@ func main() {
 					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
+					migrator := createMigrator(db, dryRun)
 					return migrator.Create(c.String("name"))
 				},
 			},
@@ -63,6 +89,7 @@ func main() {
 				Name:  "up",
 				Usage: "Run all pending migrations",
 				Action: func(ctx context.Context, c *cli.Command) error {
+					migrator := createMigrator(db, dryRun)
 					return migrator.UpContext(ctx)
 				},
 			},
@@ -70,6 +97,7 @@ func main() {
 				Name:  "reset",
 				Usage: "Rollback all migrations",
 				Action: func(ctx context.Context, c *cli.Command) error {
+					migrator := createMigrator(db, dryRun)
 					return migrator.ResetContext(ctx)
 				},
 			},
@@ -77,6 +105,7 @@ func main() {
 				Name:  "down",
 				Usage: "Rollback the last migration",
 				Action: func(ctx context.Context, c *cli.Command) error {
+					migrator := createMigrator(db, dryRun)
 					return migrator.DownContext(ctx)
 				},
 			},
@@ -84,6 +113,7 @@ func main() {
 				Name:  "status",
 				Usage: "Show the status of migrations",
 				Action: func(ctx context.Context, c *cli.Command) error {
+					migrator := createMigrator(db, dryRun)
 					return migrator.StatusContext(ctx)
 				},
 			},
