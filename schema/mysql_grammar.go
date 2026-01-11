@@ -132,10 +132,11 @@ func (g *mysqlGrammar) CompileChange(bp *Blueprint, command *command) (string, e
 	}
 
 	sql := fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s %s", bp.name, column.name, g.getType(column))
+	var sqlBuilder strings.Builder
 	for _, modifier := range g.modifiers() {
-		sql += modifier(column)
+		sqlBuilder.WriteString(modifier(column))
 	}
-
+	sql += sqlBuilder.String()
 	return sql, nil
 }
 

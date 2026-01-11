@@ -324,9 +324,11 @@ func (g *postgresGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 			return nil, errors.New("column name cannot be empty")
 		}
 		sql := col.name + " " + g.getType(col)
+		var sqlBuilder strings.Builder
 		for _, modifier := range g.modifiers() {
-			sql += modifier(col)
+			sqlBuilder.WriteString(modifier(col))
 		}
+		sql += sqlBuilder.String()
 		columns = append(columns, sql)
 	}
 

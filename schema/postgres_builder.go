@@ -168,7 +168,7 @@ func (b *postgresBuilder) HasColumns(c Context, tableName string, columnNames []
 	return true, nil // All specified columns exist
 }
 
-// nolint: dupl,godoclint // Similar code exists in other builder files
+// nolint: dupl // Similar code exists in other builder files
 func (b *postgresBuilder) HasIndex(c Context, tableName string, indexes []string) (bool, error) {
 	if c == nil || tableName == "" {
 		return false, errors.New("invalid arguments: context is nil or table name is empty")
