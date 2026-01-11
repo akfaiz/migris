@@ -336,7 +336,7 @@ linters:
           # Whether to be strict about shadowing; can be noisy.
           # Default: false
           strict: true
-      
+
 
 
     inamedparam:
@@ -379,6 +379,9 @@ linters:
       # Enable to require nolint directives to mention the specific linter being suppressed.
       # Default: false
       require-specific: true
+      # Allow leading space in nolint directive
+      # Default: true
+      allow-leading-space: true
 
     perfsprint:
       # Optimizes into strings concatenation.
