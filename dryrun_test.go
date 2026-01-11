@@ -15,18 +15,11 @@ func TestDryRunMode(t *testing.T) {
 	)
 	assert.NoError(t, err)
 	assert.True(t, migrator.dryRun)
-	assert.True(t, migrator.dryRunConfig.PrintSQL)
-	assert.True(t, migrator.dryRunConfig.PrintMigrations)
 }
 
 func TestDryRunContext(t *testing.T) {
-	config := schema.DryRunConfig{
-		PrintSQL:        true,
-		PrintMigrations: true,
-	}
-
 	ctx := context.Background()
-	dryRunCtx := schema.NewDryRunContext(ctx, config)
+	dryRunCtx := schema.NewDryRunContext(ctx)
 
 	// Test that SQL is captured instead of executed
 	result, err := dryRunCtx.Exec("CREATE TABLE test (id SERIAL PRIMARY KEY)")
@@ -48,7 +41,6 @@ func TestRegularContextInterface(t *testing.T) {
 	assert.NotNil(t, regularCtx)
 
 	// Test that DryRunContext also implements Context interface
-	config := schema.DryRunConfig{}
-	var dryRunCtx schema.Context = schema.NewDryRunContext(ctx, config)
+	var dryRunCtx schema.Context = schema.NewDryRunContext(ctx)
 	assert.NotNil(t, dryRunCtx)
 }

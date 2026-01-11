@@ -2,8 +2,6 @@ package migris
 
 import (
 	"database/sql"
-
-	"github.com/akfaiz/migris/schema"
 )
 
 type Option func(*Migrate)
@@ -33,15 +31,5 @@ func WithDB(db *sql.DB) Option {
 func WithDryRun(enabled bool) Option {
 	return func(m *Migrate) {
 		m.dryRun = enabled
-		m.dryRunConfig.PrintSQL = true
-		m.dryRunConfig.PrintMigrations = true
-	}
-}
-
-// WithDryRunConfig sets the complete dry-run configuration.
-func WithDryRunConfig(config schema.DryRunConfig) Option {
-	return func(m *Migrate) {
-		m.dryRun = true
-		m.dryRunConfig = config
 	}
 }

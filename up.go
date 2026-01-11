@@ -32,8 +32,8 @@ func (m *Migrate) UpTo(version int64) error {
 // UpToContext applies the migrations up to the specified version.
 func (m *Migrate) UpToContext(ctx context.Context, version int64) error {
 	// Set global dry-run state for migration execution
-	setGlobalDryRunState(m.dryRun, m.dryRunConfig)
-	defer setGlobalDryRunState(false, schema.DryRunConfig{}) // Reset after execution
+	setGlobalDryRunState(m.dryRun)
+	defer setGlobalDryRunState(false) // Reset after execution
 
 	if m.dryRun {
 		return m.executeDryRunUp(ctx, version)
@@ -86,9 +86,7 @@ func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
 		return nil
 	}
 
-	if m.dryRunConfig.PrintMigrations {
-		logger.DryRunStart(version)
-	}
+	logger.DryRunStart(version)
 
 	startTime := time.Now()
 	totalStatements := 0
@@ -114,12 +112,10 @@ func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
 		migrationStartTime := time.Now()
 		totalMigrations++
 
-		if m.dryRunConfig.PrintMigrations {
-			logger.DryRunMigrationStart(filepath.Base(migration.source), migration.version)
-		}
+		logger.DryRunMigrationStart(filepath.Base(migration.source), migration.version)
 
 		// Create dry-run context for this migration
-		dryRunCtx := schema.NewDryRunContext(ctx, m.dryRunConfig)
+		dryRunCtx := schema.NewDryRunContext(ctx)
 
 		// Execute the migration in dry-run mode
 		if migration.upFnContext != nil {
@@ -131,8 +127,8 @@ func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
 			capturedSQL := dryRunCtx.GetCapturedSQL()
 			totalStatements += len(capturedSQL)
 
-			// Print captured SQL if enabled
-			if m.dryRunConfig.PrintSQL && dryRunCtx.HasPendingQuery() {
+			// Print captured SQL
+			if dryRunCtx.HasPendingQuery() {
 				queries := dryRunCtx.GetPendingQueries()
 				for _, q := range queries {
 					logger.DryRunSQL(q.Query, q.Args...)
@@ -142,16 +138,12 @@ func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
 
 		migrationDuration := time.Since(migrationStartTime).Seconds() * 1000
 
-		if m.dryRunConfig.PrintMigrations {
-			logger.DryRunMigrationComplete(filepath.Base(migration.source), migrationDuration)
-		}
+		logger.DryRunMigrationComplete(filepath.Base(migration.source), migrationDuration)
 	}
 
 	duration := time.Since(startTime).Seconds() * 1000
 
-	if m.dryRunConfig.PrintMigrations {
-		logger.DryRunSummary(totalMigrations, totalStatements, duration)
-	}
+	logger.DryRunSummary(totalMigrations, totalStatements, duration)
 
 	return nil
 }

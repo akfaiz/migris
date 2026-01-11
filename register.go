@@ -31,12 +31,12 @@ func (m MigrationContext) runTxFunc(source string) func(ctx context.Context, tx 
 		filename := path.Base(source)
 
 		// Check if we're in dry-run mode
-		isDryRun, dryRunConfig := getGlobalDryRunState()
+		isDryRun := getGlobalDryRunState()
 
 		var c schema.Context
 		if isDryRun {
 			// Create dry-run context
-			c = schema.NewDryRunContext(ctx, dryRunConfig)
+			c = schema.NewDryRunContext(ctx)
 		} else {
 			// Create regular context
 			c = schema.NewContext(ctx, tx, schema.WithFilename(filename))

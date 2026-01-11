@@ -7,7 +7,6 @@ import (
 
 	"github.com/akfaiz/migris/internal/config"
 	"github.com/akfaiz/migris/internal/dialect"
-	"github.com/akfaiz/migris/schema"
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
 )
@@ -19,7 +18,6 @@ type Migrate struct {
 	migrationDir string
 	tableName    string
 	dryRun       bool
-	dryRunConfig schema.DryRunConfig
 }
 
 // New creates a new Migrate instance

@@ -263,25 +263,22 @@ Dry-run mode shows:
 - Execution timing and summary statistics
 - Clear indication that no database changes are made
 
-## Dry-Run Configuration
+## Dry-Run Mode
 
-Customize dry-run behavior:
+Enable dry-run mode to preview migrations without executing them:
 
 ```go
-dryRunConfig := migris.DryRunConfig{
-    PrintMigrations: true,  // Show migration progress
-    PrintSQL:        true,  // Show generated SQL statements
-    ColorOutput:     true,  // Use colored terminal output
-    OutputWriter:    os.Stdout, // Custom output destination
-}
-
 migrator, err := migris.New("pgx", 
     migris.WithDB(db),
     migris.WithMigrationDir(migrationDir),
-    migris.WithDryRun(),
-    migris.WithDryRunConfig(dryRunConfig),
+    migris.WithDryRun(true),  // Enable dry-run mode
 )
 ```
+
+Dry-run mode automatically displays:
+- Migration progress and status
+- All generated SQL statements  
+- Summary of pending migrations
 
 ## Database Support
 

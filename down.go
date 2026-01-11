@@ -110,9 +110,7 @@ func (m *Migrate) executeDryRunDown(ctx context.Context, version int64) error {
 		return nil
 	}
 
-	if m.dryRunConfig.PrintMigrations {
-		logger.DryRunDownStart(version)
-	}
+	logger.DryRunDownStart(version)
 
 	startTime := time.Now()
 	totalStatements := 0
@@ -140,9 +138,7 @@ func (m *Migrate) executeDryRunDown(ctx context.Context, version int64) error {
 	}
 
 	if len(migrationsToRollback) == 0 {
-		if m.dryRunConfig.PrintMigrations {
-			logger.Info("Nothing to rollback.")
-		}
+		logger.Info("Nothing to rollback.")
 		return nil
 	}
 
@@ -151,12 +147,10 @@ func (m *Migrate) executeDryRunDown(ctx context.Context, version int64) error {
 		migrationStartTime := time.Now()
 		totalMigrations++
 
-		if m.dryRunConfig.PrintMigrations {
-			logger.DryRunMigrationStart(filepath.Base(migration.source), migration.version)
-		}
+		logger.DryRunMigrationStart(filepath.Base(migration.source), migration.version)
 
 		// Create dry-run context for this migration
-		dryRunCtx := schema.NewDryRunContext(ctx, m.dryRunConfig)
+		dryRunCtx := schema.NewDryRunContext(ctx)
 
 		// Execute the down migration in dry-run mode
 		if migration.downFnContext != nil {
@@ -169,7 +163,7 @@ func (m *Migrate) executeDryRunDown(ctx context.Context, version int64) error {
 			totalStatements += len(capturedSQL)
 
 			// Print captured SQL if enabled
-			if m.dryRunConfig.PrintSQL && dryRunCtx.HasPendingQuery() {
+			if dryRunCtx.HasPendingQuery() {
 				queries := dryRunCtx.GetPendingQueries()
 				for _, q := range queries {
 					logger.DryRunSQL(q.Query, q.Args...)
@@ -179,20 +173,16 @@ func (m *Migrate) executeDryRunDown(ctx context.Context, version int64) error {
 
 		migrationDuration := time.Since(migrationStartTime).Seconds() * 1000
 
-		if m.dryRunConfig.PrintMigrations {
-			logger.DryRunMigrationComplete(filepath.Base(migration.source), migrationDuration)
-		}
+		logger.DryRunMigrationComplete(filepath.Base(migration.source), migrationDuration)
 	}
 
 	duration := time.Since(startTime).Seconds() * 1000
 
-	if m.dryRunConfig.PrintMigrations {
-		operation := "DOWN"
-		if version == 0 {
-			operation = "RESET"
-		}
-		logger.DryRunDownSummary(totalMigrations, totalStatements, duration, operation)
+	operation := "DOWN"
+	if version == 0 {
+		operation = "RESET"
 	}
+	logger.DryRunDownSummary(totalMigrations, totalStatements, duration, operation)
 
 	return nil
 }

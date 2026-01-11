@@ -10,7 +10,6 @@ import (
 type DryRunContext struct {
 	ctx            context.Context
 	capturedSQL    []string
-	config         DryRunConfig
 	pendingQueries []QueryWithArgs
 }
 
@@ -18,12 +17,6 @@ type DryRunContext struct {
 type QueryWithArgs struct {
 	Query string
 	Args  []any
-}
-
-// DryRunConfig holds configuration for dry-run mode
-type DryRunConfig struct {
-	PrintSQL        bool // Print SQL statements as they're captured
-	PrintMigrations bool // Print migration info
 }
 
 // MockResult implements sql.Result for dry-run mode
@@ -74,11 +67,10 @@ func (m *MockRow) Scan(dest ...interface{}) error {
 }
 
 // NewDryRunContext creates a new DryRunContext
-func NewDryRunContext(ctx context.Context, config DryRunConfig) *DryRunContext {
+func NewDryRunContext(ctx context.Context) *DryRunContext {
 	return &DryRunContext{
 		ctx:         ctx,
 		capturedSQL: make([]string, 0),
-		config:      config,
 	}
 }
 
@@ -87,9 +79,7 @@ func (drc *DryRunContext) Exec(query string, args ...any) (sql.Result, error) {
 	cleanQuery := strings.TrimSpace(query)
 	drc.capturedSQL = append(drc.capturedSQL, cleanQuery)
 
-	if drc.config.PrintSQL {
-		drc.printSQL(cleanQuery, args...)
-	}
+	drc.printSQL(cleanQuery, args...)
 
 	// Return a mock result that simulates successful execution
 	return &MockResult{
@@ -103,9 +93,7 @@ func (drc *DryRunContext) Query(query string, args ...any) (*sql.Rows, error) {
 	cleanQuery := strings.TrimSpace(query)
 	drc.capturedSQL = append(drc.capturedSQL, cleanQuery)
 
-	if drc.config.PrintSQL {
-		drc.printSQL(cleanQuery, args...)
-	}
+	drc.printSQL(cleanQuery, args...)
 
 	// Return empty mock rows
 	return &sql.Rows{}, nil
@@ -116,9 +104,7 @@ func (drc *DryRunContext) QueryRow(query string, args ...any) *sql.Row {
 	cleanQuery := strings.TrimSpace(query)
 	drc.capturedSQL = append(drc.capturedSQL, cleanQuery)
 
-	if drc.config.PrintSQL {
-		drc.printSQL(cleanQuery, args...)
-	}
+	drc.printSQL(cleanQuery, args...)
 
 	// Return a row that will return sql.ErrNoRows when scanned
 	return &sql.Row{}
