@@ -2,7 +2,6 @@ package migris
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/akfaiz/migris/schema"
@@ -24,8 +23,6 @@ func TestDryRunContext(t *testing.T) {
 	config := schema.DryRunConfig{
 		PrintSQL:        true,
 		PrintMigrations: true,
-		ColorOutput:     false,
-		OutputWriter:    os.Stdout,
 	}
 
 	ctx := context.Background()
@@ -51,7 +48,7 @@ func TestRegularContextInterface(t *testing.T) {
 	assert.NotNil(t, regularCtx)
 
 	// Test that DryRunContext also implements Context interface
-	config := schema.DryRunConfig{OutputWriter: os.Stdout}
+	config := schema.DryRunConfig{}
 	var dryRunCtx schema.Context = schema.NewDryRunContext(ctx, config)
 	assert.NotNil(t, dryRunCtx)
 }

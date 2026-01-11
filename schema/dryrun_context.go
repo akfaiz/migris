@@ -3,8 +3,6 @@ package schema
 import (
 	"context"
 	"database/sql"
-	"io"
-	"os"
 	"strings"
 )
 
@@ -24,10 +22,8 @@ type QueryWithArgs struct {
 
 // DryRunConfig holds configuration for dry-run mode
 type DryRunConfig struct {
-	PrintSQL        bool      // Print SQL statements as they're captured
-	PrintMigrations bool      // Print migration info
-	ColorOutput     bool      // Use colored output
-	OutputWriter    io.Writer // Where to write output (default: os.Stdout)
+	PrintSQL        bool // Print SQL statements as they're captured
+	PrintMigrations bool // Print migration info
 }
 
 // MockResult implements sql.Result for dry-run mode
@@ -79,9 +75,6 @@ func (m *MockRow) Scan(dest ...interface{}) error {
 
 // NewDryRunContext creates a new DryRunContext
 func NewDryRunContext(ctx context.Context, config DryRunConfig) *DryRunContext {
-	if config.OutputWriter == nil {
-		config.OutputWriter = os.Stdout
-	}
 	return &DryRunContext{
 		ctx:         ctx,
 		capturedSQL: make([]string, 0),

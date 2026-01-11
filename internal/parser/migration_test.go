@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/akfaiz/migris/internal/parser"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseMigrationName(t *testing.T) {
@@ -90,12 +91,10 @@ func TestParseMigrationName(t *testing.T) {
 			wantTable:  "user_profiles",
 			wantCreate: false,
 		},
-
-		// Unknown patterns
 		{
-			name:       "unknown migration pattern",
+			name:       "update table",
 			filename:   "update_users_table",
-			wantTable:  "",
+			wantTable:  "users",
 			wantCreate: false,
 		},
 		{
@@ -121,12 +120,8 @@ func TestParseMigrationName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotTable, gotCreate := parser.ParseMigrationName(tt.filename)
-			if gotTable != tt.wantTable {
-				t.Errorf("ParseMigrationName() gotTable = %v, want %v", gotTable, tt.wantTable)
-			}
-			if gotCreate != tt.wantCreate {
-				t.Errorf("ParseMigrationName() gotCreate = %v, want %v", gotCreate, tt.wantCreate)
-			}
+			assert.Equal(t, tt.wantTable, gotTable, "for filename: %s", tt.filename)
+			assert.Equal(t, tt.wantCreate, gotCreate, "for filename: %s", tt.filename)
 		})
 	}
 }

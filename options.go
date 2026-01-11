@@ -2,7 +2,6 @@ package migris
 
 import (
 	"database/sql"
-	"os"
 
 	"github.com/akfaiz/migris/schema"
 )
@@ -34,11 +33,8 @@ func WithDB(db *sql.DB) Option {
 func WithDryRun(enabled bool) Option {
 	return func(m *Migrate) {
 		m.dryRun = enabled
-		if enabled && m.dryRunConfig.OutputWriter == nil {
-			m.dryRunConfig.OutputWriter = os.Stdout
-			m.dryRunConfig.PrintSQL = true
-			m.dryRunConfig.PrintMigrations = true
-		}
+		m.dryRunConfig.PrintSQL = true
+		m.dryRunConfig.PrintMigrations = true
 	}
 }
 
@@ -47,8 +43,5 @@ func WithDryRunConfig(config schema.DryRunConfig) Option {
 	return func(m *Migrate) {
 		m.dryRun = true
 		m.dryRunConfig = config
-		if config.OutputWriter == nil {
-			m.dryRunConfig.OutputWriter = os.Stdout
-		}
 	}
 }

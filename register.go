@@ -37,9 +37,6 @@ func (m MigrationContext) runTxFunc(source string) func(ctx context.Context, tx 
 		if isDryRun {
 			// Create dry-run context
 			c = schema.NewDryRunContext(ctx, dryRunConfig)
-			if dryRunConfig.PrintMigrations {
-				fmt.Fprintf(dryRunConfig.OutputWriter, "🚀 [DRY RUN] Executing migration: %s\n", filename)
-			}
 		} else {
 			// Create regular context
 			c = schema.NewContext(ctx, tx, schema.WithFilename(filename))

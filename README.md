@@ -102,12 +102,7 @@ func createMigrator(dryRun bool) (*migris.Migrate, error) {
     }
 
     if dryRun {
-        dryRunConfig := migris.DryRunConfig{
-            PrintMigrations: true,
-            PrintSQL:        true,
-            ColorOutput:     true,
-        }
-        options = append(options, migris.WithDryRun(), migris.WithDryRunConfig(dryRunConfig))
+        options = append(options, migris.WithDryRun())
     }
 
     return migris.New("pgx", options...)
