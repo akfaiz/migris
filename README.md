@@ -204,7 +204,6 @@ Currently supported databases:
 
 ## Roadmap
 
-- [ ] SQLite support
 - [ ] Advanced schema introspection
 
 ## Contributing
