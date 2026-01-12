@@ -62,8 +62,8 @@ func (l *Logger) SetOutput(w io.Writer) {
 
 // Printf is a helper method that writes to the configured output.
 func (l *Logger) Printf(format string, args ...interface{}) {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	fmt.Fprintf(l.output, format, args...)
 }
 
@@ -208,57 +208,3 @@ func (l *Logger) DryRunDownSummary(totalMigrations, totalStatements int, operati
 	l.printBulletPoint("Total SQL statements generated", strconv.Itoa(totalStatements), greenBold)
 	l.printBulletPoint("Mode", "DRY RUN (no changes applied to database)", yellowBold)
 }
-
-// // Package-level convenience functions for backward compatibility
-
-// func Info(msg string) {
-// 	Get().Info(msg)
-// }
-
-// func Infof(format string, args ...any) {
-// 	Get().Infof(format, args...)
-// }
-
-// func PrintResults(results []*goose.MigrationResult) {
-// 	Get().PrintResults(results)
-// }
-
-// func PrintResult(result *goose.MigrationResult) {
-// 	Get().PrintResult(result)
-// }
-
-// func PrintStatuses(statuses []*goose.MigrationStatus) {
-// 	Get().PrintStatuses(statuses)
-// }
-
-// func PrintStatus(status *goose.MigrationStatus) {
-// 	Get().PrintStatus(status)
-// }
-
-// func DryRunStart(version int64) {
-// 	Get().DryRunStart(version)
-// }
-
-// func DryRunMigrationStart(source string, version int64) {
-// 	Get().DryRunMigrationStart(source, version)
-// }
-
-// func DryRunMigrationComplete(source string, duration float64) {
-// 	Get().DryRunMigrationComplete(source, duration)
-// }
-
-// func DryRunSQL(query string, args ...any) {
-// 	Get().DryRunSQL(query, args...)
-// }
-
-// func DryRunSummary(totalMigrations, totalStatements int) {
-// 	Get().DryRunSummary(totalMigrations, totalStatements)
-// }
-
-// func DryRunDownStart(version int64) {
-// 	Get().DryRunDownStart(version)
-// }
-
-// func DryRunDownSummary(totalMigrations, totalStatements int, operation string) {
-// 	Get().DryRunDownSummary(totalMigrations, totalStatements, operation)
-// }
