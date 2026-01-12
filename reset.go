@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/akfaiz/migris/internal/logger"
 	"github.com/pressly/goose/v3"
 )
 
@@ -30,20 +29,20 @@ func (m *Migrate) ResetContext(ctx context.Context) error {
 		return err
 	}
 	if currentVersion == 0 {
-		logger.Info("Nothing to rollback.")
+		m.logger.Info("Nothing to rollback.")
 		return nil
 	}
-	logger.Info("Rolling back migrations.\n")
+	m.logger.Info("Rolling back migrations.\n")
 	results, err := provider.DownTo(ctx, 0)
 	if err != nil {
 		var partialErr *goose.PartialError
 		if errors.As(err, &partialErr) {
-			logger.PrintResults(partialErr.Applied)
-			logger.PrintResult(partialErr.Failed)
+			m.logger.PrintResults(partialErr.Applied)
+			m.logger.PrintResult(partialErr.Failed)
 		}
 
 		return err
 	}
-	logger.PrintResults(results)
+	m.logger.PrintResults(results)
 	return nil
 }

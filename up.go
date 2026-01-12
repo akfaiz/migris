@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/akfaiz/migris/internal/logger"
 	"github.com/akfaiz/migris/schema"
 	"github.com/pressly/goose/v3"
 )
@@ -48,22 +47,22 @@ func (m *Migrate) UpToContext(ctx context.Context, version int64) error {
 		return err
 	}
 	if !hasPending {
-		logger.Info("Nothing to migrate.")
+		m.logger.Info("Nothing to migrate.")
 		return nil
 	}
 
-	logger.Infof("Running migrations.\n")
+	m.logger.Infof("Running migrations.\n")
 	results, err := provider.UpTo(ctx, version)
 	if err != nil {
 		var partialErr *goose.PartialError
 		if errors.As(err, &partialErr) {
-			logger.PrintResults(partialErr.Applied)
-			logger.PrintResult(partialErr.Failed)
+			m.logger.PrintResults(partialErr.Applied)
+			m.logger.PrintResult(partialErr.Failed)
 		}
 
 		return err
 	}
-	logger.PrintResults(results)
+	m.logger.PrintResults(results)
 
 	return nil
 }
@@ -82,12 +81,11 @@ func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
 		return fmt.Errorf("cannot check pending migrations: %w", err)
 	}
 	if !hasPending {
-		logger.Info("Nothing to migrate.")
+		m.logger.Info("Nothing to migrate.")
 		return nil
 	}
 
-	logger.DryRunStart(version)
-
+	m.logger.DryRunStart(version)
 	// Get current database version
 	currentVersion, err := provider.GetDBVersion(ctx)
 	if err != nil {
@@ -98,13 +96,13 @@ func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
 	migrationsToApply := m.determineMigrationsToApply(version, currentVersion)
 
 	// Process migrations in dry-run mode
-	totalMigrations, totalStatements, duration, err := m.processDryRunUpMigrations(ctx, migrationsToApply)
+	totalMigrations, totalStatements, _, err := m.processDryRunUpMigrations(ctx, migrationsToApply)
 	if err != nil {
 		return err
 	}
 
 	// Print summary
-	logger.DryRunSummary(totalMigrations, totalStatements, duration)
+	m.logger.DryRunSummary(totalMigrations, totalStatements)
 
 	return nil
 }
@@ -144,7 +142,7 @@ func (m *Migrate) processDryRunMigrations(
 		migrationStartTime := time.Now()
 		totalMigrations++
 
-		logger.DryRunMigrationStart(filepath.Base(migration.source), migration.version)
+		m.logger.DryRunMigrationStart(filepath.Base(migration.source), migration.version)
 
 		// Create dry-run context for this migration
 		dryRunCtx := schema.NewDryRunContext(ctx)
@@ -173,13 +171,13 @@ func (m *Migrate) processDryRunMigrations(
 			if dryRunCtx.HasPendingQuery() {
 				queries := dryRunCtx.GetPendingQueries()
 				for _, q := range queries {
-					logger.DryRunSQL(q.Query, q.Args...)
+					m.logger.DryRunSQL(q.Query, q.Args...)
 				}
 			}
 		}
 
 		migrationDuration := time.Since(migrationStartTime).Seconds() * 1000
-		logger.DryRunMigrationComplete(filepath.Base(migration.source), migrationDuration)
+		m.logger.DryRunMigrationComplete(filepath.Base(migration.source), migrationDuration)
 	}
 
 	duration := time.Since(startTime).Seconds() * 1000

@@ -350,10 +350,8 @@ func TestSqliteGrammar_UnsupportedOperations(t *testing.T) {
 		{"CompileDropColumn", func() (string, error) { return g.CompileDropColumn(bp, cmd) }},
 		{"CompileRenameColumn", func() (string, error) { return g.CompileRenameColumn(bp, cmd) }},
 		{"CompileFullText", func() (string, error) { return g.CompileFullText(bp, cmd) }},
-		{"CompilePrimary", func() (string, error) { return g.CompilePrimary(bp, cmd) }},
 		{"CompileDropPrimary", func() (string, error) { return g.CompileDropPrimary(bp, cmd) }},
 		{"CompileRenameIndex", func() (string, error) { return g.CompileRenameIndex(bp, cmd) }},
-		{"CompileForeign", func() (string, error) { return g.CompileForeign(bp, cmd) }},
 		{"CompileDropForeign", func() (string, error) { return g.CompileDropForeign(bp, cmd) }},
 	}
 
@@ -362,6 +360,29 @@ func TestSqliteGrammar_UnsupportedOperations(t *testing.T) {
 			sql, err := tt.fn()
 			require.Error(t, err)
 			assert.Empty(t, sql)
+		})
+	}
+}
+
+func TestSqliteGrammar_SupportedButDelegated(t *testing.T) {
+	g := newSqliteGrammar()
+	bp := &Blueprint{name: "test_table", grammar: g}
+	cmd := &command{} // Empty command for testing
+
+	// Test operations that are supported but handled at table creation time (not as separate commands)
+	tests := []struct {
+		name string
+		fn   func() (string, error)
+	}{
+		{"CompilePrimary", func() (string, error) { return g.CompilePrimary(bp, cmd) }},
+		{"CompileForeign", func() (string, error) { return g.CompileForeign(bp, cmd) }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sql, err := tt.fn()
+			require.NoError(t, err, "Should not return error as these are handled at table creation time")
+			assert.Empty(t, sql, "Should return empty SQL as these are handled elsewhere")
 		})
 	}
 }

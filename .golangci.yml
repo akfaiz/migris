@@ -469,6 +469,7 @@ linters:
           # - goconst
           - gosec
           - noctx
+          - unqueryvet
           - wrapcheck
       - path: '_test\.go'
         text: 'shadow'

@@ -7,6 +7,7 @@ import (
 
 	"github.com/akfaiz/migris/internal/config"
 	"github.com/akfaiz/migris/internal/dialect"
+	"github.com/akfaiz/migris/internal/logger"
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
 )
@@ -18,6 +19,7 @@ type Migrate struct {
 	migrationDir string
 	tableName    string
 	dryRun       bool
+	logger       *logger.Logger
 }
 
 // New creates a new Migrate instance.
@@ -32,6 +34,7 @@ func New(dialectValue string, opts ...Option) (*Migrate, error) {
 		dialect:      dialectVal,
 		migrationDir: "migrations",
 		tableName:    "schema_migrations",
+		logger:       logger.Get(),
 	}
 	for _, opt := range opts {
 		opt(m)
