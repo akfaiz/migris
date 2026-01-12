@@ -39,17 +39,14 @@ func New(dialectValue string, opts ...Option) (*Migrate, error) {
 	for _, opt := range opts {
 		opt(m)
 	}
+	if m.db == nil {
+		return nil, errors.New("database connection is not set, please call WithDB option")
+	}
 	return m, nil
 }
 
 func (m *Migrate) newProvider() (*goose.Provider, error) {
 	val := config.GetDialect()
-	if val == dialect.Unknown {
-		return nil, errors.New("unknown database dialect")
-	}
-	if m.db == nil {
-		return nil, errors.New("database connection is not set, please call WithDB option")
-	}
 	gooseDialect := val.GooseDialect()
 	store, err := database.NewStore(gooseDialect, m.tableName)
 	if err != nil {

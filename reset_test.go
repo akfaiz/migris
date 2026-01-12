@@ -13,6 +13,7 @@ import (
 )
 
 func TestReset(t *testing.T) {
+	migris.ResetRegisteredMigrations()
 	db, err := sql.Open("sqlite3", ":memory:")
 	require.NoError(t, err)
 	defer db.Close()
@@ -43,6 +44,7 @@ func TestReset(t *testing.T) {
 }
 
 func TestReset_DryRun(t *testing.T) {
+	migris.ResetRegisteredMigrations()
 	db, err := sql.Open("sqlite3", ":memory:")
 	require.NoError(t, err)
 	defer db.Close()
