@@ -72,6 +72,42 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 	}
 }
 
+func TestPgGrammar_CompileTableExists(t *testing.T) {
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
+
+	sql, err := g.CompileTableExists("", "public.users")
+	require.NoError(t, err)
+	assert.Equal(t, "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users'", sql)
+}
+
+func TestPgGrammar_CompileTables(t *testing.T) {
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
+
+	sql, err := g.CompileTables("")
+	require.NoError(t, err)
+	assert.Contains(t, sql, "SELECT \n\t\t\tt.table_name")
+}
+
+func TestPgGrammar_CompileColumns(t *testing.T) {
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
+
+	sql, err := g.CompileColumns("", "public.users")
+	require.NoError(t, err)
+	assert.Contains(t, sql, "cols.table_schema = 'public' \n\t\t\tAND cols.table_name = 'users'")
+}
+
+func TestPgGrammar_CompileIndexes(t *testing.T) {
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
+
+	sql, err := g.CompileIndexes("", "public.users")
+	require.NoError(t, err)
+	assert.Contains(t, sql, "t.relname = 'users'\n\t\t\tAND n.nspname = 'public'")
+}
+
 func TestPgGrammar_CompileAdd(t *testing.T) {
 	g, err := grammars.NewGrammar("postgres")
 	require.NoError(t, err)

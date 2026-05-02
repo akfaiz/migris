@@ -5,7 +5,6 @@ import (
 
 	"github.com/akfaiz/migris/schema/blueprint"
 	"github.com/akfaiz/migris/schema/grammars"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -339,6 +338,59 @@ func TestSqliteGrammar_CompileUnique(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSqliteGrammar_CompileTableExists(t *testing.T) {
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
+
+	sql, err := g.CompileTableExists("", "users")
+	require.NoError(t, err)
+	assert.Equal(t, "SELECT 1 FROM sqlite_master WHERE type='table' AND name='users'", sql)
+}
+
+func TestSqliteGrammar_CompileTables(t *testing.T) {
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
+
+	sql, err := g.CompileTables("")
+	require.NoError(t, err)
+	assert.Equal(t, "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'", sql)
+}
+
+func TestSqliteGrammar_CompileColumns(t *testing.T) {
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
+
+	sql, err := g.CompileColumns("", "users")
+	require.NoError(t, err)
+	assert.Equal(t, "PRAGMA table_info(\"users\")", sql)
+}
+
+func TestSqliteGrammar_CompileIndexes(t *testing.T) {
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
+
+	sql, err := g.CompileIndexes("", "users")
+	require.NoError(t, err)
+	assert.Equal(t, "PRAGMA index_list(\"users\")", sql)
+}
+
+func TestSqliteGrammar_CompileDropIndex(t *testing.T) {
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
+
+	bp := &blueprint.Blueprint{Name: "users", Grammar: g}
+	bp.DropIndex("users_email_index")
+
+	sql, err := g.CompileDropIndex(bp, bp.Commands[0])
+	require.NoError(t, err)
+	assert.Equal(t, "DROP INDEX \"users_email_index\"", sql)
+
+	// test empty index name
+	cmd := &blueprint.Command{Index: ""}
+	_, err = g.CompileDropIndex(bp, cmd)
+	require.Error(t, err)
 }
 
 func TestSqliteGrammar_UnsupportedOperations(t *testing.T) {

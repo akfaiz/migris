@@ -99,11 +99,6 @@ func (s *sqliteBuilderSuite) TestCreate() {
 		})
 		s.Require().NoError(err, "expected no error when creating table with valid parameters")
 	})
-	s.Run("when have composite primary key should create it successfully", func() {
-		// Note: SQLite doesn't support composite primary keys at table level
-		// This test is skipped for SQLite as it's a known limitation
-		s.T().Skip("SQLite doesn't support composite primary keys at table level")
-	})
 	s.Run("when have custom index should create it successfully", func() {
 		err = builder.Create(c, "orders_2", func(table *schema.Blueprint) {
 			table.ID()
@@ -273,37 +268,17 @@ func (s *sqliteBuilderSuite) TestTable() {
 			}
 			s.Require().NoError(err, "expected no error when adding column with valid parameters")
 		})
-		s.Run("should modify existing column", func() {
-			// SQLite doesn't support MODIFY COLUMN
-			s.T().Skip("SQLite does not support modifying columns")
-		})
-		s.Run("should drop column and rename existing one", func() {
-			// SQLite has limited support for dropping columns (only since v3.35.0)
-			s.T().Skip("SQLite has limited support for dropping/renaming columns")
-		})
 		s.Run("should add index", func() {
 			err = builder.Table(c, "users", func(table *schema.Blueprint) {
 				table.Index("bio").Name("idx_users_bio")
 			})
 			s.Require().NoError(err, "expected no error when adding index to table")
 		})
-		s.Run("should rename index", func() {
-			// SQLite doesn't support renaming indexes
-			s.T().Skip("SQLite does not support renaming indexes")
-		})
 		s.Run("should drop index", func() {
 			err = builder.Table(c, "users", func(table *schema.Blueprint) {
 				table.DropIndex("idx_users_bio")
 			})
 			s.Require().NoError(err, "expected no error when dropping index from table")
-		})
-		s.Run("should drop unique constraint", func() {
-			// SQLite doesn't support dropping constraints individually
-			s.T().Skip("SQLite does not support dropping unique constraints individually")
-		})
-		s.Run("should drop fulltext index", func() {
-			// Note: SQLite FullText requires FTS virtual tables, skip for regular table test
-			s.T().Skip("SQLite FullText requires special FTS virtual table setup")
 		})
 	})
 }
