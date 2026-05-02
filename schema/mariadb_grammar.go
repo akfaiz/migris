@@ -44,7 +44,15 @@ func (g *mariadbGrammar) typeGeometry(col *columnDefinition) string {
 	subtype := util.Ternary(col.subtype != nil, util.PtrOf(strings.ToUpper(*col.subtype)), nil)
 	if subtype != nil {
 		if !slices.Contains(
-			[]string{"POINT", "LINESTRING", "POLYGON", "GEOMETRYCOLLECTION", "MULTIPOINT", "MULTILINESTRING", "MULTIPOLYGON"},
+			[]string{
+				"POINT",
+				"LINESTRING",
+				"POLYGON",
+				"GEOMETRYCOLLECTION",
+				"MULTIPOINT",
+				"MULTILINESTRING",
+				"MULTIPOLYGON",
+			},
 			*subtype,
 		) {
 			subtype = nil

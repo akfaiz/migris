@@ -306,40 +306,40 @@ func (g *sqliteGrammar) getColumns(blueprint *Blueprint) []string {
 
 func (g *sqliteGrammar) getType(column *columnDefinition) string {
 	typeFuncMap := map[string]func(*columnDefinition) string{
-		"char":          g.typeChar,
-		"string":        g.typeString,
-		"tinyText":      g.typeTinyText,
-		"text":          g.typeText,
-		"mediumText":    g.typeMediumText,
-		"longText":      g.typeLongText,
-		"bigInteger":    g.typeBigInteger,
-		"integer":       g.typeInteger,
-		"mediumInteger": g.typeMediumInteger,
-		"smallInteger":  g.typeSmallInteger,
-		"tinyInteger":   g.typeTinyInteger,
-		"float":         g.typeFloat,
-		"double":        g.typeDouble,
-		"decimal":       g.typeDecimal,
-		"boolean":       g.typeBoolean,
-		"enum":          g.typeEnum,
-		"json":          g.typeJSON,
-		"jsonb":         g.typeJSONB,
-		"date":          g.typeDate,
-		"dateTime":      g.typeDateTime,
-		"dateTimeTz":    g.typeDateTimeTz,
-		"time":          g.typeTime,
-		"timeTz":        g.typeTimeTz,
-		"timestamp":     g.typeTimestamp,
-		"timestampTz":   g.typeTimestampTz,
-		"year":          g.typeYear,
-		"binary":        g.typeBinary,
-		"uuid":          g.typeUUID,
-		"ulid":          g.typeULID,
-		"ipAddress":     g.typeIpAddress,
-		"macAddress":    g.typeMacAddress,
-		"geometry":      g.typeGeometry,
-		"geography":     g.typeGeography,
-		"point":         g.typePoint,
+		"char":               g.typeChar,
+		"string":             g.typeString,
+		"tinyText":           g.typeTinyText,
+		"text":               g.typeText,
+		"mediumText":         g.typeMediumText,
+		"longText":           g.typeLongText,
+		"bigInteger":         g.typeBigInteger,
+		"integer":            g.typeInteger,
+		"mediumInteger":      g.typeMediumInteger,
+		"smallInteger":       g.typeSmallInteger,
+		"tinyInteger":        g.typeTinyInteger,
+		"float":              g.typeFloat,
+		"double":             g.typeDouble,
+		"decimal":            g.typeDecimal,
+		"boolean":            g.typeBoolean,
+		"enum":               g.typeEnum,
+		"json":               g.typeJSON,
+		"jsonb":              g.typeJSONB,
+		"date":               g.typeDate,
+		"dateTime":           g.typeDateTime,
+		"dateTimeTz":         g.typeDateTimeTz,
+		"time":               g.typeTime,
+		"timeTz":             g.typeTimeTz,
+		"timestamp":          g.typeTimestamp,
+		"timestampTz":        g.typeTimestampTz,
+		"year":               g.typeYear,
+		"binary":             g.typeBinary,
+		columnTypeUUID:       g.typeUUID,
+		columnTypeULID:       g.typeULID,
+		columnTypeIPAddress:  g.typeIPAddress,
+		columnTypeMacAddress: g.typeMacAddress,
+		columnTypeGeometry:   g.typeGeometry,
+		"geography":          g.typeGeography,
+		"point":              g.typePoint,
 	}
 	if fn, ok := typeFuncMap[column.columnType]; ok {
 		return fn(column)
@@ -476,7 +476,7 @@ func (g *sqliteGrammar) typeULID(_ *columnDefinition) string {
 	return "TEXT"
 }
 
-func (g *sqliteGrammar) typeIpAddress(_ *columnDefinition) string {
+func (g *sqliteGrammar) typeIPAddress(_ *columnDefinition) string {
 	return "TEXT"
 }
 

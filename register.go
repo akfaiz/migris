@@ -40,7 +40,10 @@ func NewRegistry() *Registry {
 	}
 }
 
-func (m MigrationContext) runTxFunc(source string, dialectVal dialect.Dialect) func(ctx context.Context, tx *sql.Tx) error {
+func (m MigrationContext) runTxFunc(
+	source string,
+	dialectVal dialect.Dialect,
+) func(ctx context.Context, tx *sql.Tx) error {
 	return func(ctx context.Context, tx *sql.Tx) error {
 		filename := path.Base(source)
 		c := schema.NewContext(ctx, tx,

@@ -67,7 +67,7 @@ func (m *MockRow) Scan(_ ...any) error {
 	return sql.ErrNoRows // Always return no rows in dry-run mode
 }
 
-// NewDryRunContext creates a new DryRunContext.
+// DryRunContextOptions is a function type for configuring DryRunContext.
 type DryRunContextOptions func(*DryRunContext)
 
 func WithDryRunDialect(dialect string) DryRunContextOptions {

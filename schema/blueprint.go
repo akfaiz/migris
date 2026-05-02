@@ -41,10 +41,10 @@ const (
 	columnTypeULID          string = "ulid"
 	columnTypeEnum          string = "enum"
 	columnTypeSet           string = "set"
-	columnTypeIpAddress     string = "ipAddress"
+	columnTypeIPAddress     string = "ipAddress"
 	columnTypeMacAddress    string = "macAddress"
 	columnTypeVector        string = "vector"
-	columnTypeTsVector      string = "tsvector"
+	columnTypeTSVector      string = "tsvector"
 	columnTypeCidr          string = "cidr"
 	columnTypeInet          string = "inet"
 	columnTypeMacaddr       string = "macaddr"
@@ -69,6 +69,11 @@ type Blueprint struct {
 	engine                      string
 	comment                     string
 	autoIncrementStartingValues *int
+}
+
+// NewBlueprintForTesting creates a new blueprint for testing purposes.
+func NewBlueprintForTesting(name string, g grammar) *Blueprint {
+	return &Blueprint{name: name, grammar: g}
 }
 
 // Charset sets the character set for the table in the blueprint.
@@ -394,9 +399,9 @@ func (b *Blueprint) Set(name string, allowed []string) ColumnDefinition {
 	})
 }
 
-// IpAddress creates a new IP address column definition in the blueprint.
-func (b *Blueprint) IpAddress(name string) ColumnDefinition {
-	return b.addColumn(columnTypeIpAddress, name)
+// IPAddress creates a new IP address column definition in the blueprint.
+func (b *Blueprint) IPAddress(name string) ColumnDefinition {
+	return b.addColumn(columnTypeIPAddress, name)
 }
 
 // MacAddress creates a new MAC address column definition in the blueprint.
@@ -411,9 +416,9 @@ func (b *Blueprint) Vector(name string, dimensions ...int) ColumnDefinition {
 	})
 }
 
-// TsVector creates a new tsvector column definition in the blueprint.
-func (b *Blueprint) TsVector(name string) ColumnDefinition {
-	return b.addColumn(columnTypeTsVector, name)
+// TSVector creates a new tsvector column definition in the blueprint.
+func (b *Blueprint) TSVector(name string) ColumnDefinition {
+	return b.addColumn(columnTypeTSVector, name)
 }
 
 // Cidr creates a new CIDR column definition in the blueprint.
@@ -700,8 +705,8 @@ func (b *Blueprint) build(ctx Context) error {
 	}
 
 	for _, statement := range statements {
-		if _, err := ctx.Exec(statement); err != nil {
-			return err
+		if _, execErr := ctx.Exec(statement); execErr != nil {
+			return execErr
 		}
 	}
 
@@ -756,7 +761,6 @@ func (b *Blueprint) mergeColumnMetadata(colDef *columnDefinition, existing *Colu
 }
 
 func (b *Blueprint) toSQL() ([]string, error) {
-
 	b.addImpliedCommands()
 
 	var statements []string

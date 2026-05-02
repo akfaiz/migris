@@ -2,6 +2,7 @@ package migris_test
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -53,22 +54,31 @@ func TestMigrator_WithRegistryUsesIsolatedMigrations(t *testing.T) {
 	})
 
 	registry := migris.NewRegistry()
-	require.NoError(t, registry.AddNamedMigrationContext("20250101000101_create_registry_table.go", func(ctx schema.Context) error {
-		return schema.Create(ctx, "registry_table", func(t *schema.Blueprint) {
-			t.Increments("id")
-		})
-	}, func(ctx schema.Context) error {
-		return schema.DropIfExists(ctx, "registry_table")
-	}))
+	require.NoError(
+		t,
+		registry.AddNamedMigrationContext("20250101000101_create_registry_table.go", func(ctx schema.Context) error {
+			return schema.Create(ctx, "registry_table", func(t *schema.Blueprint) {
+				t.Increments("id")
+			})
+		}, func(ctx schema.Context) error {
+			return schema.DropIfExists(ctx, "registry_table")
+		}),
+	)
 
 	m, err := migris.New("sqlite3", migris.WithDB(db), migris.WithRegistry(registry))
 	require.NoError(t, err)
 	require.NoError(t, m.Up())
 
 	var name string
-	require.NoError(t, db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='registry_table'").Scan(&name))
+	require.NoError(
+		t,
+		db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='registry_table'").Scan(&name),
+	)
 	require.Equal(t, "registry_table", name)
-	require.Error(t, db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='global_table'").Scan(&name))
+	require.Error(
+		t,
+		db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='global_table'").Scan(&name),
+	)
 }
 
 func TestMigrator_UsesInstanceDialectDuringMigrationExecution(t *testing.T) {
@@ -78,20 +88,23 @@ func TestMigrator_UsesInstanceDialectDuringMigrationExecution(t *testing.T) {
 	defer db.Close()
 
 	registry := migris.NewRegistry()
-	require.NoError(t, registry.AddNamedMigrationContext("20250101000102_create_context_table.go", func(ctx schema.Context) error {
-		dialectContext, ok := ctx.(interface{ Dialect() string })
-		if !ok {
-			return fmt.Errorf("expected migration context to expose dialect")
-		}
-		if dialectContext.Dialect() != "sqlite3" {
-			return fmt.Errorf("expected sqlite3 dialect, got %q", dialectContext.Dialect())
-		}
-		return schema.Create(ctx, "context_table", func(t *schema.Blueprint) {
-			t.Increments("id")
-		})
-	}, func(ctx schema.Context) error {
-		return schema.DropIfExists(ctx, "context_table")
-	}))
+	require.NoError(
+		t,
+		registry.AddNamedMigrationContext("20250101000102_create_context_table.go", func(ctx schema.Context) error {
+			dialectContext, ok := ctx.(interface{ Dialect() string })
+			if !ok {
+				return errors.New("expected migration context to expose dialect")
+			}
+			if dialectContext.Dialect() != "sqlite3" {
+				return fmt.Errorf("expected sqlite3 dialect, got %q", dialectContext.Dialect())
+			}
+			return schema.Create(ctx, "context_table", func(t *schema.Blueprint) {
+				t.Increments("id")
+			})
+		}, func(ctx schema.Context) error {
+			return schema.DropIfExists(ctx, "context_table")
+		}),
+	)
 
 	mSQLite, err := migris.New("sqlite3", migris.WithDB(db), migris.WithRegistry(registry))
 	require.NoError(t, err)

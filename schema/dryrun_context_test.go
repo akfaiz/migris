@@ -48,7 +48,7 @@ func TestDryRunContext_Query(t *testing.T) {
 	query := "SELECT * FROM users WHERE id = $1"
 	args := []any{1}
 
-	rows, err := drc.Query(query, args...) //nolint:rowserrcheck // ignore roserrcheck for test
+	rows, err := drc.Query(query, args...)
 	require.NoError(t, err, "Query should not return error")
 	assert.NotNil(t, rows, "Query should not return nil rows")
 

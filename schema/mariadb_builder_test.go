@@ -99,18 +99,18 @@ func (s *mariadbBuilderSuite) TestGetColumns() {
 
 		columns, err := builder.GetColumns(c, tableName)
 		s.Require().NoError(err)
-		s.Assert().Len(columns, 4)
+		s.Len(columns, 4)
 
 		columnMap := make(map[string]*schema.Column)
 		for _, col := range columns {
 			columnMap[col.Name] = col
 		}
 
-		s.Assert().Contains(columnMap, "id")
-		s.Assert().Contains(columnMap, "name")
-		s.Assert().Contains(columnMap, "guid")
-		s.Assert().Contains(columnMap, "location")
+		s.Contains(columnMap, "id")
+		s.Contains(columnMap, "name")
+		s.Contains(columnMap, "guid")
+		s.Contains(columnMap, "location")
 
-		s.Assert().Equal("uuid", columnMap["guid"].TypeName)
+		s.Equal("uuid", columnMap["guid"].TypeName)
 	})
 }

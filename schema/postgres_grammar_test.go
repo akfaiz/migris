@@ -232,7 +232,9 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("email", 500).Nullable().Change()
 			},
-			want: []string{"ALTER TABLE \"users\" ALTER COLUMN \"email\" TYPE VARCHAR(500), ALTER COLUMN \"email\" DROP NOT NULL"},
+			want: []string{
+				"ALTER TABLE \"users\" ALTER COLUMN \"email\" TYPE VARCHAR(500), ALTER COLUMN \"email\" DROP NOT NULL",
+			},
 		},
 		{
 			name:  "Change column with default value",
@@ -294,7 +296,9 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("email", 500).Nullable(false).Change()
 			},
-			want: []string{"ALTER TABLE \"users\" ALTER COLUMN \"email\" TYPE VARCHAR(500), ALTER COLUMN \"email\" SET NOT NULL"},
+			want: []string{
+				"ALTER TABLE \"users\" ALTER COLUMN \"email\" TYPE VARCHAR(500), ALTER COLUMN \"email\" SET NOT NULL",
+			},
 		},
 		{
 			name:  "Column name with empty string",

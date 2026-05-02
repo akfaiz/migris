@@ -65,7 +65,19 @@ func (c *RegularContext) Exec(query string, args ...any) (sql.Result, error) {
 }
 
 func (c *RegularContext) Query(query string, args ...any) (Rows, error) {
-	return c.tx.QueryContext(c.ctx, query, args...)
+	rows, err := c.tx.QueryContext(c.ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			_ = rows.Close()
+		}
+	}()
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return rows, nil
 }
 
 func (c *RegularContext) QueryRow(query string, args ...any) Row {

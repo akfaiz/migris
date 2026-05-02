@@ -154,12 +154,18 @@ func (g *mysqlGrammar) CompileChange(bp *Blueprint, command *command) (string, e
 		name = fmt.Sprintf("%s %s", name, g.Wrap(column.renameTo, "`"))
 	}
 
-	grammar := grammar(g)
+	grammarInst := grammar(g)
 	if bp.grammar != nil {
-		grammar = bp.grammar
+		grammarInst = bp.grammar
 	}
 
-	sql := fmt.Sprintf("ALTER TABLE %s %s COLUMN %s %s", g.WrapTable(bp.name, "`"), operation, name, grammar.getType(column))
+	sql := fmt.Sprintf(
+		"ALTER TABLE %s %s COLUMN %s %s",
+		g.WrapTable(bp.name, "`"),
+		operation,
+		name,
+		grammarInst.getType(column),
+	)
 	var sqlBuilder strings.Builder
 	for _, modifier := range g.modifiers() {
 		sqlBuilder.WriteString(modifier(column))
@@ -169,7 +175,11 @@ func (g *mysqlGrammar) CompileChange(bp *Blueprint, command *command) (string, e
 }
 
 func (g *mysqlGrammar) CompileRename(blueprint *Blueprint, command *command) (string, error) {
-	return fmt.Sprintf("ALTER TABLE %s RENAME TO %s", g.WrapTable(blueprint.name, "`"), g.WrapTable(command.to, "`")), nil
+	return fmt.Sprintf(
+		"ALTER TABLE %s RENAME TO %s",
+		g.WrapTable(blueprint.name, "`"),
+		g.WrapTable(command.to, "`"),
+	), nil
 }
 
 func (g *mysqlGrammar) CompileDrop(blueprint *Blueprint) (string, error) {
@@ -298,14 +308,22 @@ func (g *mysqlGrammar) CompileDropIndex(blueprint *Blueprint, command *command) 
 	if command.index == "" {
 		return "", errors.New("index name cannot be empty")
 	}
-	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", g.WrapTable(blueprint.name, "`"), g.WrapIndexName(command.index, "`")), nil
+	return fmt.Sprintf(
+		"ALTER TABLE %s DROP INDEX %s",
+		g.WrapTable(blueprint.name, "`"),
+		g.WrapIndexName(command.index, "`"),
+	), nil
 }
 
 func (g *mysqlGrammar) CompileDropUnique(blueprint *Blueprint, command *command) (string, error) {
 	if command.index == "" {
 		return "", errors.New("unique index name cannot be empty")
 	}
-	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", g.WrapTable(blueprint.name, "`"), g.WrapIndexName(command.index, "`")), nil
+	return fmt.Sprintf(
+		"ALTER TABLE %s DROP INDEX %s",
+		g.WrapTable(blueprint.name, "`"),
+		g.WrapIndexName(command.index, "`"),
+	), nil
 }
 
 func (g *mysqlGrammar) CompileDropFulltext(blueprint *Blueprint, command *command) (string, error) {
@@ -332,7 +350,11 @@ func (g *mysqlGrammar) CompileDropForeign(blueprint *Blueprint, command *command
 	if command.index == "" {
 		return "", errors.New("foreign key name cannot be empty")
 	}
-	return fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s", g.WrapTable(blueprint.name, "`"), g.WrapIndexName(command.index, "`")), nil
+	return fmt.Sprintf(
+		"ALTER TABLE %s DROP FOREIGN KEY %s",
+		g.WrapTable(blueprint.name, "`"),
+		g.WrapIndexName(command.index, "`"),
+	), nil
 }
 
 func (g *mysqlGrammar) CompileForeign(blueprint *Blueprint, command *command) (string, error) {
@@ -387,12 +409,12 @@ func (g *mysqlGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 			return nil, errors.New("column name cannot be empty")
 		}
 
-		grammar := grammar(g)
+		grammarInst := grammar(g)
 		if blueprint.grammar != nil {
-			grammar = blueprint.grammar
+			grammarInst = blueprint.grammar
 		}
 
-		sql := g.Wrap(col.name, "`") + " " + grammar.getType(col)
+		sql := g.Wrap(col.name, "`") + " " + grammarInst.getType(col)
 		var sqlBuilder strings.Builder
 		for _, modifier := range g.modifiers() {
 			sqlBuilder.WriteString(modifier(col))
@@ -410,7 +432,13 @@ func (g *mysqlGrammar) getConstraints(blueprint *Blueprint) []string {
 	for _, col := range blueprint.getAddedColumns() {
 		if col.primary != nil && *col.primary {
 			pkConstraintName := g.CreateIndexName(blueprint, "primary", col.name)
-			sql := "CONSTRAINT " + g.WrapIndexName(pkConstraintName, "`") + " PRIMARY KEY (" + g.Wrap(col.name, "`") + ")"
+			sql := "CONSTRAINT " + g.WrapIndexName(
+				pkConstraintName,
+				"`",
+			) + " PRIMARY KEY (" + g.Wrap(
+				col.name,
+				"`",
+			) + ")"
 			constrains = append(constrains, sql)
 			continue
 		}
@@ -419,7 +447,6 @@ func (g *mysqlGrammar) getConstraints(blueprint *Blueprint) []string {
 	return constrains
 }
 
-//nolint:dupl // Similar code exists in other grammar files
 func (g *mysqlGrammar) getType(col *columnDefinition) string {
 	typeFuncMap := g.getTypeFuncMap()
 	if fn, ok := typeFuncMap[col.columnType]; ok {
@@ -459,7 +486,7 @@ func (g *mysqlGrammar) getTypeFuncMap() map[string]func(*columnDefinition) strin
 		columnTypeBinary:        g.typeBinary,
 		columnTypeUUID:          g.typeUUID,
 		columnTypeULID:          g.typeULID,
-		columnTypeIpAddress:     g.typeIpAddress,
+		columnTypeIPAddress:     g.typeIPAddress,
 		columnTypeMacAddress:    g.typeMacAddress,
 		columnTypeSet:           g.typeSet,
 		columnTypeVector:        g.typeVector,
@@ -632,7 +659,7 @@ func (g *mysqlGrammar) typeULID(_ *columnDefinition) string {
 	return "CHAR(26)"
 }
 
-func (g *mysqlGrammar) typeIpAddress(_ *columnDefinition) string {
+func (g *mysqlGrammar) typeIPAddress(_ *columnDefinition) string {
 	return "VARCHAR(45)"
 }
 
@@ -700,7 +727,6 @@ func (g *mysqlGrammar) modifyInvisible(col *columnDefinition) string {
 	}
 	return ""
 }
-
 
 func (g *mysqlGrammar) modifyVirtualAs(col *columnDefinition) string {
 	if col.virtualAs != nil {

@@ -264,3 +264,23 @@ func Table(c Context, name string, blueprint func(table *Blueprint)) error {
 
 	return builder.Table(c, name, blueprint)
 }
+
+// NewGrammar creates a new grammar instance for the given dialect.
+// This is primarily used for testing purposes.
+func NewGrammar(dialectValue string) (grammar, error) {
+	dialectVal := dialect.FromString(dialectValue)
+	switch dialectVal {
+	case dialect.MySQL:
+		return newMysqlGrammar(), nil
+	case dialect.MariaDB:
+		return newMariadbGrammar(), nil
+	case dialect.Postgres:
+		return newPostgresGrammar(), nil
+	case dialect.SQLite3:
+		return newSqliteGrammar(), nil
+	case dialect.Unknown:
+		return nil, errors.New("unsupported dialect: unknown")
+	default:
+		return nil, errors.New("unsupported dialect: " + dialectValue)
+	}
+}

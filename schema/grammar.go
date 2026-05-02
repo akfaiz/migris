@@ -88,10 +88,6 @@ func (g *baseGrammar) CreateIndexName(blueprint *Blueprint, idxType string, colu
 	return strings.NewReplacer("-", "_", ".", "_").Replace(index)
 }
 
-func (g *baseGrammar) getType(column *columnDefinition) string {
-	return column.columnType
-}
-
 func (g *baseGrammar) CreateForeignKeyName(blueprint *Blueprint, command *command) string {
 	return g.CreateIndexName(blueprint, "foreign", command.columns...)
 }
