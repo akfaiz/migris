@@ -3,13 +3,13 @@ package schema_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
 
 	"github.com/akfaiz/migris/internal/config"
 	"github.com/akfaiz/migris/internal/dialect"
 	"github.com/akfaiz/migris/schema"
 	"github.com/stretchr/testify/suite"
+	"github.com/testcontainers/testcontainers-go"
 )
 
 func TestSchema(t *testing.T) {
@@ -21,6 +21,7 @@ type schemaTestSuite struct {
 
 	ctx context.Context
 	db  *sql.DB
+	tc  testcontainers.Container
 }
 
 func (s *schemaTestSuite) SetupSuite() {
@@ -28,25 +29,17 @@ func (s *schemaTestSuite) SetupSuite() {
 	ctx := context.Background()
 	s.ctx = ctx
 
-	config := parseTestConfig()
-
-	dsn := fmt.Sprintf(
-		"host=localhost port=5432 user=%s password=%s dbname=%s sslmode=disable",
-		config.Username,
-		config.Password,
-		config.Database,
-	)
-
-	db, err := sql.Open("pgx", dsn)
+	container, db, err := startPostgresTestDB(s.ctx)
 	s.Require().NoError(err)
-
-	err = db.Ping()
-	s.Require().NoError(err)
+	s.tc = container
 	s.db = db
 }
 
 func (s *schemaTestSuite) TearDownSuite() {
 	_ = s.db.Close()
+	if s.tc != nil {
+		_ = s.tc.Terminate(s.ctx)
+	}
 }
 
 func (s *schemaTestSuite) TestCreate() {
@@ -505,4 +498,44 @@ func (s *schemaTestSuite) TestTable() {
 		})
 		s.Require().Error(err)
 	})
+}
+
+func (s *schemaTestSuite) TestChangeStateAware() {
+	tx, err := s.db.BeginTx(s.ctx, nil)
+	s.Require().NoError(err)
+	defer tx.Rollback()
+
+	c := schema.NewContext(s.ctx, tx)
+
+	// Create a table with a nullable column and a default value
+	err = schema.Create(c, "test_change", func(table *schema.Blueprint) {
+		table.ID()
+		table.String("bio").Nullable().Default("Hello")
+	})
+	s.Require().NoError(err)
+
+	// Change the column type but don't specify Nullable() or Default()
+	// It should REMAIN nullable and keep its default because of our hydration logic
+	err = schema.Table(c, "test_change", func(table *schema.Blueprint) {
+		table.Text("bio").Change()
+	})
+	s.Require().NoError(err)
+
+	// Verify it is still nullable
+	builder, err := schema.NewBuilder("postgres")
+	s.Require().NoError(err)
+	columns, err := builder.GetColumns(c, "test_change")
+	s.Require().NoError(err)
+
+	var bioCol *schema.Column
+	for _, col := range columns {
+		if col.Name == "bio" {
+			bioCol = col
+			break
+		}
+	}
+	s.Require().NotNil(bioCol)
+	s.True(bioCol.Nullable, "bio column should still be nullable after type change")
+	s.True(bioCol.DefaultVal.Valid)
+	s.Contains(bioCol.DefaultVal.String, "Hello")
 }

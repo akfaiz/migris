@@ -12,10 +12,9 @@ type postgresBuilder struct {
 
 func newPostgresBuilder() Builder {
 	grammar := newPostgresGrammar()
-
-	return &postgresBuilder{
-		baseBuilder: baseBuilder{grammar: grammar},
-	}
+	b := &postgresBuilder{}
+	b.baseBuilder = baseBuilder{grammar: grammar, outer: b}
+	return b
 }
 
 func (b *postgresBuilder) parseSchemaAndTable(name string) (string, string) {

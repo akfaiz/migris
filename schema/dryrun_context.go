@@ -9,6 +9,7 @@ import (
 // DryRunContext implements Context for dry-run mode (captures SQL without executing).
 type DryRunContext struct {
 	ctx            context.Context
+	dialect        string
 	capturedSQL    []string
 	pendingQueries []QueryWithArgs
 }
@@ -38,15 +39,16 @@ type MockRows struct {
 	Closed bool
 }
 
-func (m *MockRows) Close() {
+func (m *MockRows) Close() error {
 	m.Closed = true
+	return nil
 }
 
 func (m *MockRows) Next() bool {
 	return false // No rows in dry-run mode
 }
 
-func (m *MockRows) Scan(_ ...interface{}) error {
+func (m *MockRows) Scan(_ ...any) error {
 	return nil // No data to scan in dry-run mode
 }
 
@@ -58,19 +60,35 @@ func (m *MockRows) Err() error {
 	return nil
 }
 
-// MockRow implements basic sql.Row functionality for dry-run mode.
+// MockRow implements Row functionality for dry-run mode.
 type MockRow struct{}
 
-func (m *MockRow) Scan(_ ...interface{}) error {
+func (m *MockRow) Scan(_ ...any) error {
 	return sql.ErrNoRows // Always return no rows in dry-run mode
 }
 
 // NewDryRunContext creates a new DryRunContext.
-func NewDryRunContext(ctx context.Context) *DryRunContext {
-	return &DryRunContext{
+type DryRunContextOptions func(*DryRunContext)
+
+func WithDryRunDialect(dialect string) DryRunContextOptions {
+	return func(c *DryRunContext) {
+		c.dialect = dialect
+	}
+}
+
+func NewDryRunContext(ctx context.Context, opts ...DryRunContextOptions) *DryRunContext {
+	c := &DryRunContext{
 		ctx:         ctx,
 		capturedSQL: make([]string, 0),
 	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
+}
+
+func (drc *DryRunContext) Dialect() string {
+	return drc.dialect
 }
 
 func (drc *DryRunContext) Exec(query string, args ...any) (sql.Result, error) {
@@ -87,7 +105,7 @@ func (drc *DryRunContext) Exec(query string, args ...any) (sql.Result, error) {
 	}, nil
 }
 
-func (drc *DryRunContext) Query(query string, args ...any) (*sql.Rows, error) {
+func (drc *DryRunContext) Query(query string, args ...any) (Rows, error) {
 	// Capture the query but don't execute
 	cleanQuery := strings.TrimSpace(query)
 	drc.capturedSQL = append(drc.capturedSQL, cleanQuery)
@@ -95,10 +113,10 @@ func (drc *DryRunContext) Query(query string, args ...any) (*sql.Rows, error) {
 	drc.printSQL(cleanQuery, args...)
 
 	// Return empty mock rows
-	return &sql.Rows{}, nil
+	return &MockRows{}, nil
 }
 
-func (drc *DryRunContext) QueryRow(query string, args ...any) *sql.Row {
+func (drc *DryRunContext) QueryRow(query string, args ...any) Row {
 	// Capture the query but don't execute
 	cleanQuery := strings.TrimSpace(query)
 	drc.capturedSQL = append(drc.capturedSQL, cleanQuery)
@@ -106,7 +124,7 @@ func (drc *DryRunContext) QueryRow(query string, args ...any) *sql.Row {
 	drc.printSQL(cleanQuery, args...)
 
 	// Return a row that will return sql.ErrNoRows when scanned
-	return &sql.Row{}
+	return &MockRow{}
 }
 
 // GetCapturedSQL returns all captured SQL statements.

@@ -37,11 +37,28 @@ type ColumnDefinition interface {
 	UseCurrent() ColumnDefinition
 	// UseCurrentOnUpdate sets the column to use the current timestamp on update.
 	UseCurrentOnUpdate() ColumnDefinition
+	// After places the column after the specified column (MySQL).
+	After(column string) ColumnDefinition
+	// First places the column "first" in the table (MySQL).
+	First() ColumnDefinition
+	// VirtualAs creates a virtual generated column based on the expression.
+	VirtualAs(expression string) ColumnDefinition
+	// StoredAs creates a stored generated column based on the expression.
+	StoredAs(expression string) ColumnDefinition
+	// Invisible sets the column as invisible (MySQL).
+	Invisible() ColumnDefinition
+	// GeneratedAs specifies that the column is a generated identity column (Postgres).
+	GeneratedAs(expression ...string) ColumnDefinition
+	// Always specifies that the generated identity column should always use the generated value (Postgres).
+	Always(value ...bool) ColumnDefinition
+	// RenameTo renames the column to a new name (MySQL).
+	RenameTo(name string) ColumnDefinition
 }
 
 type columnDefinition struct {
 	commands           []string
 	name               string
+	renameTo           string
 	columnType         string
 	charset            *string
 	collation          *string
@@ -66,6 +83,13 @@ type columnDefinition struct {
 	allowed            []string // for enum type columns
 	subtype            *string  // for geography and geometry types
 	srid               *int     // for geography and geometry types
+	after              *string
+	first              bool
+	virtualAs          *string
+	storedAs           *string
+	invisible          *bool
+	generatedAs        *string
+	always             *bool
 }
 
 // Expression is a type for expressions that can be used as default values for columns.
@@ -194,5 +218,49 @@ func (c *columnDefinition) UseCurrent() ColumnDefinition {
 
 func (c *columnDefinition) UseCurrentOnUpdate() ColumnDefinition {
 	c.useCurrentOnUpdate = true
+	return c
+}
+
+func (c *columnDefinition) After(column string) ColumnDefinition {
+	c.after = &column
+	return c
+}
+
+func (c *columnDefinition) First() ColumnDefinition {
+	c.first = true
+	return c
+}
+
+func (c *columnDefinition) VirtualAs(expression string) ColumnDefinition {
+	c.virtualAs = &expression
+	return c
+}
+
+func (c *columnDefinition) StoredAs(expression string) ColumnDefinition {
+	c.storedAs = &expression
+	return c
+}
+
+func (c *columnDefinition) Invisible() ColumnDefinition {
+	c.invisible = util.PtrOf(true)
+	return c
+}
+
+func (c *columnDefinition) GeneratedAs(expression ...string) ColumnDefinition {
+	if len(expression) > 0 {
+		c.generatedAs = &expression[0]
+	} else {
+		c.generatedAs = util.PtrOf("")
+	}
+	return c
+}
+
+func (c *columnDefinition) Always(value ...bool) ColumnDefinition {
+	c.always = util.OptionalPtr(true, value...)
+	return c
+}
+
+func (c *columnDefinition) RenameTo(name string) ColumnDefinition {
+	c.renameTo = name
 	return c
 }

@@ -3,6 +3,7 @@ package schema
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -34,7 +35,9 @@ type grammar interface {
 	CompileForeign(blueprint *Blueprint, command *command) (string, error)
 	CompileDropForeign(blueprint *Blueprint, command *command) (string, error)
 	GetFluentCommands() []func(blueprint *Blueprint, command *command) string
+	GetTableFluentCommands() []func(blueprint *Blueprint) string
 	CreateIndexName(blueprint *Blueprint, idxType string, columns ...string) string
+	getType(column *columnDefinition) string
 }
 
 type baseGrammar struct{}
@@ -57,50 +60,40 @@ func (g *baseGrammar) CompileForeign(blueprint *Blueprint, command *command) (st
 		index = g.CreateForeignKeyName(blueprint, command)
 	}
 
-	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(%s)%s%s",
+	return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)%s%s",
 		blueprint.name,
 		index,
-		command.columns[0],
+		g.Columnize(command.columns),
 		command.on,
-		command.references[0],
+		g.Columnize(command.references),
 		onDelete,
 		onUpdate,
 	), nil
 }
 
-func (g *baseGrammar) CreateIndexName(blueprint *Blueprint, idxType string, columns ...string) string {
-	tableName := blueprint.name
-	if strings.Contains(tableName, ".") {
-		parts := strings.Split(tableName, ".")
-		tableName = parts[len(parts)-1] // Use the last part as the table name
-	}
+func (g *baseGrammar) GetFluentCommands() []func(blueprint *Blueprint, command *command) string {
+	return []func(blueprint *Blueprint, command *command) string{}
+}
 
-	switch idxType {
-	case "primary":
-		return fmt.Sprintf("pk_%s", tableName)
-	case "unique":
-		return fmt.Sprintf("uk_%s_%s", tableName, strings.Join(columns, "_"))
-	case "index":
-		return fmt.Sprintf("idx_%s_%s", tableName, strings.Join(columns, "_"))
-	case "fulltext":
-		return fmt.Sprintf("ft_%s_%s", tableName, strings.Join(columns, "_"))
-	default:
-		return ""
-	}
+func (g *baseGrammar) GetTableFluentCommands() []func(blueprint *Blueprint) string {
+	return []func(blueprint *Blueprint) string{}
+}
+
+func (g *baseGrammar) CreateIndexName(blueprint *Blueprint, idxType string, columns ...string) string {
+	parts := []string{blueprint.name}
+	parts = append(parts, columns...)
+	parts = append(parts, idxType)
+
+	index := strings.ToLower(strings.Join(parts, "_"))
+	return strings.NewReplacer("-", "_", ".", "_").Replace(index)
+}
+
+func (g *baseGrammar) getType(column *columnDefinition) string {
+	return column.columnType
 }
 
 func (g *baseGrammar) CreateForeignKeyName(blueprint *Blueprint, command *command) string {
-	tableName := blueprint.name
-	if strings.Contains(tableName, ".") {
-		parts := strings.Split(tableName, ".")
-		tableName = parts[len(parts)-1] // Use the last part as the table name
-	}
-	on := command.on
-	if strings.Contains(on, ".") {
-		parts := strings.Split(on, ".")
-		on = parts[len(parts)-1] // Use the last part as the column name
-	}
-	return fmt.Sprintf("fk_%s_%s", tableName, on)
+	return g.CreateIndexName(blueprint, "foreign", command.columns...)
 }
 
 func (g *baseGrammar) QuoteString(s string) string {
@@ -120,6 +113,48 @@ func (g *baseGrammar) Columnize(columns []string) string {
 		return ""
 	}
 	return strings.Join(columns, ", ")
+}
+
+func (g *baseGrammar) Wrap(ident string, quote string) string {
+	if ident == "" {
+		return ident
+	}
+	parts := strings.Split(ident, ".")
+	wrapped := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part == "*" {
+			wrapped = append(wrapped, part)
+			continue
+		}
+		wrapped = append(wrapped, quote+part+quote)
+	}
+	return strings.Join(wrapped, ".")
+}
+
+func (g *baseGrammar) WrapTable(table string, quote string) string {
+	return g.Wrap(table, quote)
+}
+
+func (g *baseGrammar) WrapColumnize(columns []string, quote string) string {
+	if len(columns) == 0 {
+		return ""
+	}
+	wrapped := make([]string, 0, len(columns))
+	for _, column := range columns {
+		wrapped = append(wrapped, g.Wrap(column, quote))
+	}
+	return strings.Join(wrapped, ", ")
+}
+
+func (g *baseGrammar) WrapIndexName(index string, quote string) string {
+	if index == "" {
+		return index
+	}
+	// Keep raw expressions such as function calls unwrapped.
+	if regexp.MustCompile(`[()\s]`).MatchString(index) {
+		return index
+	}
+	return g.Wrap(index, quote)
 }
 
 func (g *baseGrammar) GetValue(value any) string {

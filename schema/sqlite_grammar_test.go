@@ -236,7 +236,7 @@ func TestSqliteGrammar_CompileIndex(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Index("email")
 			},
-			want:    "CREATE INDEX \"idx_users_email\" ON \"users\" (\"email\")",
+			want:    "CREATE INDEX \"users_email_index\" ON \"users\" (\"email\")",
 			wantErr: false,
 		},
 		{
@@ -245,7 +245,7 @@ func TestSqliteGrammar_CompileIndex(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Index("user_id", "created_at")
 			},
-			want:    "CREATE INDEX \"idx_posts_user_id_created_at\" ON \"posts\" (\"user_id\", \"created_at\")",
+			want:    "CREATE INDEX \"posts_user_id_created_at_index\" ON \"posts\" (\"user_id\", \"created_at\")",
 			wantErr: false,
 		},
 	}
@@ -282,7 +282,7 @@ func TestSqliteGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("email")
 			},
-			want:    "CREATE UNIQUE INDEX \"uq_users_email\" ON \"users\" (\"email\")",
+			want:    "CREATE UNIQUE INDEX \"users_email_unique\" ON \"users\" (\"email\")",
 			wantErr: false,
 		},
 	}

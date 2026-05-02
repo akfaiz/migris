@@ -3,38 +3,15 @@ package schema_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"os"
 	"testing"
 
 	"github.com/akfaiz/migris/schema"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/suite"
+	"github.com/testcontainers/testcontainers-go"
 )
 
 func TestPostgresBuilderSuite(t *testing.T) {
 	suite.Run(t, new(postgresBuilderSuite))
-}
-
-type dbConfig struct {
-	Database string
-	Username string
-	Password string
-}
-
-func getStringFromEnv(envVar string, defaultValue string) string {
-	if value, exists := os.LookupEnv(envVar); exists && value != "" {
-		return value
-	}
-	return defaultValue
-}
-
-func parseTestConfig() dbConfig {
-	return dbConfig{
-		Database: getStringFromEnv("DB_NAME", "db_test"),
-		Username: getStringFromEnv("DB_USER", "root"),
-		Password: getStringFromEnv("DB_PASSWORD", "password"),
-	}
 }
 
 type postgresBuilderSuite struct {
@@ -43,26 +20,16 @@ type postgresBuilderSuite struct {
 	ctx     context.Context
 	db      *sql.DB
 	builder schema.Builder
+	tc      testcontainers.Container
 }
 
 func (s *postgresBuilderSuite) SetupSuite() {
 	s.ctx = context.Background()
 
-	config := parseTestConfig()
-
-	dsn := fmt.Sprintf(
-		"host=localhost port=5432 user=%s password=%s dbname=%s sslmode=disable",
-		config.Username,
-		config.Password,
-		config.Database,
-	)
-
-	db, err := sql.Open("pgx", dsn)
+	container, db, err := startPostgresTestDB(s.ctx)
 	s.Require().NoError(err)
 
-	err = db.Ping()
-	s.Require().NoError(err)
-
+	s.tc = container
 	s.db = db
 	s.builder, err = schema.NewBuilder("postgres")
 	s.Require().NoError(err)
@@ -70,6 +37,9 @@ func (s *postgresBuilderSuite) SetupSuite() {
 
 func (s *postgresBuilderSuite) TearDownSuite() {
 	_ = s.db.Close()
+	if s.tc != nil {
+		_ = s.tc.Terminate(s.ctx)
+	}
 }
 
 func (s *postgresBuilderSuite) TestCreate() {
@@ -337,13 +307,13 @@ func (s *postgresBuilderSuite) TestTable() {
 		})
 		s.Run("should drop unique constraint", func() {
 			err = builder.Table(c, "users", func(table *schema.Blueprint) {
-				table.DropUnique([]string{"email"})
+				table.DropUnique("uk_users_email")
 			})
 			s.Require().NoError(err, "expected no error when dropping unique constraint from table")
 		})
 		s.Run("should drop fulltext index", func() {
 			err = builder.Table(c, "users", func(table *schema.Blueprint) {
-				table.DropFulltext("ft_users_bio")
+				table.DropFulltext([]string{"bio"})
 			})
 			s.Require().NoError(err, "expected no error when dropping fulltext index from table")
 		})
@@ -361,13 +331,13 @@ func (s *postgresBuilderSuite) TestTable() {
 		})
 		s.Run("should drop foreign key", func() {
 			err = builder.Table(c, "users", func(table *schema.Blueprint) {
-				table.DropForeign("fk_users_roles")
+				table.DropForeign([]string{"role_id"})
 			})
 			s.Require().NoError(err, "expected no error when dropping foreign key from users table")
 		})
 		s.Run("should drop primary key", func() {
 			err = builder.Table(c, "users", func(table *schema.Blueprint) {
-				table.DropPrimary("pk_users")
+				table.DropPrimary([]string{"id"})
 			})
 			s.Require().NoError(err, "expected no error when dropping primary key from users table")
 		})

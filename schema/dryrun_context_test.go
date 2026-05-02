@@ -162,7 +162,8 @@ func TestMockRows(t *testing.T) {
 	err = mock.Err()
 	require.NoError(t, err, "MockRows.Err() should return nil")
 
-	mock.Close()
+	err = mock.Close()
+	require.NoError(t, err, "MockRows.Close() should return nil")
 	assert.True(t, mock.Closed, "MockRows should be closed after Close()")
 }
 

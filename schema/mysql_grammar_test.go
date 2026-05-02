@@ -25,7 +25,7 @@ func TestMysqlGrammar_CompileCreate(t *testing.T) {
 				table.ID()
 				table.String("name", 255)
 			},
-			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id))",
+			want:    "CREATE TABLE `users` (`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL, CONSTRAINT `users_id_primary` PRIMARY KEY (`id`))",
 			wantErr: false,
 		},
 		{
@@ -35,7 +35,7 @@ func TestMysqlGrammar_CompileCreate(t *testing.T) {
 				table.Charset("utf8mb4")
 				table.ID()
 			},
-			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id)) DEFAULT CHARACTER SET utf8mb4",
+			want:    "CREATE TABLE `users` (`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, CONSTRAINT `users_id_primary` PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4",
 			wantErr: false,
 		},
 		{
@@ -45,7 +45,7 @@ func TestMysqlGrammar_CompileCreate(t *testing.T) {
 				table.Collation("utf8mb4_unicode_ci")
 				table.ID()
 			},
-			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id)) COLLATE utf8mb4_unicode_ci",
+			want:    "CREATE TABLE `users` (`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, CONSTRAINT `users_id_primary` PRIMARY KEY (`id`)) COLLATE utf8mb4_unicode_ci",
 			wantErr: false,
 		},
 		{
@@ -55,7 +55,7 @@ func TestMysqlGrammar_CompileCreate(t *testing.T) {
 				table.Engine("InnoDB")
 				table.ID()
 			},
-			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id)) ENGINE = InnoDB",
+			want:    "CREATE TABLE `users` (`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, CONSTRAINT `users_id_primary` PRIMARY KEY (`id`)) ENGINE = InnoDB",
 			wantErr: false,
 		},
 		{
@@ -67,7 +67,7 @@ func TestMysqlGrammar_CompileCreate(t *testing.T) {
 				table.Engine("InnoDB")
 				table.ID()
 			},
-			want:    "CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ENGINE = InnoDB",
+			want:    "CREATE TABLE `users` (`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, CONSTRAINT `users_id_primary` PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ENGINE = InnoDB",
 			wantErr: false,
 		},
 		{
@@ -111,7 +111,7 @@ func TestMysqlGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("email", 255)
 			},
-			want:    "ALTER TABLE users ADD COLUMN email VARCHAR(255) NOT NULL",
+			want:    "ALTER TABLE `users` ADD COLUMN `email` VARCHAR(255) NOT NULL",
 			wantErr: false,
 		},
 		{
@@ -121,7 +121,7 @@ func TestMysqlGrammar_CompileAdd(t *testing.T) {
 				table.String("email", 255)
 				table.Integer("age")
 			},
-			want:    "ALTER TABLE users ADD COLUMN email VARCHAR(255) NOT NULL, ADD COLUMN age INT NOT NULL",
+			want:    "ALTER TABLE `users` ADD COLUMN `email` VARCHAR(255) NOT NULL, ADD COLUMN `age` INT NOT NULL",
 			wantErr: false,
 		},
 		{
@@ -130,7 +130,7 @@ func TestMysqlGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("email", 255).Nullable()
 			},
-			want:    "ALTER TABLE users ADD COLUMN email VARCHAR(255) NULL",
+			want:    "ALTER TABLE `users` ADD COLUMN `email` VARCHAR(255) NULL",
 			wantErr: false,
 		},
 		{
@@ -139,7 +139,7 @@ func TestMysqlGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("status", 50).Default("active")
 			},
-			want:    "ALTER TABLE users ADD COLUMN status VARCHAR(50) DEFAULT 'active' NOT NULL",
+			want:    "ALTER TABLE `users` ADD COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'active'",
 			wantErr: false,
 		},
 		{
@@ -148,7 +148,43 @@ func TestMysqlGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("name", 255).Comment("User full name")
 			},
-			want:    "ALTER TABLE users ADD COLUMN name VARCHAR(255) NOT NULL COMMENT 'User full name'",
+			want:    "ALTER TABLE `users` ADD COLUMN `name` VARCHAR(255) NOT NULL COMMENT 'User full name'",
+			wantErr: false,
+		},
+		{
+			name:  "add column with after modifier",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.String("name", 255).After("id")
+			},
+			want:    "ALTER TABLE `users` ADD COLUMN `name` VARCHAR(255) NOT NULL AFTER `id`",
+			wantErr: false,
+		},
+		{
+			name:  "add column with first modifier",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.String("name", 255).First()
+			},
+			want:    "ALTER TABLE `users` ADD COLUMN `name` VARCHAR(255) NOT NULL FIRST",
+			wantErr: false,
+		},
+		{
+			name:  "add column with virtual as",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.String("full_name").VirtualAs("concat(first_name, ' ', last_name)")
+			},
+			want:    "ALTER TABLE `users` ADD COLUMN `full_name` VARCHAR(255) GENERATED ALWAYS AS (concat(first_name, ' ', last_name)) VIRTUAL NOT NULL",
+			wantErr: false,
+		},
+		{
+			name:  "add column with stored as",
+			table: "users",
+			blueprint: func(table *Blueprint) {
+				table.String("full_name").StoredAs("concat(first_name, ' ', last_name)")
+			},
+			want:    "ALTER TABLE `users` ADD COLUMN `full_name` VARCHAR(255) GENERATED ALWAYS AS (concat(first_name, ' ', last_name)) STORED NOT NULL",
 			wantErr: false,
 		},
 		{
@@ -208,7 +244,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Integer("age").Change()
 			},
-			want:    []string{"ALTER TABLE users MODIFY COLUMN age INT NOT NULL"},
+			want:    []string{"ALTER TABLE `users` MODIFY COLUMN `age` INT NOT NULL"},
 			wantErr: false,
 		},
 		{
@@ -217,7 +253,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("email", 255).Nullable().Change()
 			},
-			want:    []string{"ALTER TABLE users MODIFY COLUMN email VARCHAR(255) NULL"},
+			want:    []string{"ALTER TABLE `users` MODIFY COLUMN `email` VARCHAR(255) NULL"},
 			wantErr: false,
 		},
 		{
@@ -226,7 +262,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("name", 100).Nullable(false).Change()
 			},
-			want:    []string{"ALTER TABLE users MODIFY COLUMN name VARCHAR(100) NOT NULL"},
+			want:    []string{"ALTER TABLE `users` MODIFY COLUMN `name` VARCHAR(100) NOT NULL"},
 			wantErr: false,
 		},
 		{
@@ -235,7 +271,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("status", 50).Default("active").Change()
 			},
-			want:    []string{"ALTER TABLE users MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'active'"},
+			want:    []string{"ALTER TABLE `users` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'active'"},
 			wantErr: false,
 		},
 		{
@@ -244,7 +280,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Text("description").Nullable().Default(nil).Change()
 			},
-			want:    []string{"ALTER TABLE users MODIFY COLUMN description TEXT NULL DEFAULT NULL"},
+			want:    []string{"ALTER TABLE `users` MODIFY COLUMN `description` TEXT NULL DEFAULT NULL"},
 			wantErr: false,
 		},
 		{
@@ -253,7 +289,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Integer("age").Comment("User age in years").Change()
 			},
-			want:    []string{"ALTER TABLE users MODIFY COLUMN age INT NOT NULL COMMENT 'User age in years'"},
+			want:    []string{"ALTER TABLE `users` MODIFY COLUMN `age` INT NOT NULL COMMENT 'User age in years'"},
 			wantErr: false,
 		},
 		{
@@ -262,7 +298,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Text("notes").Comment("").Change()
 			},
-			want:    []string{"ALTER TABLE users MODIFY COLUMN notes TEXT NOT NULL COMMENT ''"},
+			want:    []string{"ALTER TABLE `users` MODIFY COLUMN `notes` TEXT NOT NULL COMMENT ''"},
 			wantErr: false,
 		},
 		{
@@ -276,7 +312,7 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 					Change()
 			},
 			want: []string{
-				"ALTER TABLE users MODIFY COLUMN email VARCHAR(255) NOT NULL DEFAULT 'example@test.com' COMMENT 'User email address'",
+				"ALTER TABLE `users` MODIFY COLUMN `email` VARCHAR(255) NOT NULL DEFAULT 'example@test.com' COMMENT 'User email address'",
 			},
 			wantErr: false,
 		},
@@ -288,8 +324,8 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 				table.SmallInteger("age").Nullable().Change()
 			},
 			want: []string{
-				"ALTER TABLE users MODIFY COLUMN name VARCHAR(200) NOT NULL",
-				"ALTER TABLE users MODIFY COLUMN age SMALLINT NULL",
+				"ALTER TABLE `users` MODIFY COLUMN `name` VARCHAR(200) NOT NULL",
+				"ALTER TABLE `users` MODIFY COLUMN `age` SMALLINT NULL",
 			},
 			wantErr: false,
 		},
@@ -332,21 +368,21 @@ func TestMysqlGrammar_CompileRename(t *testing.T) {
 			name:    "rename table with valid names",
 			table:   "users",
 			newName: "customers",
-			want:    "ALTER TABLE users RENAME TO customers",
+			want:    "ALTER TABLE `users` RENAME TO `customers`",
 			wantErr: false,
 		},
 		{
 			name:    "rename table with underscore names",
 			table:   "old_table_name",
 			newName: "new_table_name",
-			want:    "ALTER TABLE old_table_name RENAME TO new_table_name",
+			want:    "ALTER TABLE `old_table_name` RENAME TO `new_table_name`",
 			wantErr: false,
 		},
 		{
 			name:    "rename table with numeric names",
 			table:   "table1",
 			newName: "table2",
-			want:    "ALTER TABLE table1 RENAME TO table2",
+			want:    "ALTER TABLE `table1` RENAME TO `table2`",
 			wantErr: false,
 		},
 	}
@@ -380,25 +416,25 @@ func TestMysqlGrammar_CompileDrop(t *testing.T) {
 		{
 			name:    "drop table with valid name",
 			table:   "users",
-			want:    "DROP TABLE users",
+			want:    "DROP TABLE `users`",
 			wantErr: false,
 		},
 		{
 			name:    "drop table with underscore name",
 			table:   "user_profiles",
-			want:    "DROP TABLE user_profiles",
+			want:    "DROP TABLE `user_profiles`",
 			wantErr: false,
 		},
 		{
 			name:    "drop table with numeric name",
 			table:   "table123",
-			want:    "DROP TABLE table123",
+			want:    "DROP TABLE `table123`",
 			wantErr: false,
 		},
 		{
 			name:    "drop table with mixed case name",
 			table:   "UserTable",
-			want:    "DROP TABLE UserTable",
+			want:    "DROP TABLE `UserTable`",
 			wantErr: false,
 		},
 		{
@@ -434,25 +470,25 @@ func TestMysqlGrammar_CompileDropIfExists(t *testing.T) {
 		{
 			name:    "drop table if exists with valid name",
 			table:   "users",
-			want:    "DROP TABLE IF EXISTS users",
+			want:    "DROP TABLE IF EXISTS `users`",
 			wantErr: false,
 		},
 		{
 			name:    "drop table if exists with underscore name",
 			table:   "user_profiles",
-			want:    "DROP TABLE IF EXISTS user_profiles",
+			want:    "DROP TABLE IF EXISTS `user_profiles`",
 			wantErr: false,
 		},
 		{
 			name:    "drop table if exists with numeric name",
 			table:   "table123",
-			want:    "DROP TABLE IF EXISTS table123",
+			want:    "DROP TABLE IF EXISTS `table123`",
 			wantErr: false,
 		},
 		{
 			name:    "drop table if exists with mixed case name",
 			table:   "UserTable",
-			want:    "DROP TABLE IF EXISTS UserTable",
+			want:    "DROP TABLE IF EXISTS `UserTable`",
 			wantErr: false,
 		},
 		{
@@ -492,7 +528,7 @@ func TestMysqlGrammar_CompileDropColumn(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.DropColumn("email")
 			},
-			want:    "ALTER TABLE users DROP COLUMN email",
+			want:    "ALTER TABLE `users` DROP COLUMN `email`",
 			wantErr: false,
 		},
 		{
@@ -501,7 +537,7 @@ func TestMysqlGrammar_CompileDropColumn(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.DropColumn("email", "phone", "address")
 			},
-			want:    "ALTER TABLE users DROP COLUMN email, DROP COLUMN phone, DROP COLUMN address",
+			want:    "ALTER TABLE `users` DROP COLUMN `email`, DROP COLUMN `phone`, DROP COLUMN `address`",
 			wantErr: false,
 		},
 		{
@@ -555,7 +591,7 @@ func TestMysqlGrammar_CompileRenameColumn(t *testing.T) {
 			table:   "users",
 			oldName: "email",
 			newName: "email_address",
-			want:    "ALTER TABLE users RENAME COLUMN email TO email_address",
+			want:    "ALTER TABLE `users` RENAME COLUMN `email` TO `email_address`",
 			wantErr: false,
 		},
 		{
@@ -612,7 +648,7 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("company_id").References("id").On("companies")
 			},
-			want:    "ALTER TABLE users ADD CONSTRAINT fk_users_companies FOREIGN KEY (company_id) REFERENCES companies(id)",
+			want:    "ALTER TABLE `users` ADD CONSTRAINT `users_company_id_foreign` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`)",
 			wantErr: false,
 		},
 		{
@@ -621,7 +657,7 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("company_id").References("id").On("companies").CascadeOnDelete()
 			},
-			want:    "ALTER TABLE users ADD CONSTRAINT fk_users_companies FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE",
+			want:    "ALTER TABLE `users` ADD CONSTRAINT `users_company_id_foreign` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE",
 			wantErr: false,
 		},
 		{
@@ -630,7 +666,7 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("company_id").References("id").On("companies").CascadeOnUpdate()
 			},
-			want:    "ALTER TABLE users ADD CONSTRAINT fk_users_companies FOREIGN KEY (company_id) REFERENCES companies(id) ON UPDATE CASCADE",
+			want:    "ALTER TABLE `users` ADD CONSTRAINT `users_company_id_foreign` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON UPDATE CASCADE",
 			wantErr: false,
 		},
 		{
@@ -640,7 +676,7 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 				table.Foreign("company_id").References("id").On("companies").
 					CascadeOnDelete().NullOnUpdate()
 			},
-			want:    "ALTER TABLE users ADD CONSTRAINT fk_users_companies FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE ON UPDATE SET NULL",
+			want:    "ALTER TABLE `users` ADD CONSTRAINT `users_company_id_foreign` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE ON UPDATE SET NULL",
 			wantErr: false,
 		},
 		{
@@ -649,7 +685,7 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("user_id").References("id").On("users").RestrictOnDelete()
 			},
-			want:    "ALTER TABLE orders ADD CONSTRAINT fk_orders_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT",
+			want:    "ALTER TABLE `orders` ADD CONSTRAINT `orders_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT",
 			wantErr: false,
 		},
 		{
@@ -658,7 +694,7 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("author_id").References("id").On("users").NullOnDelete()
 			},
-			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL",
+			want:    "ALTER TABLE `posts` ADD CONSTRAINT `posts_author_id_foreign` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE SET NULL",
 			wantErr: false,
 		},
 		{
@@ -667,7 +703,7 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("post_id").References("id").On("posts").NoActionOnDelete().NoActionOnUpdate()
 			},
-			want: "ALTER TABLE comments ADD CONSTRAINT fk_comments_posts FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE NO ACTION ON UPDATE NO ACTION",
+			want: "ALTER TABLE `comments` ADD CONSTRAINT `comments_post_id_foreign` FOREIGN KEY (`post_id`) REFERENCES `posts` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION",
 		},
 		{
 			name:  "empty column should return error",
@@ -732,7 +768,7 @@ func TestMysqlGrammar_CompileDropForeign(t *testing.T) {
 			name:    "drop single foreign key",
 			table:   "users",
 			fkName:  "fk_users_company_id",
-			want:    "ALTER TABLE users DROP FOREIGN KEY fk_users_company_id",
+			want:    "ALTER TABLE `users` DROP FOREIGN KEY `fk_users_company_id`",
 			wantErr: false,
 		},
 		{
@@ -774,7 +810,7 @@ func TestMysqlGrammar_CompileIndex(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Index("email")
 			},
-			want:    "CREATE INDEX idx_users_email ON users (email)",
+			want:    "CREATE INDEX `users_email_index` ON `users` (`email`)",
 			wantErr: false,
 		},
 		{
@@ -783,7 +819,7 @@ func TestMysqlGrammar_CompileIndex(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Index("first_name", "last_name")
 			},
-			want:    "CREATE INDEX idx_users_first_name_last_name ON users (first_name, last_name)",
+			want:    "CREATE INDEX `users_first_name_last_name_index` ON `users` (`first_name`, `last_name`)",
 			wantErr: false,
 		},
 		{
@@ -792,7 +828,7 @@ func TestMysqlGrammar_CompileIndex(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Index("category_id").Name("idx_product_category")
 			},
-			want:    "CREATE INDEX idx_product_category ON products (category_id)",
+			want:    "CREATE INDEX `idx_product_category` ON `products` (`category_id`)",
 			wantErr: false,
 		},
 		{
@@ -801,7 +837,7 @@ func TestMysqlGrammar_CompileIndex(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Index("created_at").Algorithm("BTREE")
 			},
-			want:    "CREATE INDEX idx_logs_created_at ON logs (created_at) USING BTREE",
+			want:    "CREATE INDEX `logs_created_at_index` ON `logs` (`created_at`) USING BTREE",
 			wantErr: false,
 		},
 		{
@@ -810,7 +846,7 @@ func TestMysqlGrammar_CompileIndex(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Index("status", "created_at").Name("idx_order_status_date").Algorithm("HASH")
 			},
-			want:    "CREATE INDEX idx_order_status_date ON orders (status, created_at) USING HASH",
+			want:    "CREATE INDEX `idx_order_status_date` ON `orders` (`status`, `created_at`) USING HASH",
 			wantErr: false,
 		},
 		{
@@ -854,7 +890,7 @@ func TestMysqlGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("email")
 			},
-			want:    "CREATE UNIQUE INDEX uk_users_email ON users (email)",
+			want:    "CREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`)",
 			wantErr: false,
 		},
 		{
@@ -863,7 +899,7 @@ func TestMysqlGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("first_name", "last_name")
 			},
-			want:    "CREATE UNIQUE INDEX uk_users_first_name_last_name ON users (first_name, last_name)",
+			want:    "CREATE UNIQUE INDEX `users_first_name_last_name_unique` ON `users` (`first_name`, `last_name`)",
 			wantErr: false,
 		},
 		{
@@ -872,7 +908,7 @@ func TestMysqlGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("sku").Name("unique_product_sku")
 			},
-			want:    "CREATE UNIQUE INDEX unique_product_sku ON products (sku)",
+			want:    "CREATE UNIQUE INDEX `unique_product_sku` ON `products` (`sku`)",
 			wantErr: false,
 		},
 		{
@@ -881,7 +917,7 @@ func TestMysqlGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("transaction_id").Algorithm("BTREE")
 			},
-			want:    "CREATE UNIQUE INDEX uk_logs_transaction_id ON logs (transaction_id) USING BTREE",
+			want:    "CREATE UNIQUE INDEX `logs_transaction_id_unique` ON `logs` (`transaction_id`) USING BTREE",
 			wantErr: false,
 		},
 		{
@@ -890,7 +926,7 @@ func TestMysqlGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("order_number", "customer_id").Name("unique_order_customer").Algorithm("HASH")
 			},
-			want:    "CREATE UNIQUE INDEX unique_order_customer ON orders (order_number, customer_id) USING HASH",
+			want:    "CREATE UNIQUE INDEX `unique_order_customer` ON `orders` (`order_number`, `customer_id`) USING HASH",
 			wantErr: false,
 		},
 		{
@@ -942,7 +978,7 @@ func TestMysqlGrammar_CompilePrimary(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Primary("id")
 			},
-			want:    "ALTER TABLE users ADD CONSTRAINT pk_users PRIMARY KEY (id)",
+			want:    "ALTER TABLE `users` ADD CONSTRAINT `users_id_primary` PRIMARY KEY (`id`)",
 			wantErr: false,
 		},
 		{
@@ -951,7 +987,7 @@ func TestMysqlGrammar_CompilePrimary(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Primary("order_id", "product_id")
 			},
-			want:    "ALTER TABLE order_items ADD CONSTRAINT pk_order_items PRIMARY KEY (order_id, product_id)",
+			want:    "ALTER TABLE `order_items` ADD CONSTRAINT `order_items_order_id_product_id_primary` PRIMARY KEY (`order_id`, `product_id`)",
 			wantErr: false,
 		},
 		{
@@ -960,7 +996,7 @@ func TestMysqlGrammar_CompilePrimary(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Primary("sku").Name("primary_product_sku")
 			},
-			want:    "ALTER TABLE products ADD CONSTRAINT primary_product_sku PRIMARY KEY (sku)",
+			want:    "ALTER TABLE `products` ADD CONSTRAINT `primary_product_sku` PRIMARY KEY (`sku`)",
 			wantErr: false,
 		},
 		{
@@ -969,7 +1005,7 @@ func TestMysqlGrammar_CompilePrimary(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Primary("user_id", "resource_id", "permission_id")
 			},
-			want:    "ALTER TABLE user_permissions ADD CONSTRAINT pk_user_permissions PRIMARY KEY (user_id, resource_id, permission_id)",
+			want:    "ALTER TABLE `user_permissions` ADD CONSTRAINT `user_permissions_user_id_resource_id_permission_id_primary` PRIMARY KEY (`user_id`, `resource_id`, `permission_id`)",
 			wantErr: false,
 		},
 		{
@@ -978,7 +1014,7 @@ func TestMysqlGrammar_CompilePrimary(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Primary("timestamp", "user_id", "action").Name("pk_audit_composite")
 			},
-			want:    "ALTER TABLE audit_logs ADD CONSTRAINT pk_audit_composite PRIMARY KEY (timestamp, user_id, action)",
+			want:    "ALTER TABLE `audit_logs` ADD CONSTRAINT `pk_audit_composite` PRIMARY KEY (`timestamp`, `user_id`, `action`)",
 			wantErr: false,
 		},
 		{
@@ -1038,7 +1074,7 @@ func TestMysqlGrammar_CompileFullText(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.FullText("content")
 			},
-			want:    "CREATE FULLTEXT INDEX ft_articles_content ON articles (content)",
+			want:    "CREATE FULLTEXT INDEX `articles_content_fulltext` ON `articles` (`content`)",
 			wantErr: false,
 		},
 		{
@@ -1047,7 +1083,7 @@ func TestMysqlGrammar_CompileFullText(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.FullText("title", "content")
 			},
-			want:    "CREATE FULLTEXT INDEX ft_posts_title_content ON posts (title, content)",
+			want:    "CREATE FULLTEXT INDEX `posts_title_content_fulltext` ON `posts` (`title`, `content`)",
 			wantErr: false,
 		},
 		{
@@ -1056,7 +1092,7 @@ func TestMysqlGrammar_CompileFullText(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.FullText("body").Name("fulltext_document_body")
 			},
-			want:    "CREATE FULLTEXT INDEX fulltext_document_body ON documents (body)",
+			want:    "CREATE FULLTEXT INDEX `fulltext_document_body` ON `documents` (`body`)",
 			wantErr: false,
 		},
 		{
@@ -1065,7 +1101,7 @@ func TestMysqlGrammar_CompileFullText(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.FullText("title", "summary", "content")
 			},
-			want:    "CREATE FULLTEXT INDEX ft_news_title_summary_content ON news (title, summary, content)",
+			want:    "CREATE FULLTEXT INDEX `news_title_summary_content_fulltext` ON `news` (`title`, `summary`, `content`)",
 			wantErr: false,
 		},
 		{
@@ -1074,7 +1110,7 @@ func TestMysqlGrammar_CompileFullText(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.FullText("title", "excerpt", "body").Name("ft_blog_search")
 			},
-			want:    "CREATE FULLTEXT INDEX ft_blog_search ON blog_posts (title, excerpt, body)",
+			want:    "CREATE FULLTEXT INDEX `ft_blog_search` ON `blog_posts` (`title`, `excerpt`, `body`)",
 			wantErr: false,
 		},
 		{
@@ -1132,7 +1168,7 @@ func TestMysqlGrammar_CompileDropIndex(t *testing.T) {
 			name:      "drop index with valid name",
 			table:     "users",
 			indexName: "idx_users_email",
-			want:      "ALTER TABLE users DROP INDEX idx_users_email",
+			want:      "ALTER TABLE `users` DROP INDEX `idx_users_email`",
 			wantErr:   false,
 		},
 		{
@@ -1172,7 +1208,7 @@ func TestMysqlGrammar_CompileDropUnique(t *testing.T) {
 			name:      "drop unique index with valid name",
 			table:     "users",
 			indexName: "uk_users_email",
-			want:      "ALTER TABLE users DROP INDEX uk_users_email",
+			want:      "ALTER TABLE `users` DROP INDEX `uk_users_email`",
 			wantErr:   false,
 		},
 		{
@@ -1211,7 +1247,7 @@ func TestMysqlGrammar_CompileDropFulltext(t *testing.T) {
 			name:      "drop fulltext index with valid name",
 			table:     "articles",
 			indexName: "ft_articles_content",
-			want:      "ALTER TABLE articles DROP INDEX ft_articles_content",
+			want:      "ALTER TABLE `articles` DROP INDEX `ft_articles_content`",
 			wantErr:   false,
 		},
 		{
@@ -1250,35 +1286,35 @@ func TestMysqlGrammar_CompileDropPrimary(t *testing.T) {
 			name:      "drop primary key with valid name",
 			table:     "users",
 			indexName: "pk_users",
-			want:      "ALTER TABLE users DROP PRIMARY KEY",
+			want:      "ALTER TABLE `users` DROP PRIMARY KEY",
 			wantErr:   false,
 		},
 		{
 			name:      "drop primary key with underscore name",
 			table:     "user_profiles",
 			indexName: "pk_user_profiles",
-			want:      "ALTER TABLE user_profiles DROP PRIMARY KEY",
+			want:      "ALTER TABLE `user_profiles` DROP PRIMARY KEY",
 			wantErr:   false,
 		},
 		{
 			name:      "drop primary key with numeric name",
 			table:     "table123",
 			indexName: "pk_123",
-			want:      "ALTER TABLE table123 DROP PRIMARY KEY",
+			want:      "ALTER TABLE `table123` DROP PRIMARY KEY",
 			wantErr:   false,
 		},
 		{
 			name:      "drop primary key with mixed case name",
 			table:     "UserTable",
 			indexName: "PkUserTable",
-			want:      "ALTER TABLE UserTable DROP PRIMARY KEY",
+			want:      "ALTER TABLE `UserTable` DROP PRIMARY KEY",
 			wantErr:   false,
 		},
 		{
 			name:      "drop primary key with special characters in name",
 			table:     "orders",
 			indexName: "pk_order$id",
-			want:      "ALTER TABLE orders DROP PRIMARY KEY",
+			want:      "ALTER TABLE `orders` DROP PRIMARY KEY",
 			wantErr:   false,
 		},
 	}
@@ -1314,7 +1350,7 @@ func TestMysqlGrammar_CompileRenameIndex(t *testing.T) {
 			table:   "users",
 			oldName: "idx_users_email",
 			newName: "idx_users_email_address",
-			want:    "ALTER TABLE users RENAME INDEX idx_users_email TO idx_users_email_address",
+			want:    "ALTER TABLE `users` RENAME INDEX `idx_users_email` TO `idx_users_email_address`",
 			wantErr: false,
 		},
 		{
@@ -1322,7 +1358,7 @@ func TestMysqlGrammar_CompileRenameIndex(t *testing.T) {
 			table:   "user_profiles",
 			oldName: "idx_user_profiles_name",
 			newName: "idx_user_profiles_full_name",
-			want:    "ALTER TABLE user_profiles RENAME INDEX idx_user_profiles_name TO idx_user_profiles_full_name",
+			want:    "ALTER TABLE `user_profiles` RENAME INDEX `idx_user_profiles_name` TO `idx_user_profiles_full_name`",
 			wantErr: false,
 		},
 		{
@@ -1330,7 +1366,7 @@ func TestMysqlGrammar_CompileRenameIndex(t *testing.T) {
 			table:   "orders",
 			oldName: "idx_123",
 			newName: "idx_456",
-			want:    "ALTER TABLE orders RENAME INDEX idx_123 TO idx_456",
+			want:    "ALTER TABLE `orders` RENAME INDEX `idx_123` TO `idx_456`",
 			wantErr: false,
 		},
 		{
@@ -1338,7 +1374,7 @@ func TestMysqlGrammar_CompileRenameIndex(t *testing.T) {
 			table:   "Products",
 			oldName: "IdxProductSku",
 			newName: "IdxProductCode",
-			want:    "ALTER TABLE Products RENAME INDEX IdxProductSku TO IdxProductCode",
+			want:    "ALTER TABLE `Products` RENAME INDEX `IdxProductSku` TO `IdxProductCode`",
 			wantErr: false,
 		},
 		{
@@ -1346,7 +1382,7 @@ func TestMysqlGrammar_CompileRenameIndex(t *testing.T) {
 			table:   "logs",
 			oldName: "idx_log$date",
 			newName: "idx_log$timestamp",
-			want:    "ALTER TABLE logs RENAME INDEX idx_log$date TO idx_log$timestamp",
+			want:    "ALTER TABLE `logs` RENAME INDEX `idx_log$date` TO `idx_log$timestamp`",
 			wantErr: false,
 		},
 		{
@@ -1564,7 +1600,7 @@ func TestMysqlGrammar_GetType(t *testing.T) {
 			want: "ENUM('active', 'inactive', 'pending')",
 		},
 		{
-			name: "long text column type",
+			name: "`long` text column type",
 			blueprint: func(table *Blueprint) {
 				table.LongText("content")
 			},
@@ -1578,14 +1614,14 @@ func TestMysqlGrammar_GetType(t *testing.T) {
 			want: "TEXT",
 		},
 		{
-			name: "medium text column type",
+			name: "`medium` text column type",
 			blueprint: func(table *Blueprint) {
 				table.MediumText("summary")
 			},
 			want: "MEDIUMTEXT",
 		},
 		{
-			name: "tiny text column type",
+			name: "`tiny` text column type",
 			blueprint: func(table *Blueprint) {
 				table.TinyText("notes")
 			},
@@ -1680,7 +1716,7 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("name", 255)
 			},
-			want:    []string{"name VARCHAR(255) NOT NULL"},
+			want:    []string{"`name` VARCHAR(255) NOT NULL"},
 			wantErr: false,
 		},
 		{
@@ -1689,7 +1725,7 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 				table.String("name", 255)
 				table.Integer("age")
 			},
-			want:    []string{"name VARCHAR(255) NOT NULL", "age INT NOT NULL"},
+			want:    []string{"`name` VARCHAR(255) NOT NULL", "`age` INT NOT NULL"},
 			wantErr: false,
 		},
 		{
@@ -1697,7 +1733,7 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("status", 50).Default("active")
 			},
-			want:    []string{"status VARCHAR(50) DEFAULT 'active' NOT NULL"},
+			want:    []string{"`status` VARCHAR(50) NOT NULL DEFAULT 'active'"},
 			wantErr: false,
 		},
 		{
@@ -1705,7 +1741,7 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("email", 255).Nullable()
 			},
-			want:    []string{"email VARCHAR(255) NULL"},
+			want:    []string{"`email` VARCHAR(255) NULL"},
 			wantErr: false,
 		},
 		{
@@ -1713,7 +1749,7 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("username", 100).Nullable(false)
 			},
-			want:    []string{"username VARCHAR(100) NOT NULL"},
+			want:    []string{"`username` VARCHAR(100) NOT NULL"},
 			wantErr: false,
 		},
 		{
@@ -1721,7 +1757,7 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("name", 255).Comment("User full name")
 			},
-			want:    []string{"name VARCHAR(255) NOT NULL COMMENT 'User full name'"},
+			want:    []string{"`name` VARCHAR(255) NOT NULL COMMENT 'User full name'"},
 			wantErr: false,
 		},
 		{
@@ -1729,7 +1765,7 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.BigInteger("id").Primary()
 			},
-			want:    []string{"id BIGINT NOT NULL"},
+			want:    []string{"`id` BIGINT NOT NULL"},
 			wantErr: false,
 		},
 		{
@@ -1740,7 +1776,7 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 					Nullable().
 					Comment("User email address")
 			},
-			want:    []string{"email VARCHAR(255) DEFAULT 'user@example.com' NULL COMMENT 'User email address'"},
+			want:    []string{"`email` VARCHAR(255) NULL DEFAULT 'user@example.com' COMMENT 'User email address'"},
 			wantErr: false,
 		},
 		{
@@ -1748,7 +1784,7 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.BigInteger("id").Unsigned().AutoIncrement().Primary()
 			},
-			want:    []string{"id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL"},
+			want:    []string{"`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT"},
 			wantErr: false,
 		},
 		{
@@ -1760,10 +1796,10 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 				table.Timestamp("created_at", 0).UseCurrent()
 			},
 			want: []string{
-				"id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL",
-				"name VARCHAR(255) NOT NULL COMMENT 'User name'",
-				"email VARCHAR(255) NULL",
-				"created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL",
+				"`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT",
+				"`name` VARCHAR(255) NOT NULL COMMENT 'User name'",
+				"`email` VARCHAR(255) NULL",
+				"`created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
 			},
 			wantErr: false,
 		},
@@ -1772,7 +1808,7 @@ func TestMysqlGrammar_GetColumns(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Text("description").Nullable().Default(nil)
 			},
-			want:    []string{"description TEXT DEFAULT NULL NULL"},
+			want:    []string{"`description` TEXT NULL DEFAULT NULL"},
 			wantErr: false,
 		},
 		{

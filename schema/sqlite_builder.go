@@ -15,10 +15,9 @@ var _ Builder = (*sqliteBuilder)(nil)
 
 func newSqliteBuilder() Builder {
 	grammar := newSqliteGrammar()
-
-	return &sqliteBuilder{
-		baseBuilder: baseBuilder{grammar: grammar},
-	}
+	b := &sqliteBuilder{}
+	b.baseBuilder = baseBuilder{grammar: grammar, outer: b}
+	return b
 }
 
 func (b *sqliteBuilder) GetColumns(c Context, tableName string) ([]*Column, error) {
@@ -108,7 +107,7 @@ func (b *sqliteBuilder) GetIndexes(c Context, tableName string) ([]*Index, error
 	for _, idx := range indexes {
 		func() {
 			columnQuery := fmt.Sprintf("PRAGMA index_info(%q)", idx.Name)
-			var columnRows *sql.Rows
+			var columnRows Rows
 			columnRows, err = c.Query(columnQuery)
 			if err != nil {
 				return // Skip if we can't get column info

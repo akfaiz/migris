@@ -46,32 +46,14 @@ func (g *sqliteGrammar) GetDefaultValue(value any) string {
 	}
 }
 
-// CreateIndexName overrides the base implementation for SQLite-specific naming conventions.
 func (g *sqliteGrammar) CreateIndexName(blueprint *Blueprint, idxType string, columns ...string) string {
-	tableName := blueprint.name
-	if strings.Contains(tableName, ".") {
-		parts := strings.Split(tableName, ".")
-		tableName = parts[len(parts)-1] // Use the last part as the table name
-	}
-
-	switch idxType {
-	case "primary":
-		return fmt.Sprintf("pk_%s", tableName)
-	case "unique":
-		return fmt.Sprintf("uq_%s_%s", tableName, strings.Join(columns, "_"))
-	case "index":
-		return fmt.Sprintf("idx_%s_%s", tableName, strings.Join(columns, "_"))
-	case "fulltext":
-		return fmt.Sprintf("ft_%s_%s", tableName, strings.Join(columns, "_"))
-	default:
-		return ""
-	}
+	return g.baseGrammar.CreateIndexName(blueprint, idxType, columns...)
 }
 
 func (g *sqliteGrammar) CompileTableExists(_ string, table string) (string, error) {
 	return fmt.Sprintf(
-		"SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = %s",
-		g.QuoteString(table),
+		"SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '%s'",
+		table,
 	), nil
 }
 
@@ -85,8 +67,8 @@ func (g *sqliteGrammar) CompileColumns(_, table string) (string, error) {
 
 func (g *sqliteGrammar) CompileIndexes(_, table string) (string, error) {
 	return fmt.Sprintf(
-		"SELECT name, 0 as unique_flag, '' as columns FROM sqlite_master WHERE type = 'index' AND tbl_name = %s",
-		g.QuoteString(table),
+		"SELECT name, 0 as unique_flag, '' as columns FROM sqlite_master WHERE type = 'index' AND tbl_name = '%s'",
+		table,
 	), nil
 }
 
@@ -197,11 +179,19 @@ func (g *sqliteGrammar) CompileDropIfExists(blueprint *Blueprint) (string, error
 }
 
 func (g *sqliteGrammar) CompileDropColumn(_ *Blueprint, _ *command) (string, error) {
-	return "", errors.New("SQLite does not support dropping columns")
+	return "", errors.New("SQLite drop column is not yet supported by migris rebuild strategy")
 }
 
-func (g *sqliteGrammar) CompileRenameColumn(_ *Blueprint, _ *command) (string, error) {
-	return "", errors.New("SQLite does not support renaming columns")
+func (g *sqliteGrammar) CompileRenameColumn(blueprint *Blueprint, command *command) (string, error) {
+	if command.from == "" || command.to == "" {
+		return "", errors.New("old and new column names cannot be empty")
+	}
+	return fmt.Sprintf(
+		"ALTER TABLE %s RENAME COLUMN %s TO %s",
+		g.QuoteString(blueprint.name),
+		g.QuoteString(command.from),
+		g.QuoteString(command.to),
+	), nil
 }
 
 func (g *sqliteGrammar) CompileIndex(blueprint *Blueprint, command *command) (string, error) {
@@ -296,9 +286,11 @@ func (g *sqliteGrammar) CompileDropForeign(_ *Blueprint, _ *command) (string, er
 }
 
 func (g *sqliteGrammar) GetFluentCommands() []func(blueprint *Blueprint, command *command) string {
-	return []func(blueprint *Blueprint, command *command) string{
-		// Add fluent command handlers here if needed
-	}
+	return []func(blueprint *Blueprint, command *command) string{}
+}
+
+func (g *sqliteGrammar) GetTableFluentCommands() []func(blueprint *Blueprint) string {
+	return []func(blueprint *Blueprint) string{}
 }
 
 func (g *sqliteGrammar) getColumns(blueprint *Blueprint) []string {
@@ -342,6 +334,9 @@ func (g *sqliteGrammar) getType(column *columnDefinition) string {
 		"year":          g.typeYear,
 		"binary":        g.typeBinary,
 		"uuid":          g.typeUUID,
+		"ulid":          g.typeULID,
+		"ipAddress":     g.typeIpAddress,
+		"macAddress":    g.typeMacAddress,
 		"geometry":      g.typeGeometry,
 		"geography":     g.typeGeography,
 		"point":         g.typePoint,
@@ -477,6 +472,18 @@ func (g *sqliteGrammar) typeUUID(_ *columnDefinition) string {
 	return "TEXT"
 }
 
+func (g *sqliteGrammar) typeULID(_ *columnDefinition) string {
+	return "TEXT"
+}
+
+func (g *sqliteGrammar) typeIpAddress(_ *columnDefinition) string {
+	return "TEXT"
+}
+
+func (g *sqliteGrammar) typeMacAddress(_ *columnDefinition) string {
+	return "TEXT"
+}
+
 func (g *sqliteGrammar) typeGeometry(_ *columnDefinition) string {
 	return "TEXT"
 }
@@ -496,7 +503,7 @@ func (g *sqliteGrammar) modifiers(column *columnDefinition, blueprint *Blueprint
 	modifiers = append(modifiers, g.QuoteString(column.name), g.getType(column))
 
 	// SQLite modifier order: [CONSTRAINT name] [PRIMARY KEY | UNIQUE] [NOT NULL] [DEFAULT value]
-	for _, method := range []string{"primary", "unique", "nullable", "default"} {
+	for _, method := range []string{"virtualAs", "storedAs", "primary", "unique", "nullable", "default"} {
 		if modifier := g.getModifier(method, column, blueprint); modifier != "" {
 			modifiers = append(modifiers, modifier)
 		}
@@ -507,6 +514,10 @@ func (g *sqliteGrammar) modifiers(column *columnDefinition, blueprint *Blueprint
 
 func (g *sqliteGrammar) getModifier(name string, column *columnDefinition, blueprint *Blueprint) string {
 	switch name {
+	case "virtualAs":
+		return g.modifyVirtualAs(column, blueprint)
+	case "storedAs":
+		return g.modifyStoredAs(column, blueprint)
 	case "primary":
 		return g.modifyPrimary(column, blueprint)
 	case "unique":
@@ -518,6 +529,20 @@ func (g *sqliteGrammar) getModifier(name string, column *columnDefinition, bluep
 	default:
 		return ""
 	}
+}
+
+func (g *sqliteGrammar) modifyVirtualAs(column *columnDefinition, _ *Blueprint) string {
+	if column.virtualAs != nil {
+		return fmt.Sprintf("GENERATED ALWAYS AS (%s) VIRTUAL", *column.virtualAs)
+	}
+	return ""
+}
+
+func (g *sqliteGrammar) modifyStoredAs(column *columnDefinition, _ *Blueprint) string {
+	if column.storedAs != nil {
+		return fmt.Sprintf("GENERATED ALWAYS AS (%s) STORED", *column.storedAs)
+	}
+	return ""
 }
 
 func (g *sqliteGrammar) modifyPrimary(column *columnDefinition, _ *Blueprint) string {

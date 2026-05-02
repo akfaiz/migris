@@ -30,10 +30,6 @@ func (m *Migrate) UpTo(version int64) error {
 
 // UpToContext applies the migrations up to the specified version.
 func (m *Migrate) UpToContext(ctx context.Context, version int64) error {
-	// Set global dry-run state for migration execution
-	setGlobalDryRunState(m.dryRun)
-	defer setGlobalDryRunState(false) // Reset after execution
-
 	if m.dryRun {
 		return m.executeDryRunUp(ctx, version)
 	}
@@ -112,7 +108,7 @@ func (m *Migrate) determineMigrationsToApply(version, currentVersion int64) []*M
 	var migrationsToApply []*Migration
 
 	// Get all registered migrations that need to be applied (only pending ones)
-	for _, migration := range registeredMigrations {
+	for _, migration := range m.registry.migrationsSnapshot() {
 		// Skip migrations that are already applied
 		if migration.version <= currentVersion {
 			continue
@@ -145,7 +141,7 @@ func (m *Migrate) processDryRunMigrations(
 		m.logger.DryRunMigrationStart(filepath.Base(migration.source), migration.version)
 
 		// Create dry-run context for this migration
-		dryRunCtx := schema.NewDryRunContext(ctx)
+		dryRunCtx := schema.NewDryRunContext(ctx, schema.WithDryRunDialect(m.dialect.String()))
 
 		// Execute the migration in dry-run mode
 		var migrationFunc MigrationContext

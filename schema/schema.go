@@ -40,8 +40,19 @@ type TableInfo struct {
 	Collation sql.NullString // Collation is the collation used for the table (e.g., "utf8mb4_general_ci").
 }
 
-func newBuilder() (Builder, error) {
-	dialectVal := config.GetDialect()
+func newBuilder(c Context) (Builder, error) {
+	dialectVal := dialect.Unknown
+	if c != nil {
+		type dialectContext interface {
+			Dialect() string
+		}
+		if dc, ok := c.(dialectContext); ok {
+			dialectVal = dialect.FromString(dc.Dialect())
+		}
+	}
+	if dialectVal == dialect.Unknown {
+		dialectVal = config.GetDialect()
+	}
 	if dialectVal == dialect.Unknown {
 		return nil, errors.New(
 			"schema dialect is not set, please call schema.SetDialect() before using schema functions",
@@ -71,7 +82,7 @@ func newBuilder() (Builder, error) {
 //	    table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP").Nullable(false)
 //	})
 func Create(c Context, name string, blueprint func(table *Blueprint)) error {
-	builder, err := newBuilder()
+	builder, err := newBuilder(c)
 	if err != nil {
 		return err
 	}
@@ -86,7 +97,7 @@ func Create(c Context, name string, blueprint func(table *Blueprint)) error {
 //
 //	err := schema.Drop(ctx, tx, "users")
 func Drop(c Context, name string) error {
-	builder, err := newBuilder()
+	builder, err := newBuilder(c)
 	if err != nil {
 		return err
 	}
@@ -101,7 +112,7 @@ func Drop(c Context, name string) error {
 //
 //	err := schema.DropIfExists(ctx, tx, "users")
 func DropIfExists(c Context, name string) error {
-	builder, err := newBuilder()
+	builder, err := newBuilder(c)
 	if err != nil {
 		return err
 	}
@@ -116,7 +127,7 @@ func DropIfExists(c Context, name string) error {
 //
 //	columns, err := schema.GetColumns(ctx, tx, "users")
 func GetColumns(c Context, tableName string) ([]*Column, error) {
-	builder, err := newBuilder()
+	builder, err := newBuilder(c)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +142,7 @@ func GetColumns(c Context, tableName string) ([]*Column, error) {
 //
 //	indexes, err := schema.GetIndexes(ctx, tx, "users")
 func GetIndexes(c Context, tableName string) ([]*Index, error) {
-	builder, err := newBuilder()
+	builder, err := newBuilder(c)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +157,7 @@ func GetIndexes(c Context, tableName string) ([]*Index, error) {
 //
 //	tables, err := schema.GetTables(ctx, tx)
 func GetTables(c Context) ([]*TableInfo, error) {
-	builder, err := newBuilder()
+	builder, err := newBuilder(c)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +172,7 @@ func GetTables(c Context) ([]*TableInfo, error) {
 //
 //	exists, err := schema.HasColumn(ctx, tx, "users", "email")
 func HasColumn(c Context, tableName string, columnName string) (bool, error) {
-	builder, err := newBuilder()
+	builder, err := newBuilder(c)
 	if err != nil {
 		return false, err
 	}
@@ -178,7 +189,7 @@ func HasColumn(c Context, tableName string, columnName string) (bool, error) {
 //
 // If any of the specified columns do not exist, it returns false.
 func HasColumns(c Context, tableName string, columnNames []string) (bool, error) {
-	builder, err := newBuilder()
+	builder, err := newBuilder(c)
 	if err != nil {
 		return false, err
 	}
@@ -195,7 +206,7 @@ func HasColumns(c Context, tableName string, columnNames []string) (bool, error)
 //
 //	exists, err := schema.HasIndex(ctx, tx, "users", []string{"email", "name"}) // Checks if a composite index exists on the "email" and "name" columns in the "users" table.
 func HasIndex(c Context, tableName string, indexes []string) (bool, error) {
-	builder, err := newBuilder()
+	builder, err := newBuilder(c)
 	if err != nil {
 		return false, err
 	}
@@ -211,7 +222,7 @@ func HasIndex(c Context, tableName string, indexes []string) (bool, error) {
 //
 //	exists, err := schema.HasTable(ctx, tx, "users")
 func HasTable(c Context, name string) (bool, error) {
-	builder, err := newBuilder()
+	builder, err := newBuilder(c)
 	if err != nil {
 		return false, err
 	}
@@ -226,7 +237,7 @@ func HasTable(c Context, name string) (bool, error) {
 //
 //	err := schema.Rename(ctx, tx, "users", "people")
 func Rename(c Context, name string, newName string) error {
-	builder, err := newBuilder()
+	builder, err := newBuilder(c)
 	if err != nil {
 		return err
 	}
@@ -246,7 +257,7 @@ func Rename(c Context, name string, newName string) error {
 //	    table.RenameColumn("email", "contact_email")
 //	})
 func Table(c Context, name string, blueprint func(table *Blueprint)) error {
-	builder, err := newBuilder()
+	builder, err := newBuilder(c)
 	if err != nil {
 		return err
 	}

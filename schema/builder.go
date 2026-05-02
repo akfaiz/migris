@@ -43,6 +43,8 @@ func NewBuilder(dialectValue string) (Builder, error) {
 	switch dialectVal {
 	case dialect.MySQL:
 		return newMysqlBuilder(), nil
+	case dialect.MariaDB:
+		return newMariadbBuilder(), nil
 	case dialect.Postgres:
 		return newPostgresBuilder(), nil
 	case dialect.SQLite3:
@@ -56,10 +58,11 @@ func NewBuilder(dialectValue string) (Builder, error) {
 
 type baseBuilder struct {
 	grammar grammar
+	outer   Builder
 }
 
 func (b *baseBuilder) newBlueprint(name string) *Blueprint {
-	return &Blueprint{name: name, grammar: b.grammar}
+	return &Blueprint{name: name, grammar: b.grammar, builder: b.outer}
 }
 
 func (b *baseBuilder) Create(c Context, name string, blueprint func(table *Blueprint)) error {

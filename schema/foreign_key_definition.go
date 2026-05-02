@@ -31,6 +31,8 @@ type ForeignKeyDefinition interface {
 	OnUpdate(action string) ForeignKeyDefinition
 	// References set the column that this foreign key references in the other table.
 	References(column string) ForeignKeyDefinition
+	// ReferencesColumns sets multiple columns that this foreign key references.
+	ReferencesColumns(columns ...string) ForeignKeyDefinition
 	// RestrictOnDelete set the foreign key to restrict deletion of the referenced row.
 	RestrictOnDelete() ForeignKeyDefinition
 	// RestrictOnUpdate set the foreign key to restrict updating of the referenced row.
@@ -99,6 +101,11 @@ func (fd *foreignKeyDefinition) OnUpdate(action string) ForeignKeyDefinition {
 
 func (fd *foreignKeyDefinition) References(columns string) ForeignKeyDefinition {
 	fd.references = []string{columns}
+	return fd
+}
+
+func (fd *foreignKeyDefinition) ReferencesColumns(columns ...string) ForeignKeyDefinition {
+	fd.references = columns
 	return fd
 }
 

@@ -69,7 +69,7 @@ func (g *postgresGrammar) CompileCreate(blueprint *Blueprint) (string, error) {
 		return "", err
 	}
 	columns = append(columns, g.getConstraints(blueprint)...)
-	return fmt.Sprintf("CREATE TABLE %s (%s)", blueprint.name, strings.Join(columns, ", ")), nil
+	return fmt.Sprintf("CREATE TABLE %s (%s)", g.WrapTable(blueprint.name, `"`), strings.Join(columns, ", ")), nil
 }
 
 func (g *postgresGrammar) CompileAdd(blueprint *Blueprint) (string, error) {
@@ -89,7 +89,7 @@ func (g *postgresGrammar) CompileAdd(blueprint *Blueprint) (string, error) {
 	}
 
 	return fmt.Sprintf("ALTER TABLE %s %s",
-		blueprint.name,
+		g.WrapTable(blueprint.name, `"`),
 		strings.Join(columns, ", "),
 	), nil
 }
@@ -110,21 +110,21 @@ func (g *postgresGrammar) CompileChange(bp *Blueprint, command *command) (string
 	}
 
 	return fmt.Sprintf("ALTER TABLE %s %s",
-		bp.name,
-		strings.Join(g.PrefixArray(fmt.Sprintf("ALTER COLUMN %s ", column.name), changes), ", "),
+		g.WrapTable(bp.name, `"`),
+		strings.Join(g.PrefixArray(fmt.Sprintf("ALTER COLUMN %s ", g.Wrap(column.name, `"`)), changes), ", "),
 	), nil
 }
 
 func (g *postgresGrammar) CompileDrop(blueprint *Blueprint) (string, error) {
-	return fmt.Sprintf("DROP TABLE %s", blueprint.name), nil
+	return fmt.Sprintf("DROP TABLE %s", g.WrapTable(blueprint.name, `"`)), nil
 }
 
 func (g *postgresGrammar) CompileDropIfExists(blueprint *Blueprint) (string, error) {
-	return fmt.Sprintf("DROP TABLE IF EXISTS %s", blueprint.name), nil
+	return fmt.Sprintf("DROP TABLE IF EXISTS %s", g.WrapTable(blueprint.name, `"`)), nil
 }
 
 func (g *postgresGrammar) CompileRename(blueprint *Blueprint, command *command) (string, error) {
-	return fmt.Sprintf("ALTER TABLE %s RENAME TO %s", blueprint.name, command.to), nil
+	return fmt.Sprintf("ALTER TABLE %s RENAME TO %s", g.WrapTable(blueprint.name, `"`), g.WrapTable(command.to, `"`)), nil
 }
 
 func (g *postgresGrammar) CompileDropColumn(blueprint *Blueprint, command *command) (string, error) {
@@ -132,15 +132,23 @@ func (g *postgresGrammar) CompileDropColumn(blueprint *Blueprint, command *comma
 		return "", nil
 	}
 	columns := g.PrefixArray("DROP COLUMN ", command.columns)
+	for i, col := range columns {
+		columns[i] = "DROP COLUMN " + g.Wrap(strings.TrimPrefix(col, "DROP COLUMN "), `"`)
+	}
 
-	return fmt.Sprintf("ALTER TABLE %s %s", blueprint.name, strings.Join(columns, ", ")), nil
+	return fmt.Sprintf("ALTER TABLE %s %s", g.WrapTable(blueprint.name, `"`), strings.Join(columns, ", ")), nil
 }
 
 func (g *postgresGrammar) CompileRenameColumn(blueprint *Blueprint, command *command) (string, error) {
 	if command.from == "" || command.to == "" {
 		return "", errors.New("table name, old column name, and new column name cannot be empty for rename operation")
 	}
-	return fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", blueprint.name, command.from, command.to), nil
+	return fmt.Sprintf(
+		"ALTER TABLE %s RENAME COLUMN %s TO %s",
+		g.WrapTable(blueprint.name, `"`),
+		g.Wrap(command.from, `"`),
+		g.Wrap(command.to, `"`),
+	), nil
 }
 
 func (g *postgresGrammar) CompileFullText(blueprint *Blueprint, command *command) (string, error) {
@@ -162,8 +170,8 @@ func (g *postgresGrammar) CompileFullText(blueprint *Blueprint, command *command
 
 	return fmt.Sprintf(
 		"CREATE INDEX %s ON %s USING GIN (%s)",
-		indexName,
-		blueprint.name,
+		g.WrapIndexName(indexName, `"`),
+		g.WrapTable(blueprint.name, `"`),
 		strings.Join(columns, " || "),
 	), nil
 }
@@ -177,11 +185,11 @@ func (g *postgresGrammar) CompileIndex(blueprint *Blueprint, command *command) (
 		indexName = g.CreateIndexName(blueprint, "index", command.columns...)
 	}
 
-	sql := fmt.Sprintf("CREATE INDEX %s ON %s", indexName, blueprint.name)
+	sql := fmt.Sprintf("CREATE INDEX %s ON %s", g.WrapIndexName(indexName, `"`), g.WrapTable(blueprint.name, `"`))
 	if command.algorithm != "" {
 		sql += fmt.Sprintf(" USING %s", command.algorithm)
 	}
-	return fmt.Sprintf("%s (%s)", sql, g.Columnize(command.columns)), nil
+	return fmt.Sprintf("%s (%s)", sql, g.WrapColumnize(command.columns, `"`)), nil
 }
 
 func (g *postgresGrammar) CompileUnique(blueprint *Blueprint, command *command) (string, error) {
@@ -193,9 +201,9 @@ func (g *postgresGrammar) CompileUnique(blueprint *Blueprint, command *command) 
 		indexName = g.CreateIndexName(blueprint, "unique", command.columns...)
 	}
 	sql := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE (%s)",
-		blueprint.name,
-		indexName,
-		g.Columnize(command.columns),
+		g.WrapTable(blueprint.name, `"`),
+		g.WrapIndexName(indexName, `"`),
+		g.WrapColumnize(command.columns, `"`),
 	)
 
 	if command.deferrable != nil {
@@ -226,9 +234,9 @@ func (g *postgresGrammar) CompilePrimary(blueprint *Blueprint, command *command)
 	}
 	return fmt.Sprintf(
 		"ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)",
-		blueprint.name,
-		indexName,
-		g.Columnize(command.columns),
+		g.WrapTable(blueprint.name, `"`),
+		g.WrapIndexName(indexName, `"`),
+		g.WrapColumnize(command.columns, `"`),
 	), nil
 }
 
@@ -236,7 +244,7 @@ func (g *postgresGrammar) CompileDropIndex(_ *Blueprint, command *command) (stri
 	if command.index == "" {
 		return "", errors.New("index name cannot be empty for drop operation")
 	}
-	return fmt.Sprintf("DROP INDEX %s", command.index), nil
+	return fmt.Sprintf("DROP INDEX %s", g.WrapIndexName(command.index, `"`)), nil
 }
 
 func (g *postgresGrammar) CompileDropFulltext(blueprint *Blueprint, command *command) (string, error) {
@@ -247,7 +255,7 @@ func (g *postgresGrammar) CompileDropUnique(blueprint *Blueprint, command *comma
 	if command.index == "" {
 		return "", errors.New("index name cannot be empty for drop operation")
 	}
-	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", blueprint.name, command.index), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", g.WrapTable(blueprint.name, `"`), g.WrapIndexName(command.index, `"`)), nil
 }
 
 func (g *postgresGrammar) CompileDropPrimary(blueprint *Blueprint, command *command) (string, error) {
@@ -255,7 +263,7 @@ func (g *postgresGrammar) CompileDropPrimary(blueprint *Blueprint, command *comm
 	if index == "" {
 		index = g.CreateIndexName(blueprint, "primary", command.columns...)
 	}
-	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", blueprint.name, index), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", g.WrapTable(blueprint.name, `"`), g.WrapIndexName(index, `"`)), nil
 }
 
 func (g *postgresGrammar) CompileRenameIndex(_ *Blueprint, command *command) (string, error) {
@@ -266,13 +274,33 @@ func (g *postgresGrammar) CompileRenameIndex(_ *Blueprint, command *command) (st
 			command.to,
 		)
 	}
-	return fmt.Sprintf("ALTER INDEX %s RENAME TO %s", command.from, command.to), nil
+	return fmt.Sprintf("ALTER INDEX %s RENAME TO %s", g.WrapIndexName(command.from, `"`), g.WrapIndexName(command.to, `"`)), nil
 }
 
 func (g *postgresGrammar) CompileForeign(blueprint *Blueprint, command *command) (string, error) {
-	sql, err := g.baseGrammar.CompileForeign(blueprint, command)
-	if err != nil {
-		return "", err
+	if len(command.columns) == 0 || slices.Contains(command.columns, "") || command.on == "" ||
+		len(command.references) == 0 || slices.Contains(command.references, "") {
+		return "", errors.New("foreign key definition is incomplete: column, on, and references must be set")
+	}
+
+	indexName := command.index
+	if indexName == "" {
+		indexName = g.CreateForeignKeyName(blueprint, command)
+	}
+
+	sql := fmt.Sprintf(
+		"ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)",
+		g.WrapTable(blueprint.name, `"`),
+		g.WrapIndexName(indexName, `"`),
+		g.WrapColumnize(command.columns, `"`),
+		g.WrapTable(command.on, `"`),
+		g.WrapColumnize(command.references, `"`),
+	)
+	if command.onDelete != "" {
+		sql += fmt.Sprintf(" ON DELETE %s", command.onDelete)
+	}
+	if command.onUpdate != "" {
+		sql += fmt.Sprintf(" ON UPDATE %s", command.onUpdate)
 	}
 
 	if command.deferrable != nil {
@@ -297,7 +325,7 @@ func (g *postgresGrammar) CompileDropForeign(blueprint *Blueprint, command *comm
 	if command.index == "" {
 		return "", errors.New("foreign key name cannot be empty for drop operation")
 	}
-	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", blueprint.name, command.index), nil
+	return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", g.WrapTable(blueprint.name, `"`), g.WrapIndexName(command.index, `"`)), nil
 }
 
 func (g *postgresGrammar) GetFluentCommands() []func(blueprint *Blueprint, command *command) string {
@@ -306,9 +334,22 @@ func (g *postgresGrammar) GetFluentCommands() []func(blueprint *Blueprint, comma
 	}
 }
 
+func (g *postgresGrammar) GetTableFluentCommands() []func(blueprint *Blueprint) string {
+	return []func(blueprint *Blueprint) string{
+		g.CompileTableComment,
+	}
+}
+
+func (g *postgresGrammar) CompileTableComment(blueprint *Blueprint) string {
+	if blueprint.comment != "" {
+		return fmt.Sprintf("COMMENT ON TABLE %s IS '%s'", g.WrapTable(blueprint.name, `"`), blueprint.comment)
+	}
+	return ""
+}
+
 func (g *postgresGrammar) CompileComment(blueprint *Blueprint, command *command) string {
-	if command.column.comment != nil {
-		sql := fmt.Sprintf("COMMENT ON COLUMN %s.%s IS ", blueprint.name, command.column.name)
+	if command.column != nil && command.column.comment != nil {
+		sql := fmt.Sprintf("COMMENT ON COLUMN %s.%s IS ", g.WrapTable(blueprint.name, `"`), g.Wrap(command.column.name, `"`))
 		if command.column.comment == nil {
 			return sql + "NULL"
 		}
@@ -323,7 +364,7 @@ func (g *postgresGrammar) getColumns(blueprint *Blueprint) ([]string, error) {
 		if col.name == "" {
 			return nil, errors.New("column name cannot be empty")
 		}
-		sql := col.name + " " + g.getType(col)
+		sql := g.Wrap(col.name, `"`) + " " + g.getType(col)
 		var sqlBuilder strings.Builder
 		for _, modifier := range g.modifiers() {
 			sqlBuilder.WriteString(modifier(col))
@@ -339,8 +380,8 @@ func (g *postgresGrammar) getConstraints(blueprint *Blueprint) []string {
 	var constrains []string
 	for _, col := range blueprint.getAddedColumns() {
 		if col.primary != nil && *col.primary {
-			pkConstraintName := g.CreateIndexName(blueprint, "primary")
-			sql := "CONSTRAINT " + pkConstraintName + " PRIMARY KEY (" + col.name + ")"
+			pkConstraintName := g.CreateIndexName(blueprint, "primary", col.name)
+			sql := "CONSTRAINT " + g.WrapIndexName(pkConstraintName, `"`) + " PRIMARY KEY (" + g.Wrap(col.name, `"`) + ")"
 			constrains = append(constrains, sql)
 			continue
 		}
@@ -380,9 +421,18 @@ func (g *postgresGrammar) getType(col *columnDefinition) string {
 		columnTypeYear:          g.typeYear,
 		columnTypeBinary:        g.typeBinary,
 		columnTypeUUID:          g.typeUUID,
+		columnTypeULID:          g.typeULID,
+		columnTypeIpAddress:     g.typeIpAddress,
+		columnTypeMacAddress:    g.typeMacAddress,
 		columnTypeGeography:     g.typeGeography,
 		columnTypeGeometry:      g.typeGeometry,
 		columnTypePoint:         g.typePoint,
+		columnTypeVector:        g.typeVector,
+		columnTypeTsVector:      g.typeTsVector,
+		columnTypeCidr:          g.typeCidr,
+		columnTypeInet:          g.typeInet,
+		columnTypeMacaddr:       g.typeMacaddr,
+		columnTypeMacaddr8:      g.typeMacaddr8,
 	}
 	if fn, ok := typeMapFunc[col.columnType]; ok {
 		return fn(col)
@@ -539,6 +589,45 @@ func (g *postgresGrammar) typeUUID(_ *columnDefinition) string {
 	return "UUID"
 }
 
+func (g *postgresGrammar) typeULID(_ *columnDefinition) string {
+	return "UUID"
+}
+
+func (g *postgresGrammar) typeIpAddress(_ *columnDefinition) string {
+	return "INET"
+}
+
+func (g *postgresGrammar) typeMacAddress(_ *columnDefinition) string {
+	return "MACADDR"
+}
+
+func (g *postgresGrammar) typeVector(col *columnDefinition) string {
+	if col.places != nil {
+		return fmt.Sprintf("VECTOR(%d)", *col.places)
+	}
+	return "VECTOR"
+}
+
+func (g *postgresGrammar) typeTsVector(_ *columnDefinition) string {
+	return "TSVECTOR"
+}
+
+func (g *postgresGrammar) typeCidr(_ *columnDefinition) string {
+	return "CIDR"
+}
+
+func (g *postgresGrammar) typeInet(_ *columnDefinition) string {
+	return "INET"
+}
+
+func (g *postgresGrammar) typeMacaddr(_ *columnDefinition) string {
+	return "MACADDR"
+}
+
+func (g *postgresGrammar) typeMacaddr8(_ *columnDefinition) string {
+	return "MACADDR8"
+}
+
 func (g *postgresGrammar) typeGeography(col *columnDefinition) string {
 	if col.subtype != nil && col.srid != nil {
 		return fmt.Sprintf("GEOGRAPHY(%s, %d)", *col.subtype, *col.srid)
@@ -566,9 +655,49 @@ func (g *postgresGrammar) typePoint(col *columnDefinition) string {
 
 func (g *postgresGrammar) modifiers() []func(*columnDefinition) string {
 	return []func(*columnDefinition) string{
-		g.modifyDefault,
+		g.modifyCollate,
 		g.modifyNullable,
+		g.modifyDefault,
+		g.modifyVirtualAs,
+		g.modifyStoredAs,
+		g.modifyGeneratedAs,
 	}
+}
+
+func (g *postgresGrammar) modifyCollate(col *columnDefinition) string {
+	if col.collation != nil && *col.collation != "" {
+		return fmt.Sprintf(" COLLATE %s", *col.collation)
+	}
+	return ""
+}
+
+func (g *postgresGrammar) modifyVirtualAs(col *columnDefinition) string {
+	if col.virtualAs != nil {
+		return fmt.Sprintf(" GENERATED ALWAYS AS (%s) VIRTUAL", *col.virtualAs)
+	}
+	return ""
+}
+
+func (g *postgresGrammar) modifyStoredAs(col *columnDefinition) string {
+	if col.storedAs != nil {
+		return fmt.Sprintf(" GENERATED ALWAYS AS (%s) STORED", *col.storedAs)
+	}
+	return ""
+}
+
+func (g *postgresGrammar) modifyGeneratedAs(col *columnDefinition) string {
+	if col.generatedAs != nil {
+		always := "BY DEFAULT"
+		if col.always != nil && *col.always {
+			always = "ALWAYS"
+		}
+		sql := fmt.Sprintf(" GENERATED %s AS IDENTITY", always)
+		if *col.generatedAs != "" {
+			sql += fmt.Sprintf(" (%s)", *col.generatedAs)
+		}
+		return sql
+	}
+	return ""
 }
 
 func (g *postgresGrammar) modifyNullable(col *columnDefinition) string {

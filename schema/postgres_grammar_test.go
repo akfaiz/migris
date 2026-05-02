@@ -28,7 +28,7 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 				table.Timestamp("created_at").UseCurrent()
 				table.Timestamp("updated_at").UseCurrent()
 			},
-			want: "CREATE TABLE users (id BIGSERIAL NOT NULL, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL, password VARCHAR(255) NULL, created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, CONSTRAINT pk_users PRIMARY KEY (id))",
+			want: "CREATE TABLE \"users\" (\"id\" BIGSERIAL NOT NULL, \"name\" VARCHAR(255) NOT NULL, \"email\" VARCHAR(255) NOT NULL, \"password\" VARCHAR(255) NULL, \"created_at\" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP, \"updated_at\" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT \"users_id_primary\" PRIMARY KEY (\"id\"))",
 		},
 		{
 			name:  "Create table with foreign key",
@@ -40,7 +40,7 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 				table.Text("content").Nullable()
 				table.Foreign("user_id").References("id").On("users").OnDelete("CASCADE").OnUpdate("CASCADE")
 			},
-			want: "CREATE TABLE posts (id BIGSERIAL NOT NULL, user_id INTEGER NOT NULL, title VARCHAR(255) NOT NULL, content TEXT NULL, CONSTRAINT pk_posts PRIMARY KEY (id))",
+			want: "CREATE TABLE \"posts\" (\"id\" BIGSERIAL NOT NULL, \"user_id\" INTEGER NOT NULL, \"title\" VARCHAR(255) NOT NULL, \"content\" TEXT NULL, CONSTRAINT \"posts_id_primary\" PRIMARY KEY (\"id\"))",
 		},
 		{
 			name:  "Create table with column name is empty",
@@ -84,7 +84,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("phone", 20)
 			},
-			want:    "ALTER TABLE users ADD COLUMN phone VARCHAR(20) NOT NULL",
+			want:    "ALTER TABLE \"users\" ADD COLUMN \"phone\" VARCHAR(20) NOT NULL",
 			wantErr: false,
 		},
 		{
@@ -95,7 +95,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 				table.String("address", 255).Nullable()
 				table.Integer("age")
 			},
-			want:    "ALTER TABLE users ADD COLUMN phone VARCHAR(20) NOT NULL, ADD COLUMN address VARCHAR(255) NULL, ADD COLUMN age INTEGER NOT NULL",
+			want:    "ALTER TABLE \"users\" ADD COLUMN \"phone\" VARCHAR(20) NOT NULL, ADD COLUMN \"address\" VARCHAR(255) NULL, ADD COLUMN \"age\" INTEGER NOT NULL",
 			wantErr: false,
 		},
 		{
@@ -104,7 +104,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Boolean("active").Default(true)
 			},
-			want:    "ALTER TABLE users ADD COLUMN active BOOLEAN DEFAULT '1' NOT NULL",
+			want:    "ALTER TABLE \"users\" ADD COLUMN \"active\" BOOLEAN NOT NULL DEFAULT '1'",
 			wantErr: false,
 		},
 		{
@@ -113,7 +113,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("notes", 500).Comment("User notes")
 			},
-			want:    "ALTER TABLE users ADD COLUMN notes VARCHAR(500) NOT NULL",
+			want:    "ALTER TABLE \"users\" ADD COLUMN \"notes\" VARCHAR(500) NOT NULL",
 			wantErr: false,
 		},
 		{
@@ -122,7 +122,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Integer("id").Primary()
 			},
-			want:    "ALTER TABLE categories ADD COLUMN id INTEGER NOT NULL, ADD CONSTRAINT pk_categories PRIMARY KEY (id)",
+			want:    "ALTER TABLE \"categories\" ADD COLUMN \"id\" INTEGER NOT NULL, ADD CONSTRAINT \"categories_id_primary\" PRIMARY KEY (\"id\")",
 			wantErr: false,
 		},
 		{
@@ -131,7 +131,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.BigInteger("id").AutoIncrement()
 			},
-			want:    "ALTER TABLE logs ADD COLUMN id BIGSERIAL NOT NULL",
+			want:    "ALTER TABLE \"logs\" ADD COLUMN \"id\" BIGSERIAL NOT NULL",
 			wantErr: false,
 		},
 		{
@@ -140,7 +140,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Decimal("price", 10, 2).Default(0)
 			},
-			want:    "ALTER TABLE products ADD COLUMN price DECIMAL(10, 2) DEFAULT '0' NOT NULL",
+			want:    "ALTER TABLE \"products\" ADD COLUMN \"price\" DECIMAL(10, 2) NOT NULL DEFAULT '0'",
 			wantErr: false,
 		},
 		{
@@ -150,7 +150,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 				table.Timestamp("created_at").UseCurrent()
 				table.Timestamp("updated_at").UseCurrent().Nullable()
 			},
-			want:    "ALTER TABLE orders ADD COLUMN created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL, ADD COLUMN updated_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NULL",
+			want:    "ALTER TABLE \"orders\" ADD COLUMN \"created_at\" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP, ADD COLUMN \"updated_at\" TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP",
 			wantErr: false,
 		},
 		{
@@ -162,7 +162,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 				table.UUID("reference_id")
 				table.Date("event_date")
 			},
-			want:    "ALTER TABLE mixed_table ADD COLUMN description TEXT NOT NULL, ADD COLUMN metadata JSON NULL, ADD COLUMN reference_id UUID NOT NULL, ADD COLUMN event_date DATE NOT NULL",
+			want:    "ALTER TABLE \"mixed_table\" ADD COLUMN \"description\" TEXT NOT NULL, ADD COLUMN \"metadata\" JSON NULL, ADD COLUMN \"reference_id\" UUID NOT NULL, ADD COLUMN \"event_date\" DATE NOT NULL",
 			wantErr: false,
 		},
 		{
@@ -186,7 +186,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Enum("status", []string{"active", "inactive", "pending"})
 			},
-			want:    "ALTER TABLE users ADD COLUMN status VARCHAR(255) CHECK (status IN ('active', 'inactive', 'pending')) NOT NULL",
+			want:    "ALTER TABLE \"users\" ADD COLUMN \"status\" VARCHAR(255) CHECK (status IN ('active', 'inactive', 'pending')) NOT NULL",
 			wantErr: false,
 		},
 		{
@@ -195,7 +195,7 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Geography("coordinates", "POINT", 4326)
 			},
-			want:    "ALTER TABLE locations ADD COLUMN coordinates GEOGRAPHY(POINT, 4326) NOT NULL",
+			want:    "ALTER TABLE \"locations\" ADD COLUMN \"coordinates\" GEOGRAPHY(POINT, 4326) NOT NULL",
 			wantErr: false,
 		},
 	}
@@ -232,7 +232,7 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("email", 500).Nullable().Change()
 			},
-			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email DROP NOT NULL"},
+			want: []string{"ALTER TABLE \"users\" ALTER COLUMN \"email\" TYPE VARCHAR(500), ALTER COLUMN \"email\" DROP NOT NULL"},
 		},
 		{
 			name:  "Change column with default value",
@@ -241,7 +241,7 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 				table.String("email", 500).Default("user@mail.com").Change()
 			},
 			want: []string{
-				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email SET DEFAULT 'user@mail.com'",
+				"ALTER TABLE \"users\" ALTER COLUMN \"email\" TYPE VARCHAR(500), ALTER COLUMN \"email\" SET DEFAULT 'user@mail.com'",
 			},
 		},
 		{
@@ -252,8 +252,8 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 				table.String("name", 255).Default("Anonymous").Change()
 			},
 			want: []string{
-				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email DROP NOT NULL",
-				"ALTER TABLE users ALTER COLUMN name TYPE VARCHAR(255), ALTER COLUMN name SET DEFAULT 'Anonymous'",
+				"ALTER TABLE \"users\" ALTER COLUMN \"email\" TYPE VARCHAR(500), ALTER COLUMN \"email\" DROP NOT NULL",
+				"ALTER TABLE \"users\" ALTER COLUMN \"name\" TYPE VARCHAR(255), ALTER COLUMN \"name\" SET DEFAULT 'Anonymous'",
 			},
 		},
 		{
@@ -263,7 +263,7 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 				table.String("email", 500).Default(nil).Change()
 			},
 			want: []string{
-				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email SET DEFAULT NULL",
+				"ALTER TABLE \"users\" ALTER COLUMN \"email\" TYPE VARCHAR(500), ALTER COLUMN \"email\" SET DEFAULT NULL",
 			},
 		},
 		{
@@ -273,8 +273,8 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 				table.String("email", 500).Comment("User email address").Change()
 			},
 			want: []string{
-				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500)",
-				"COMMENT ON COLUMN users.email IS 'User email address'",
+				"ALTER TABLE \"users\" ALTER COLUMN \"email\" TYPE VARCHAR(500)",
+				"COMMENT ON COLUMN \"users\".\"email\" IS 'User email address'",
 			},
 		},
 		{
@@ -284,8 +284,8 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 				table.String("email", 500).Comment("").Change()
 			},
 			want: []string{
-				"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500)",
-				"COMMENT ON COLUMN users.email IS ''",
+				"ALTER TABLE \"users\" ALTER COLUMN \"email\" TYPE VARCHAR(500)",
+				"COMMENT ON COLUMN \"users\".\"email\" IS ''",
 			},
 		},
 		{
@@ -294,7 +294,7 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("email", 500).Nullable(false).Change()
 			},
-			want: []string{"ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(500), ALTER COLUMN email SET NOT NULL"},
+			want: []string{"ALTER TABLE \"users\" ALTER COLUMN \"email\" TYPE VARCHAR(500), ALTER COLUMN \"email\" SET NOT NULL"},
 		},
 		{
 			name:  "Column name with empty string",
@@ -340,7 +340,7 @@ func TestPgGrammar_CompileDrop(t *testing.T) {
 		{
 			name:    "Drop table",
 			table:   "users",
-			want:    "DROP TABLE users",
+			want:    "DROP TABLE \"users\"",
 			wantErr: false,
 		},
 	}
@@ -372,7 +372,7 @@ func TestPgGrammar_CompileDropIfExists(t *testing.T) {
 		{
 			name:    "Drop table if exists",
 			table:   "users",
-			want:    "DROP TABLE IF EXISTS users",
+			want:    "DROP TABLE IF EXISTS \"users\"",
 			wantErr: false,
 		},
 	}
@@ -406,7 +406,7 @@ func TestPgGrammar_CompileRename(t *testing.T) {
 			name:    "Rename table",
 			oldName: "users",
 			newName: "people",
-			want:    "ALTER TABLE users RENAME TO people",
+			want:    "ALTER TABLE \"users\" RENAME TO \"people\"",
 			wantErr: false,
 		},
 	}
@@ -441,35 +441,35 @@ func TestPgGrammar_GetColumns(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.String("name", 255)
 			},
-			want: []string{"name VARCHAR(255) NOT NULL"},
+			want: []string{"\"name\" VARCHAR(255) NOT NULL"},
 		},
 		{
 			name: "Nullable column",
 			blueprint: func(table *Blueprint) {
 				table.String("email", 255).Nullable()
 			},
-			want: []string{"email VARCHAR(255) NULL"},
+			want: []string{"\"email\" VARCHAR(255) NULL"},
 		},
 		{
 			name: "Nullable column with default null",
 			blueprint: func(table *Blueprint) {
 				table.Text("description").Nullable().Default(nil)
 			},
-			want: []string{"description TEXT DEFAULT NULL NULL"},
+			want: []string{"\"description\" TEXT NULL DEFAULT NULL"},
 		},
 		{
 			name: "Column with default value",
 			blueprint: func(table *Blueprint) {
 				table.Boolean("active").Default(true)
 			},
-			want: []string{"active BOOLEAN DEFAULT '1' NOT NULL"},
+			want: []string{"\"active\" BOOLEAN NOT NULL DEFAULT '1'"},
 		},
 		{
 			name: "Primary key column",
 			blueprint: func(table *Blueprint) {
 				table.Integer("id").Primary()
 			},
-			want: []string{"id INTEGER NOT NULL"},
+			want: []string{"\"id\" INTEGER NOT NULL"},
 		},
 		{
 			name: "Error on empty column",
@@ -510,7 +510,7 @@ func TestPgGrammar_CompileDropColumn(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.DropColumn("email")
 			},
-			wants:   []string{"ALTER TABLE users DROP COLUMN email"},
+			wants:   []string{"ALTER TABLE \"users\" DROP COLUMN \"email\""},
 			wantErr: false,
 		},
 		{
@@ -521,8 +521,8 @@ func TestPgGrammar_CompileDropColumn(t *testing.T) {
 				table.DropColumn("address")
 			},
 			wants: []string{
-				"ALTER TABLE users DROP COLUMN email, DROP COLUMN phone",
-				"ALTER TABLE users DROP COLUMN address",
+				"ALTER TABLE \"users\" DROP COLUMN \"email\", DROP COLUMN \"phone\"",
+				"ALTER TABLE \"users\" DROP COLUMN \"address\"",
 			},
 			wantErr: false,
 		},
@@ -567,7 +567,7 @@ func TestPgGrammar_CompileRenameColumn(t *testing.T) {
 			table:   "users",
 			oldName: "email",
 			newName: "user_email",
-			want:    "ALTER TABLE users RENAME COLUMN email TO user_email",
+			want:    "ALTER TABLE \"users\" RENAME COLUMN \"email\" TO \"user_email\"",
 			wantErr: false,
 		},
 		{
@@ -621,13 +621,13 @@ func TestPgGrammar_CompileDropIndex(t *testing.T) {
 		{
 			name:      "Drop index with valid name",
 			indexName: "users_email_index",
-			want:      "DROP INDEX users_email_index",
+			want:      "DROP INDEX \"users_email_index\"",
 			wantErr:   false,
 		},
 		{
 			name:      "Drop index with complex name",
 			indexName: "idx_users_email_name",
-			want:      "DROP INDEX idx_users_email_name",
+			want:      "DROP INDEX \"idx_users_email_name\"",
 			wantErr:   false,
 		},
 		{
@@ -671,7 +671,7 @@ func TestPgGrammar_CompileDropPrimary(t *testing.T) {
 				return &Blueprint{name: "users"}
 			}(),
 			indexName: "users_pkey",
-			want:      "ALTER TABLE users DROP CONSTRAINT users_pkey",
+			want:      "ALTER TABLE \"users\" DROP CONSTRAINT \"users_pkey\"",
 			wantErr:   false,
 		},
 		{
@@ -680,7 +680,7 @@ func TestPgGrammar_CompileDropPrimary(t *testing.T) {
 				return &Blueprint{name: "posts"}
 			}(),
 			indexName: "",
-			want:      "ALTER TABLE posts DROP CONSTRAINT pk_posts",
+			want:      "ALTER TABLE \"posts\" DROP CONSTRAINT \"posts_primary\"",
 			wantErr:   false,
 		},
 	}
@@ -716,7 +716,7 @@ func TestPgGrammar_CompileRenameIndex(t *testing.T) {
 			table:   "users",
 			oldName: "users_email_index",
 			newName: "users_email_unique",
-			want:    "ALTER INDEX users_email_index RENAME TO users_email_unique",
+			want:    "ALTER INDEX \"users_email_index\" RENAME TO \"users_email_unique\"",
 			wantErr: false,
 		},
 		{
@@ -724,7 +724,7 @@ func TestPgGrammar_CompileRenameIndex(t *testing.T) {
 			table:   "users",
 			oldName: "idx_users_email_name",
 			newName: "idx_users_email_name_unique",
-			want:    "ALTER INDEX idx_users_email_name RENAME TO idx_users_email_name_unique",
+			want:    "ALTER INDEX \"idx_users_email_name\" RENAME TO \"idx_users_email_name_unique\"",
 			wantErr: false,
 		},
 		{
@@ -782,7 +782,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("user_id").References("id").On("users")
 			},
-			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id)",
+			want:    "ALTER TABLE \"posts\" ADD CONSTRAINT \"posts_user_id_foreign\" FOREIGN KEY (\"user_id\") REFERENCES \"users\" (\"id\")",
 			wantErr: false,
 		},
 		{
@@ -791,7 +791,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("customer_id").References("id").On("customers").Name("fk_orders_customers")
 			},
-			want:    "ALTER TABLE orders ADD CONSTRAINT fk_orders_customers FOREIGN KEY (customer_id) REFERENCES customers(id)",
+			want:    "ALTER TABLE \"orders\" ADD CONSTRAINT \"fk_orders_customers\" FOREIGN KEY (\"customer_id\") REFERENCES \"customers\" (\"id\")",
 			wantErr: false,
 		},
 		{
@@ -800,7 +800,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("post_id").References("id").On("posts").CascadeOnDelete()
 			},
-			want:    "ALTER TABLE comments ADD CONSTRAINT fk_comments_posts FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE",
+			want:    "ALTER TABLE \"comments\" ADD CONSTRAINT \"comments_post_id_foreign\" FOREIGN KEY (\"post_id\") REFERENCES \"posts\" (\"id\") ON DELETE CASCADE",
 			wantErr: false,
 		},
 		{
@@ -809,7 +809,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("customer_id").References("id").On("customers").NullOnUpdate()
 			},
-			want:    "ALTER TABLE orders ADD CONSTRAINT fk_orders_customers FOREIGN KEY (customer_id) REFERENCES customers(id) ON UPDATE SET NULL",
+			want:    "ALTER TABLE \"orders\" ADD CONSTRAINT \"orders_customer_id_foreign\" FOREIGN KEY (\"customer_id\") REFERENCES \"customers\" (\"id\") ON UPDATE SET NULL",
 			wantErr: false,
 		},
 		{
@@ -818,7 +818,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("order_id").References("id").On("orders").CascadeOnDelete().RestrictOnUpdate()
 			},
-			want:    "ALTER TABLE order_items ADD CONSTRAINT fk_order_items_orders FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE ON UPDATE RESTRICT",
+			want:    "ALTER TABLE \"order_items\" ADD CONSTRAINT \"order_items_order_id_foreign\" FOREIGN KEY (\"order_id\") REFERENCES \"orders\" (\"id\") ON DELETE CASCADE ON UPDATE RESTRICT",
 			wantErr: false,
 		},
 		{
@@ -827,7 +827,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("user_id").References("id").On("users").Deferrable(true)
 			},
-			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id) DEFERRABLE",
+			want:    "ALTER TABLE \"posts\" ADD CONSTRAINT \"posts_user_id_foreign\" FOREIGN KEY (\"user_id\") REFERENCES \"users\" (\"id\") DEFERRABLE",
 			wantErr: false,
 		},
 		{
@@ -836,7 +836,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("user_id").References("id").On("users").Deferrable(false)
 			},
-			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id) NOT DEFERRABLE",
+			want:    "ALTER TABLE \"posts\" ADD CONSTRAINT \"posts_user_id_foreign\" FOREIGN KEY (\"user_id\") REFERENCES \"users\" (\"id\") NOT DEFERRABLE",
 			wantErr: false,
 		},
 		{
@@ -845,7 +845,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("user_id").References("id").On("users").Deferrable().InitiallyImmediate(true)
 			},
-			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id) DEFERRABLE INITIALLY IMMEDIATE",
+			want:    "ALTER TABLE \"posts\" ADD CONSTRAINT \"posts_user_id_foreign\" FOREIGN KEY (\"user_id\") REFERENCES \"users\" (\"id\") DEFERRABLE INITIALLY IMMEDIATE",
 			wantErr: false,
 		},
 		{
@@ -854,7 +854,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("user_id").References("id").On("users").Deferrable().InitiallyImmediate(false)
 			},
-			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id) DEFERRABLE INITIALLY DEFERRED",
+			want:    "ALTER TABLE \"posts\" ADD CONSTRAINT \"posts_user_id_foreign\" FOREIGN KEY (\"user_id\") REFERENCES \"users\" (\"id\") DEFERRABLE INITIALLY DEFERRED",
 			wantErr: false,
 		},
 		{
@@ -863,7 +863,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("user_id").References("id").On("users").Deferrable(false).InitiallyImmediate(true)
 			},
-			want:    "ALTER TABLE posts ADD CONSTRAINT fk_posts_users FOREIGN KEY (user_id) REFERENCES users(id) NOT DEFERRABLE",
+			want:    "ALTER TABLE \"posts\" ADD CONSTRAINT \"posts_user_id_foreign\" FOREIGN KEY (\"user_id\") REFERENCES \"users\" (\"id\") NOT DEFERRABLE",
 			wantErr: false,
 		},
 		{
@@ -874,7 +874,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 					CascadeOnDelete().RestrictOnUpdate().
 					Deferrable().InitiallyImmediate(true)
 			},
-			want:    "ALTER TABLE user_roles ADD CONSTRAINT fk_user_roles_roles FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE ON UPDATE RESTRICT DEFERRABLE INITIALLY IMMEDIATE",
+			want:    "ALTER TABLE \"user_roles\" ADD CONSTRAINT \"user_roles_role_id_foreign\" FOREIGN KEY (\"role_id\") REFERENCES \"roles\" (\"id\") ON DELETE CASCADE ON UPDATE RESTRICT DEFERRABLE INITIALLY IMMEDIATE",
 			wantErr: false,
 		},
 		{
@@ -915,7 +915,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("customer_id").References("id").On("customers").RestrictOnDelete().RestrictOnUpdate()
 			},
-			want:    "ALTER TABLE invoices ADD CONSTRAINT fk_invoices_customers FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT ON UPDATE RESTRICT",
+			want:    "ALTER TABLE \"invoices\" ADD CONSTRAINT \"invoices_customer_id_foreign\" FOREIGN KEY (\"customer_id\") REFERENCES \"customers\" (\"id\") ON DELETE RESTRICT ON UPDATE RESTRICT",
 			wantErr: false,
 		},
 		{
@@ -924,7 +924,7 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Foreign("invoice_id").References("id").On("invoices").NoActionOnDelete().NoActionOnUpdate()
 			},
-			want: "ALTER TABLE payments ADD CONSTRAINT fk_payments_invoices FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE NO ACTION ON UPDATE NO ACTION",
+			want: "ALTER TABLE \"payments\" ADD CONSTRAINT \"payments_invoice_id_foreign\" FOREIGN KEY (\"invoice_id\") REFERENCES \"invoices\" (\"id\") ON DELETE NO ACTION ON UPDATE NO ACTION",
 		},
 	}
 
@@ -958,14 +958,14 @@ func TestPgGrammar_CompileDropForeign(t *testing.T) {
 			name:           "Drop foreign key with valid name",
 			table:          "posts",
 			foreignKeyName: "fk_posts_users",
-			want:           "ALTER TABLE posts DROP CONSTRAINT fk_posts_users",
+			want:           "ALTER TABLE \"posts\" DROP CONSTRAINT \"fk_posts_users\"",
 			wantErr:        false,
 		},
 		{
 			name:           "Drop foreign key with complex name",
 			table:          "order_items",
 			foreignKeyName: "fk_order_items_products_cascade",
-			want:           "ALTER TABLE order_items DROP CONSTRAINT fk_order_items_products_cascade",
+			want:           "ALTER TABLE \"order_items\" DROP CONSTRAINT \"fk_order_items_products_cascade\"",
 			wantErr:        false,
 		},
 		{
@@ -1009,7 +1009,7 @@ func TestPgGrammar_CompileIndex(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Index("email").Name("users_email_index")
 			},
-			want:    "CREATE INDEX users_email_index ON users (email)",
+			want:    "CREATE INDEX \"users_email_index\" ON \"users\" (\"email\")",
 			wantErr: false,
 		},
 		{
@@ -1018,7 +1018,7 @@ func TestPgGrammar_CompileIndex(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Index("name", "email").Name("users_name_email_index")
 			},
-			want:    "CREATE INDEX users_name_email_index ON users (name, email)",
+			want:    "CREATE INDEX \"users_name_email_index\" ON \"users\" (\"name\", \"email\")",
 			wantErr: false,
 		},
 		{
@@ -1027,7 +1027,7 @@ func TestPgGrammar_CompileIndex(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Index("sku").Name("products_sku_index").Algorithm("btree")
 			},
-			want:    "CREATE INDEX products_sku_index ON products USING btree (sku)",
+			want:    "CREATE INDEX \"products_sku_index\" ON \"products\" USING btree (\"sku\")",
 			wantErr: false,
 		},
 		{
@@ -1036,7 +1036,7 @@ func TestPgGrammar_CompileIndex(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Index("sku")
 			},
-			want:    "CREATE INDEX idx_orders_sku ON orders (sku)",
+			want:    "CREATE INDEX \"orders_sku_index\" ON \"orders\" (\"sku\")",
 			wantErr: false,
 		},
 		{
@@ -1089,7 +1089,7 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("email").Name("users_email_unique")
 			},
-			want:    "ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email)",
+			want:    "ALTER TABLE \"users\" ADD CONSTRAINT \"users_email_unique\" UNIQUE (\"email\")",
 			wantErr: false,
 		},
 		{
@@ -1098,7 +1098,7 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("name", "email").Name("users_name_email_unique")
 			},
-			want:    "ALTER TABLE users ADD CONSTRAINT users_name_email_unique UNIQUE (name, email)",
+			want:    "ALTER TABLE \"users\" ADD CONSTRAINT \"users_name_email_unique\" UNIQUE (\"name\", \"email\")",
 			wantErr: false,
 		},
 		{
@@ -1107,7 +1107,7 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("order_number")
 			},
-			want:    "ALTER TABLE orders ADD CONSTRAINT uk_orders_order_number UNIQUE (order_number)",
+			want:    "ALTER TABLE \"orders\" ADD CONSTRAINT \"orders_order_number_unique\" UNIQUE (\"order_number\")",
 			wantErr: false,
 		},
 		{
@@ -1116,7 +1116,7 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("email").Name("users_email_unique").Deferrable(true)
 			},
-			want:    "ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email) DEFERRABLE",
+			want:    "ALTER TABLE \"users\" ADD CONSTRAINT \"users_email_unique\" UNIQUE (\"email\") DEFERRABLE",
 			wantErr: false,
 		},
 		{
@@ -1125,7 +1125,7 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("email").Name("users_email_unique").Deferrable(false)
 			},
-			want:    "ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email) NOT DEFERRABLE",
+			want:    "ALTER TABLE \"users\" ADD CONSTRAINT \"users_email_unique\" UNIQUE (\"email\") NOT DEFERRABLE",
 			wantErr: false,
 		},
 		{
@@ -1134,7 +1134,7 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("email").Name("users_email_unique").Deferrable().InitiallyImmediate(true)
 			},
-			want:    "ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email) DEFERRABLE INITIALLY IMMEDIATE",
+			want:    "ALTER TABLE \"users\" ADD CONSTRAINT \"users_email_unique\" UNIQUE (\"email\") DEFERRABLE INITIALLY IMMEDIATE",
 			wantErr: false,
 		},
 		{
@@ -1143,7 +1143,7 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("email").Name("users_email_unique").Deferrable().InitiallyImmediate(false)
 			},
-			want:    "ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email) DEFERRABLE INITIALLY DEFERRED",
+			want:    "ALTER TABLE \"users\" ADD CONSTRAINT \"users_email_unique\" UNIQUE (\"email\") DEFERRABLE INITIALLY DEFERRED",
 			wantErr: false,
 		},
 		{
@@ -1152,7 +1152,7 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Unique("email").Name("users_email_unique").Deferrable(false).InitiallyImmediate(true)
 			},
-			want:    "ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email) NOT DEFERRABLE",
+			want:    "ALTER TABLE \"users\" ADD CONSTRAINT \"users_email_unique\" UNIQUE (\"email\") NOT DEFERRABLE",
 			wantErr: false,
 		},
 		{
@@ -1197,7 +1197,7 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.FullText("title").Name("articles_title_fulltext").Language("english")
 			},
-			want:    "CREATE INDEX articles_title_fulltext ON articles USING GIN (to_tsvector('english', title))",
+			want:    "CREATE INDEX \"articles_title_fulltext\" ON \"articles\" USING GIN (to_tsvector('english', title))",
 			wantErr: false,
 		},
 		{
@@ -1206,7 +1206,7 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.FullText("title", "content").Name("documents_title_content_fulltext").Language("english")
 			},
-			want:    "CREATE INDEX documents_title_content_fulltext ON documents USING GIN (to_tsvector('english', title) || to_tsvector('english', content))",
+			want:    "CREATE INDEX \"documents_title_content_fulltext\" ON \"documents\" USING GIN (to_tsvector('english', title) || to_tsvector('english', content))",
 			wantErr: false,
 		},
 		{
@@ -1215,7 +1215,7 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.FullText("content").Name("posts_content_spanish_fulltext").Language("spanish")
 			},
-			want:    "CREATE INDEX posts_content_spanish_fulltext ON posts USING GIN (to_tsvector('spanish', content))",
+			want:    "CREATE INDEX \"posts_content_spanish_fulltext\" ON \"posts\" USING GIN (to_tsvector('spanish', content))",
 			wantErr: false,
 		},
 		{
@@ -1224,7 +1224,7 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.FullText("body").Name("blogs_body_fulltext")
 			},
-			want:    "CREATE INDEX blogs_body_fulltext ON blogs USING GIN (to_tsvector('english', body))",
+			want:    "CREATE INDEX \"blogs_body_fulltext\" ON \"blogs\" USING GIN (to_tsvector('english', body))",
 			wantErr: false,
 		},
 		{
@@ -1233,7 +1233,7 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.FullText("headline")
 			},
-			want:    "CREATE INDEX ft_news_headline ON news USING GIN (to_tsvector('english', headline))",
+			want:    "CREATE INDEX \"news_headline_fulltext\" ON \"news\" USING GIN (to_tsvector('english', headline))",
 			wantErr: false,
 		},
 		{
@@ -1242,7 +1242,7 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.FullText("name", "description", "tags").Name("products_search_fulltext").Language("english")
 			},
-			want:    "CREATE INDEX products_search_fulltext ON products USING GIN (to_tsvector('english', name) || to_tsvector('english', description) || to_tsvector('english', tags))",
+			want:    "CREATE INDEX \"products_search_fulltext\" ON \"products\" USING GIN (to_tsvector('english', name) || to_tsvector('english', description) || to_tsvector('english', tags))",
 			wantErr: false,
 		},
 		{
@@ -1291,19 +1291,19 @@ func TestPgGrammar_CompileDropUnique(t *testing.T) {
 		{
 			name:      "Drop unique index with valid name",
 			indexName: "users_email_unique",
-			want:      "ALTER TABLE  DROP CONSTRAINT users_email_unique",
+			want:      "ALTER TABLE  DROP CONSTRAINT \"users_email_unique\"",
 			wantErr:   false,
 		},
 		{
 			name:      "Drop unique index with complex name",
 			indexName: "uk_users_email_name",
-			want:      "ALTER TABLE  DROP CONSTRAINT uk_users_email_name",
+			want:      "ALTER TABLE  DROP CONSTRAINT \"uk_users_email_name\"",
 			wantErr:   false,
 		},
 		{
 			name:      "Drop unique index with numeric suffix",
 			indexName: "users_email_unique_2",
-			want:      "ALTER TABLE  DROP CONSTRAINT users_email_unique_2",
+			want:      "ALTER TABLE  DROP CONSTRAINT \"users_email_unique_2\"",
 			wantErr:   false,
 		},
 		{
@@ -1343,25 +1343,25 @@ func TestPgGrammar_CompileDropFulltext(t *testing.T) {
 		{
 			name:      "Drop fulltext index with valid name",
 			indexName: "articles_title_fulltext",
-			want:      "DROP INDEX articles_title_fulltext",
+			want:      "DROP INDEX \"articles_title_fulltext\"",
 			wantErr:   false,
 		},
 		{
 			name:      "Drop fulltext index with complex name",
 			indexName: "documents_title_content_fulltext",
-			want:      "DROP INDEX documents_title_content_fulltext",
+			want:      "DROP INDEX \"documents_title_content_fulltext\"",
 			wantErr:   false,
 		},
 		{
 			name:      "Drop fulltext index with underscore prefix",
 			indexName: "idx_posts_content_fulltext",
-			want:      "DROP INDEX idx_posts_content_fulltext",
+			want:      "DROP INDEX \"idx_posts_content_fulltext\"",
 			wantErr:   false,
 		},
 		{
 			name:      "Drop fulltext index with numeric suffix",
 			indexName: "search_index_fulltext_1",
-			want:      "DROP INDEX search_index_fulltext_1",
+			want:      "DROP INDEX \"search_index_fulltext_1\"",
 			wantErr:   false,
 		},
 		{
@@ -1405,7 +1405,7 @@ func TestPgGrammar_CompilePrimary(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Primary("id").Name("users_id_primary")
 			},
-			want:    "ALTER TABLE users ADD CONSTRAINT users_id_primary PRIMARY KEY (id)",
+			want:    "ALTER TABLE \"users\" ADD CONSTRAINT \"users_id_primary\" PRIMARY KEY (\"id\")",
 			wantErr: false,
 		},
 		{
@@ -1414,7 +1414,7 @@ func TestPgGrammar_CompilePrimary(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Primary("user_id", "role_id").Name("user_roles_primary")
 			},
-			want:    "ALTER TABLE user_roles ADD CONSTRAINT user_roles_primary PRIMARY KEY (user_id, role_id)",
+			want:    "ALTER TABLE \"user_roles\" ADD CONSTRAINT \"user_roles_primary\" PRIMARY KEY (\"user_id\", \"role_id\")",
 			wantErr: false,
 		},
 		{
@@ -1423,7 +1423,7 @@ func TestPgGrammar_CompilePrimary(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Primary("order_id")
 			},
-			want:    "ALTER TABLE orders ADD CONSTRAINT pk_orders PRIMARY KEY (order_id)",
+			want:    "ALTER TABLE \"orders\" ADD CONSTRAINT \"orders_order_id_primary\" PRIMARY KEY (\"order_id\")",
 			wantErr: false,
 		},
 		{
@@ -1432,7 +1432,7 @@ func TestPgGrammar_CompilePrimary(t *testing.T) {
 			blueprint: func(table *Blueprint) {
 				table.Primary("order_id", "product_id", "variant_id").Name("order_items_composite_pk")
 			},
-			want:    "ALTER TABLE order_items ADD CONSTRAINT order_items_composite_pk PRIMARY KEY (order_id, product_id, variant_id)",
+			want:    "ALTER TABLE \"order_items\" ADD CONSTRAINT \"order_items_composite_pk\" PRIMARY KEY (\"order_id\", \"product_id\", \"variant_id\")",
 			wantErr: false,
 		},
 		{

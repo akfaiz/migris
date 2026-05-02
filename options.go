@@ -33,3 +33,12 @@ func WithDryRun(enabled bool) Option {
 		m.dryRun = enabled
 	}
 }
+
+// WithRegistry sets the migration registry for the migrator.
+func WithRegistry(registry *Registry) Option {
+	return func(m *Migrate) {
+		if registry != nil {
+			m.registry = registry
+		}
+	}
+}

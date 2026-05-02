@@ -14,10 +14,9 @@ var _ Builder = (*mysqlBuilder)(nil)
 
 func newMysqlBuilder() Builder {
 	grammar := newMysqlGrammar()
-
-	return &mysqlBuilder{
-		baseBuilder: baseBuilder{grammar: grammar},
-	}
+	b := &mysqlBuilder{}
+	b.baseBuilder = baseBuilder{grammar: grammar, outer: b}
+	return b
 }
 
 func (b *mysqlBuilder) GetColumns(c Context, tableName string) ([]*Column, error) {

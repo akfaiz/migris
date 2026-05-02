@@ -38,7 +38,17 @@ const (
 	columnTypeGeometry      string = "geometry"
 	columnTypePoint         string = "point"
 	columnTypeUUID          string = "uuid"
+	columnTypeULID          string = "ulid"
 	columnTypeEnum          string = "enum"
+	columnTypeSet           string = "set"
+	columnTypeIpAddress     string = "ipAddress"
+	columnTypeMacAddress    string = "macAddress"
+	columnTypeVector        string = "vector"
+	columnTypeTsVector      string = "tsvector"
+	columnTypeCidr          string = "cidr"
+	columnTypeInet          string = "inet"
+	columnTypeMacaddr       string = "macaddr"
+	columnTypeMacaddr8      string = "macaddr8"
 )
 
 const (
@@ -48,14 +58,17 @@ const (
 
 // Blueprint represents a schema blueprint for creating or altering a database table.
 type Blueprint struct {
-	dialect   dialect.Dialect
-	columns   []*columnDefinition
-	commands  []*command
-	grammar   grammar
-	name      string
-	charset   string
-	collation string
-	engine    string
+	dialect                     dialect.Dialect
+	columns                     []*columnDefinition
+	commands                    []*command
+	grammar                     grammar
+	builder                     Builder
+	name                        string
+	charset                     string
+	collation                   string
+	engine                      string
+	comment                     string
+	autoIncrementStartingValues *int
 }
 
 // Charset sets the character set for the table in the blueprint.
@@ -71,6 +84,16 @@ func (b *Blueprint) Collation(collation string) {
 // Engine sets the storage engine for the table in the blueprint.
 func (b *Blueprint) Engine(engine string) {
 	b.engine = engine
+}
+
+// Comment sets the comment for the table in the blueprint.
+func (b *Blueprint) Comment(comment string) {
+	b.comment = comment
+}
+
+// AutoIncrementStartingValues sets the starting value for auto-incrementing columns.
+func (b *Blueprint) AutoIncrementStartingValues(value int) {
+	b.autoIncrementStartingValues = &value
 }
 
 // Column creates a new custom column definition in the blueprint with the specified name and type.
@@ -318,6 +341,11 @@ func (b *Blueprint) UUID(name string) ColumnDefinition {
 	return b.addColumn(columnTypeUUID, name)
 }
 
+// ULID creates a new ULID column definition in the blueprint.
+func (b *Blueprint) ULID(name string) ColumnDefinition {
+	return b.addColumn(columnTypeULID, name)
+}
+
 // Geography creates a new geography column definition in the blueprint.
 // The subType parameter is optional and can be used to specify the type of geography (e.g., "Point", "LineString", "Polygon").
 // The srid parameter is optional and specifies the Spatial Reference Identifier (SRID) for the geography type.
@@ -356,6 +384,56 @@ func (b *Blueprint) Enum(name string, allowed []string) ColumnDefinition {
 	return b.addColumn(columnTypeEnum, name, &columnDefinition{
 		allowed: allowed,
 	})
+}
+
+// Set creates a new set column definition in the blueprint.
+// The allowedValues parameter is a slice of strings that defines the allowed values for the set column.
+func (b *Blueprint) Set(name string, allowed []string) ColumnDefinition {
+	return b.addColumn(columnTypeSet, name, &columnDefinition{
+		allowed: allowed,
+	})
+}
+
+// IpAddress creates a new IP address column definition in the blueprint.
+func (b *Blueprint) IpAddress(name string) ColumnDefinition {
+	return b.addColumn(columnTypeIpAddress, name)
+}
+
+// MacAddress creates a new MAC address column definition in the blueprint.
+func (b *Blueprint) MacAddress(name string) ColumnDefinition {
+	return b.addColumn(columnTypeMacAddress, name)
+}
+
+// Vector creates a new vector column definition in the blueprint.
+func (b *Blueprint) Vector(name string, dimensions ...int) ColumnDefinition {
+	return b.addColumn(columnTypeVector, name, &columnDefinition{
+		places: util.OptionalNil(dimensions...),
+	})
+}
+
+// TsVector creates a new tsvector column definition in the blueprint.
+func (b *Blueprint) TsVector(name string) ColumnDefinition {
+	return b.addColumn(columnTypeTsVector, name)
+}
+
+// Cidr creates a new CIDR column definition in the blueprint.
+func (b *Blueprint) Cidr(name string) ColumnDefinition {
+	return b.addColumn(columnTypeCidr, name)
+}
+
+// Inet creates a new inet column definition in the blueprint.
+func (b *Blueprint) Inet(name string) ColumnDefinition {
+	return b.addColumn(columnTypeInet, name)
+}
+
+// MacAddr creates a new MAC address column definition in the blueprint.
+func (b *Blueprint) MacAddr(name string) ColumnDefinition {
+	return b.addColumn(columnTypeMacaddr, name)
+}
+
+// MacAddr8 creates a new MAC address (8-byte) column definition in the blueprint.
+func (b *Blueprint) MacAddr8(name string) ColumnDefinition {
+	return b.addColumn(columnTypeMacaddr8, name)
 }
 
 // DropTimestamps removes the created_at and updated_at timestamp columns from the blueprint.
@@ -410,8 +488,13 @@ func (b *Blueprint) FullText(column string, otherColumns ...string) IndexDefinit
 //
 //	table.Foreign("user_id").References("id").On("users").OnDelete("CASCADE").OnUpdate("CASCADE")
 func (b *Blueprint) Foreign(column string) ForeignKeyDefinition {
+	return b.ForeignColumns(column)
+}
+
+// ForeignColumns creates a new foreign key definition in the blueprint for one or more columns.
+func (b *Blueprint) ForeignColumns(columns ...string) ForeignKeyDefinition {
 	command := b.addCommand(commandForeign, &command{
-		columns: []string{column},
+		columns: columns,
 	})
 	return &foreignKeyDefinition{command: command}
 }
@@ -596,23 +679,84 @@ func (b *Blueprint) getFluentStatements() []string {
 			}
 		}
 	}
+
+	for _, tableFluentCommand := range b.grammar.GetTableFluentCommands() {
+		if statement := tableFluentCommand(b); statement != "" {
+			statements = append(statements, statement)
+		}
+	}
+
 	return statements
 }
 
 func (b *Blueprint) build(ctx Context) error {
+	if err := b.hydrate(ctx); err != nil {
+		return err
+	}
+
 	statements, err := b.toSQL()
 	if err != nil {
 		return err
 	}
+
 	for _, statement := range statements {
-		if _, err = ctx.Exec(statement); err != nil {
+		if _, err := ctx.Exec(statement); err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func (b *Blueprint) hydrate(ctx Context) error {
+	changedColumns := b.getChangedColumns()
+	if len(changedColumns) == 0 {
+		return nil
+	}
+
+	if b.builder == nil {
+		return nil // Fallback if builder is not available
+	}
+
+	existingColumns, err := b.builder.GetColumns(ctx, b.name)
+	if err != nil {
+		return err
+	}
+
+	columnsMap := make(map[string]*Column)
+	for _, col := range existingColumns {
+		columnsMap[col.Name] = col
+	}
+
+	for _, colDef := range changedColumns {
+		if existing, ok := columnsMap[colDef.name]; ok {
+			b.mergeColumnMetadata(colDef, existing)
 		}
 	}
 	return nil
 }
 
+func (b *Blueprint) mergeColumnMetadata(colDef *columnDefinition, existing *Column) {
+	// If the user hasn't explicitly set nullability, use the existing one
+	if !colDef.hasCommand("nullable") {
+		colDef.Nullable(existing.Nullable)
+	}
+
+	// If the user hasn't explicitly set a default value, use the existing one
+	if !colDef.hasCommand("default") && existing.DefaultVal.Valid {
+		// Note: Default values from DB might need parsing depending on the dialect
+		// For now, we use a raw expression to preserve it
+		colDef.Default(Expression(existing.DefaultVal.String))
+	}
+
+	// If the user hasn't explicitly set a comment, use the existing one
+	if !colDef.hasCommand("comment") && existing.Comment.Valid {
+		colDef.Comment(existing.Comment.String)
+	}
+}
+
 func (b *Blueprint) toSQL() ([]string, error) {
+
 	b.addImpliedCommands()
 
 	var statements []string

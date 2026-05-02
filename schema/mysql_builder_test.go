@@ -3,12 +3,11 @@ package schema_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
 
 	"github.com/akfaiz/migris/schema"
-	_ "github.com/go-sql-driver/mysql" // MySQL driver
 	"github.com/stretchr/testify/suite"
+	"github.com/testcontainers/testcontainers-go"
 )
 
 func TestMysqlBuilderSuite(t *testing.T) {
@@ -21,28 +20,16 @@ type mysqlBuilderSuite struct {
 	ctx     context.Context
 	db      *sql.DB
 	builder schema.Builder
+	tc      testcontainers.Container
 }
 
 func (s *mysqlBuilderSuite) SetupSuite() {
 	s.ctx = context.Background()
 
-	config := parseTestConfig()
-
-	dsn := fmt.Sprintf(
-		"%s:%s@tcp(%s:%d)/%s?parseTime=true&loc=Local",
-		config.Username,
-		config.Password,
-		"localhost",
-		3306,
-		config.Database,
-	)
-
-	db, err := sql.Open("mysql", dsn)
+	container, db, err := startMySQLTestDB(s.ctx)
 	s.Require().NoError(err)
 
-	err = db.Ping()
-	s.Require().NoError(err)
-
+	s.tc = container
 	s.db = db
 	s.builder, err = schema.NewBuilder("mysql")
 	s.Require().NoError(err)
@@ -50,6 +37,9 @@ func (s *mysqlBuilderSuite) SetupSuite() {
 
 func (s *mysqlBuilderSuite) TearDownSuite() {
 	_ = s.db.Close()
+	if s.tc != nil {
+		_ = s.tc.Terminate(s.ctx)
+	}
 }
 
 func (s *mysqlBuilderSuite) AfterTest(_, _ string) {
@@ -327,7 +317,7 @@ func (s *mysqlBuilderSuite) TestTable() {
 		})
 		s.Run("should drop fulltext index", func() {
 			err = builder.Table(c, "users", func(table *schema.Blueprint) {
-				table.DropFulltext("ft_users_bio")
+				table.DropFulltext([]string{"bio"})
 			})
 			s.Require().NoError(err, "expected no error when dropping fulltext index from table")
 		})
@@ -345,7 +335,7 @@ func (s *mysqlBuilderSuite) TestTable() {
 		})
 		s.Run("should drop foreign key", func() {
 			err = builder.Table(c, "users", func(table *schema.Blueprint) {
-				table.DropForeign("fk_users_roles")
+				table.DropForeign([]string{"role_id"})
 			})
 			s.Require().NoError(err, "expected no error when dropping foreign key from users table")
 		})
