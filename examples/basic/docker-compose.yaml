@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: migris_example_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: db_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d db_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

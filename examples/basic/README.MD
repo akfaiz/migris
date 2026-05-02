@@ -1,6 +1,18 @@
 # Migris Example
 This is a basic example of using Migris for database migrations in Go.
 
+Start PostgreSQL with Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+Create `.env`:
+
+```bash
+DATABASE_URL=postgres://root:password@localhost:5432/db_test?sslmode=disable
+```
+
 ```bash
 go build -o migris
 ```
