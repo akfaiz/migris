@@ -78,7 +78,11 @@ func TestPgGrammar_CompileTableExists(t *testing.T) {
 
 	sql, err := g.CompileTableExists("", "public.users")
 	require.NoError(t, err)
-	assert.Equal(t, "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users'", sql)
+	assert.Equal(
+		t,
+		"SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users'",
+		sql,
+	)
 }
 
 func TestPgGrammar_CompileTables(t *testing.T) {

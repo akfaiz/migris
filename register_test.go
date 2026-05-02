@@ -13,15 +13,15 @@ func TestAddMigrationContext(t *testing.T) {
 
 	require.NotPanics(t, func() {
 		migris.AddMigrationContext(
-			func(ctx schema.Context) error { return nil },
-			func(ctx schema.Context) error { return nil },
+			func(_ schema.Context) error { return nil },
+			func(_ schema.Context) error { return nil },
 		)
 	})
 
 	require.Panics(t, func() {
 		migris.AddMigrationContext(
-			func(ctx schema.Context) error { return nil },
-			func(ctx schema.Context) error { return nil },
+			func(_ schema.Context) error { return nil },
+			func(_ schema.Context) error { return nil },
 		)
 	})
 }
@@ -31,15 +31,15 @@ func TestRegistry_AddMigrationContext(t *testing.T) {
 
 	require.NotPanics(t, func() {
 		r.AddMigrationContext(
-			func(ctx schema.Context) error { return nil },
-			func(ctx schema.Context) error { return nil },
+			func(_ schema.Context) error { return nil },
+			func(_ schema.Context) error { return nil },
 		)
 	})
 
 	require.Panics(t, func() {
 		r.AddMigrationContext(
-			func(ctx schema.Context) error { return nil },
-			func(ctx schema.Context) error { return nil },
+			func(_ schema.Context) error { return nil },
+			func(_ schema.Context) error { return nil },
 		)
 	})
 }

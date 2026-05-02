@@ -41,7 +41,7 @@ func createCreateCommand(cfg Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a new migration file",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			name, _ := cmd.Flags().GetString("name")
 			if name == "" {
 				return cmd.Help()
@@ -50,7 +50,7 @@ func createCreateCommand(cfg Config) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringP("name", "n", "", "Name of the migration (required)")
-	cmd.MarkFlagRequired("name")
+	mustMarkFlagRequired(cmd, "name")
 	return cmd
 }
 
@@ -58,7 +58,7 @@ func createUpCommand(cfg Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "up",
 		Short: "Apply all up migrations",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			migrator, err := createMigrator(cmd, cfg)
 			if err != nil {
 				return err
@@ -74,7 +74,7 @@ func createUpToCommand(cfg Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "up-to",
 		Short: "Apply migrations up to a specific version",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			version, _ := cmd.Flags().GetInt64("version")
 			migrator, err := createMigrator(cmd, cfg)
 			if err != nil {
@@ -85,7 +85,7 @@ func createUpToCommand(cfg Config) *cobra.Command {
 	}
 	cmd.Flags().Bool("dry-run", false, "Simulate the migration without applying changes")
 	cmd.Flags().Int64P("version", "v", 0, "Target version to migrate up to (required)")
-	cmd.MarkFlagRequired("version")
+	mustMarkFlagRequired(cmd, "version")
 	return cmd
 }
 
@@ -93,7 +93,7 @@ func createDownCommand(cfg Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "down",
 		Short: "Rollback the last migration",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			migrator, err := createMigrator(cmd, cfg)
 			if err != nil {
 				return err
@@ -109,7 +109,7 @@ func createDownToCommand(cfg Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "down-to",
 		Short: "Rollback migrations down to a specific version",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			version, _ := cmd.Flags().GetInt64("version")
 			migrator, err := createMigrator(cmd, cfg)
 			if err != nil {
@@ -120,7 +120,7 @@ func createDownToCommand(cfg Config) *cobra.Command {
 	}
 	cmd.Flags().Bool("dry-run", false, "Simulate the migration without applying changes")
 	cmd.Flags().Int64P("version", "v", 0, "Target version to migrate down to (required)")
-	cmd.MarkFlagRequired("version")
+	mustMarkFlagRequired(cmd, "version")
 	return cmd
 }
 
@@ -128,7 +128,7 @@ func createResetCommand(cfg Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reset",
 		Short: "Rollback all migrations",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			migrator, err := createMigrator(cmd, cfg)
 			if err != nil {
 				return err
@@ -144,7 +144,7 @@ func createStatusCommand(cfg Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show the status of migrations",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			migrator, err := createMigrator(cmd, cfg)
 			if err != nil {
 				return err
@@ -171,4 +171,10 @@ func createMigrator(cmd *cobra.Command, cfg Config) (*migris.Migrate, error) {
 	}
 
 	return migrator, nil
+}
+
+func mustMarkFlagRequired(cmd *cobra.Command, name string) {
+	if err := cmd.MarkFlagRequired(name); err != nil {
+		panic(err)
+	}
 }

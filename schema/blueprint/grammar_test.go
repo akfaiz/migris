@@ -5,6 +5,7 @@ import (
 
 	"github.com/akfaiz/migris/schema/blueprint"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBaseGrammar_UnsupportedOperations(t *testing.T) {
@@ -34,7 +35,7 @@ func TestBaseGrammar_UnsupportedOperations(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := tt.fn()
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), "not supported")
 		})
 	}
@@ -47,7 +48,7 @@ func TestBaseGrammar_CompileForeign(t *testing.T) {
 	t.Run("incomplete command", func(t *testing.T) {
 		cmd := &blueprint.Command{}
 		_, err := g.CompileForeign(bp, cmd)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "incomplete")
 	})
 }
@@ -64,7 +65,7 @@ func TestBaseGrammar_GetFluentCommands(t *testing.T) {
 func TestBaseGrammar_CreateIndexName(t *testing.T) {
 	g := &blueprint.BaseGrammar{}
 	bp := &blueprint.Blueprint{Name: "users"}
-	
+
 	idxName := g.CreateIndexName(bp, "index", "email")
 	assert.Equal(t, "users_email_index", idxName)
 }
@@ -72,7 +73,7 @@ func TestBaseGrammar_CreateIndexName(t *testing.T) {
 func TestBaseGrammar_Helpers(t *testing.T) {
 	g := &blueprint.BaseGrammar{}
 	bp := &blueprint.Blueprint{Name: "users"}
-	
+
 	t.Run("CreateForeignKeyName", func(t *testing.T) {
 		cmd := &blueprint.Command{Columns: []string{"user_id"}}
 		name := g.CreateForeignKeyName(bp, cmd)
@@ -105,7 +106,7 @@ func TestBaseGrammar_Helpers(t *testing.T) {
 
 	t.Run("WrapIndexName", func(t *testing.T) {
 		assert.Equal(t, "\"idx\"", g.WrapIndexName("idx", "\""))
-		assert.Equal(t, "", g.WrapIndexName("", "\""))
+		assert.Empty(t, g.WrapIndexName("", "\""))
 	})
 
 	t.Run("GetValue", func(t *testing.T) {
@@ -134,6 +135,10 @@ func TestBaseGrammar_CompileForeignValid(t *testing.T) {
 	}
 
 	sql, err := g.CompileForeign(bp, cmd)
-	assert.NoError(t, err)
-	assert.Equal(t, "ALTER TABLE posts ADD CONSTRAINT posts_user_id_foreign FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE RESTRICT", sql)
+	require.NoError(t, err)
+	assert.Equal(
+		t,
+		"ALTER TABLE posts ADD CONSTRAINT posts_user_id_foreign FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE RESTRICT",
+		sql,
+	)
 }

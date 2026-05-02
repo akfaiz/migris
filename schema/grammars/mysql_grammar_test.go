@@ -112,7 +112,11 @@ func TestMysqlGrammar_CompileTableExists(t *testing.T) {
 
 	sql2, err := g.CompileTableExists("", "users")
 	require.NoError(t, err)
-	assert.Equal(t, "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'users'", sql2)
+	assert.Equal(
+		t,
+		"SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'users'",
+		sql2,
+	)
 }
 
 func TestMysqlGrammar_CompileTables(t *testing.T) {
@@ -121,7 +125,11 @@ func TestMysqlGrammar_CompileTables(t *testing.T) {
 
 	sql, err := g.CompileTables("")
 	require.NoError(t, err)
-	assert.Equal(t, "SELECT table_name, table_comment FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'", sql)
+	assert.Equal(
+		t,
+		"SELECT table_name, table_comment FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'",
+		sql,
+	)
 }
 
 func TestMysqlGrammar_CompileColumns(t *testing.T) {
