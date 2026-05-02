@@ -7,6 +7,7 @@ import (
 
 	"github.com/akfaiz/migris/internal/config"
 	"github.com/akfaiz/migris/internal/dialect"
+	"github.com/akfaiz/migris/internal/logger"
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
 )
@@ -18,6 +19,7 @@ type Migrate struct {
 	migrationDir string
 	tableName    string
 	dryRun       bool
+	logger       *logger.Logger
 }
 
 // New creates a new Migrate instance.
@@ -32,21 +34,19 @@ func New(dialectValue string, opts ...Option) (*Migrate, error) {
 		dialect:      dialectVal,
 		migrationDir: "migrations",
 		tableName:    "schema_migrations",
+		logger:       logger.Get(),
 	}
 	for _, opt := range opts {
 		opt(m)
+	}
+	if m.db == nil {
+		return nil, errors.New("database connection is not set, please call WithDB option")
 	}
 	return m, nil
 }
 
 func (m *Migrate) newProvider() (*goose.Provider, error) {
 	val := config.GetDialect()
-	if val == dialect.Unknown {
-		return nil, errors.New("unknown database dialect")
-	}
-	if m.db == nil {
-		return nil, errors.New("database connection is not set, please call WithDB option")
-	}
 	gooseDialect := val.GooseDialect()
 	store, err := database.NewStore(gooseDialect, m.tableName)
 	if err != nil {

@@ -2,8 +2,6 @@ package migris
 
 import (
 	"context"
-
-	"github.com/akfaiz/migris/internal/logger"
 )
 
 // Status returns the status of the migrations.
@@ -22,6 +20,6 @@ func (m *Migrate) StatusContext(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	logger.PrintStatuses(migrations)
+	m.logger.PrintStatuses(migrations)
 	return nil
 }

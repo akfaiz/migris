@@ -29,7 +29,7 @@ Please take a moment to review this guide before submitting an issue or pull req
 
 ## 🧑‍💻 Development Guidelines
 
-* Go version: \[Specify Go version, e.g., `1.23+`]
+* Go version: \[Specify Go version, e.g., `1.24+`]
 * Use idiomatic Go and follow the official [Effective Go](https://golang.org/doc/effective_go.html) guide.
 * All code should be tested. We use [Go's testing package](https://golang.org/pkg/testing/) and optionally [Testify](https://github.com/stretchr/testify).
 * Keep the API stable and backward compatible when possible.

@@ -13,6 +13,11 @@ lint: # Lint code
 	@echo "Linting code..."
 	@golangci-lint run --timeout=2m --verbose
 
+.PHONY: lint-fix
+lint-fix: # Fix lint issues
+	@echo "Fixing lint issues..."
+	@golangci-lint run --fix --timeout=2m --verbose
+
 .PHONY: install
 install: # Install dependencies
 	@echo "Installing dependencies..."

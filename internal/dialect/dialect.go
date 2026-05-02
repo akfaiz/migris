@@ -8,6 +8,7 @@ type Dialect string
 const (
 	MySQL    Dialect = "mysql"
 	Postgres Dialect = "postgres"
+	SQLite3  Dialect = "sqlite3"
 	Unknown  Dialect = ""
 )
 
@@ -21,6 +22,8 @@ func (d Dialect) GooseDialect() database.Dialect {
 		return database.DialectMySQL
 	case Postgres:
 		return database.DialectPostgres
+	case SQLite3:
+		return database.DialectSQLite3
 	case Unknown:
 		return database.DialectCustom
 	default:
@@ -34,6 +37,8 @@ func FromString(dialect string) Dialect {
 		return MySQL
 	case "postgres", "pgx":
 		return Postgres
+	case "sqlite3", "sqlite":
+		return SQLite3
 	default:
 		return Unknown
 	}

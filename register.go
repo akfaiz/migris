@@ -84,6 +84,13 @@ func register(source string, up, down MigrationContext) error {
 	return nil
 }
 
+// ResetRegisteredMigrations clears the global registry of migrations.
+// This is primarily intended for tests to avoid cross-test interference.
+func ResetRegisteredMigrations() {
+	registeredVersions = make(map[int64]string)
+	registeredMigrations = make([]*Migration, 0)
+}
+
 func gooseMigrations() []*goose.Migration {
 	migrations := make([]*goose.Migration, 0, len(registeredMigrations))
 	for _, m := range registeredMigrations {

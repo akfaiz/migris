@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/akfaiz/migris/internal/logger"
 	"github.com/pressly/goose/v3"
 )
 
@@ -31,20 +30,20 @@ func (m *Migrate) DownContext(ctx context.Context) error {
 		return err
 	}
 	if currentVersion == 0 {
-		logger.Info("Nothing to rollback.")
+		m.logger.Info("Nothing to rollback.")
 		return nil
 	}
-	logger.Info("Rolling back migrations.\n")
+	m.logger.Info("Rolling back migrations.\n")
 	result, err := provider.Down(ctx)
 	if err != nil {
 		var partialErr *goose.PartialError
 		if errors.As(err, &partialErr) {
-			logger.PrintResult(partialErr.Failed)
+			m.logger.PrintResult(partialErr.Failed)
 		}
 		return err
 	}
 	if result != nil {
-		logger.PrintResult(result)
+		m.logger.PrintResult(result)
 	}
 	return nil
 }
@@ -71,20 +70,20 @@ func (m *Migrate) DownToContext(ctx context.Context, version int64) error {
 		return err
 	}
 	if currentVersion == 0 {
-		logger.Info("Nothing to rollback.")
+		m.logger.Info("Nothing to rollback.")
 		return nil
 	}
-	logger.Info("Rolling back migrations.\n")
+	m.logger.Info("Rolling back migrations.\n")
 	results, err := provider.DownTo(ctx, version)
 	if err != nil {
 		var partialErr *goose.PartialError
 		if errors.As(err, &partialErr) {
-			logger.PrintResults(partialErr.Applied)
-			logger.PrintResult(partialErr.Failed)
+			m.logger.PrintResults(partialErr.Applied)
+			m.logger.PrintResult(partialErr.Failed)
 		}
 		return err
 	}
-	logger.PrintResults(results)
+	m.logger.PrintResults(results)
 	return nil
 }
 
@@ -103,21 +102,20 @@ func (m *Migrate) executeDryRunDown(ctx context.Context, version int64) error {
 	}
 
 	if currentVersion == 0 {
-		logger.Info("Nothing to rollback.")
+		m.logger.Info("Nothing to rollback.")
 		return nil
 	}
 
-	logger.DryRunDownStart(version)
-
+	m.logger.DryRunDownStart(version)
 	// Determine which migrations to rollback
 	migrationsToRollback := m.determineMigrationsToRollback(version, currentVersion)
 	if len(migrationsToRollback) == 0 {
-		logger.Info("Nothing to rollback.")
+		m.logger.Info("Nothing to rollback.")
 		return nil
 	}
 
 	// Process migrations in dry-run mode
-	totalMigrations, totalStatements, duration, err := m.processDryRunDownMigrations(ctx, migrationsToRollback)
+	totalMigrations, totalStatements, _, err := m.processDryRunDownMigrations(ctx, migrationsToRollback)
 	if err != nil {
 		return err
 	}
@@ -127,7 +125,7 @@ func (m *Migrate) executeDryRunDown(ctx context.Context, version int64) error {
 	if version == 0 {
 		operation = "RESET"
 	}
-	logger.DryRunDownSummary(totalMigrations, totalStatements, duration, operation)
+	m.logger.DryRunDownSummary(totalMigrations, totalStatements, operation)
 
 	return nil
 }

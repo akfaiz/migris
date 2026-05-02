@@ -21,26 +21,25 @@ type QueryWithArgs struct {
 
 // MockResult implements sql.Result for dry-run mode.
 type MockResult struct {
-	lastInsertID int64
-	rowsAffected int64
+	LastInsertID      int64
+	RowsAffectedValue int64
 }
 
 func (m *MockResult) LastInsertId() (int64, error) {
-	return m.lastInsertID, nil
+	return m.LastInsertID, nil
 }
 
 func (m *MockResult) RowsAffected() (int64, error) {
-	return m.rowsAffected, nil
+	return m.RowsAffectedValue, nil
 }
 
 // MockRows implements basic sql.Rows functionality for dry-run mode.
 type MockRows struct {
-	closed bool
+	Closed bool
 }
 
-func (m *MockRows) Close() error {
-	m.closed = true
-	return nil
+func (m *MockRows) Close() {
+	m.Closed = true
 }
 
 func (m *MockRows) Next() bool {
@@ -83,8 +82,8 @@ func (drc *DryRunContext) Exec(query string, args ...any) (sql.Result, error) {
 
 	// Return a mock result that simulates successful execution
 	return &MockResult{
-		lastInsertID: 1,
-		rowsAffected: 1,
+		LastInsertID:      1,
+		RowsAffectedValue: 1,
 	}, nil
 }
 

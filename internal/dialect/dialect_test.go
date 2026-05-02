@@ -14,6 +14,7 @@ func TestDialectString(t *testing.T) {
 	}{
 		{dialect.Postgres, "postgres"},
 		{dialect.MySQL, "mysql"},
+		{dialect.SQLite3, "sqlite3"},
 		{dialect.Unknown, ""},
 	}
 
@@ -30,6 +31,7 @@ func TestGooseDialect(t *testing.T) {
 	}{
 		{dialect.Postgres, "postgres"},
 		{dialect.MySQL, "mysql"},
+		{dialect.SQLite3, "sqlite3"},
 		{dialect.Unknown, ""},
 	}
 
@@ -48,6 +50,8 @@ func TestFromString(t *testing.T) {
 		{"pgx", dialect.Postgres},
 		{"mysql", dialect.MySQL},
 		{"mariadb", dialect.MySQL},
+		{"sqlite3", dialect.SQLite3},
+		{"sqlite", dialect.SQLite3},
 		{"unknown", dialect.Unknown}, // default
 	}
 
