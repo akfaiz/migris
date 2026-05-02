@@ -49,7 +49,7 @@ func TestFromString(t *testing.T) {
 		{"postgres", dialect.Postgres},
 		{"pgx", dialect.Postgres},
 		{"mysql", dialect.MySQL},
-		{"mariadb", dialect.MySQL},
+		{"mariadb", dialect.MariaDB},
 		{"sqlite3", dialect.SQLite3},
 		{"sqlite", dialect.SQLite3},
 		{"unknown", dialect.Unknown}, // default

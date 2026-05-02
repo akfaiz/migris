@@ -12,7 +12,7 @@
 - **Migration management** - Run up, down, reset, status, and create operations
 - **Dry-run mode** - Preview migrations without executing them to see generated SQL
 - **Fluent schema builder** - Laravel-inspired API for defining database schemas
-- **Multi-database support** - Works with PostgreSQL, MySQL, and MariaDB
+- **Multi-database support** - Works with PostgreSQL, MySQL, MariaDB, and SQLite3
 - **Transaction safety** - All migrations run within database transactions
 - **Native Go integration** - No external CLI tools required
 
@@ -202,10 +202,7 @@ Currently supported databases:
 - **PostgreSQL** (via pgx driver)
 - **MySQL**
 - **MariaDB**
-
-## Roadmap
-
-- [ ] Advanced schema introspection
+- **SQLite3**
 
 ## Contributing
 

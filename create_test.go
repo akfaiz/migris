@@ -1,6 +1,7 @@
 package migris_test
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
@@ -78,4 +79,27 @@ func TestCreate(t *testing.T) {
 func TestCreate_InvalidDirectory(t *testing.T) {
 	err := migris.Create("/nonexistent/invalid/path", "test_migration")
 	assert.Error(t, err, "Create() should return error for invalid directory")
+}
+
+func TestMigrate_Create(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	m, err := migris.New("sqlite3", migris.WithDB(db), migris.WithMigrationDir(tmpDir))
+	require.NoError(t, err)
+
+	err = m.Create("create_migrate_users_table")
+	require.NoError(t, err)
+
+	entries, err := os.ReadDir(tmpDir)
+	require.NoError(t, err, "failed to read temp dir")
+	assert.NotEmpty(t, entries, "expected migration file to be created by Migrate.Create")
+
+	filename := filepath.Join(tmpDir, entries[0].Name())
+	content, err := os.ReadFile(filename)
+	require.NoError(t, err, "failed to read migration file")
+	assert.Contains(t, string(content), "schema.Create")
 }

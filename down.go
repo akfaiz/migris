@@ -136,6 +136,7 @@ func (m *Migrate) determineMigrationsToRollback(version, currentVersion int64) [
 
 	if version == -1 {
 		// Rollback last applied migration only
+		registeredMigrations := m.registry.migrationsSnapshot()
 		for i := len(registeredMigrations) - 1; i >= 0; i-- {
 			migration := registeredMigrations[i]
 			if migration.version <= currentVersion {
@@ -145,6 +146,7 @@ func (m *Migrate) determineMigrationsToRollback(version, currentVersion int64) [
 		}
 	} else {
 		// Rollback migrations down to specified version (only applied ones)
+		registeredMigrations := m.registry.migrationsSnapshot()
 		for i := len(registeredMigrations) - 1; i >= 0; i-- {
 			migration := registeredMigrations[i]
 			if migration.version > version && migration.version <= currentVersion {

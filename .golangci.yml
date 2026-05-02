@@ -475,3 +475,7 @@ linters:
         text: 'shadow'
         linters:
           - govet
+      - path: 'extra/(migriscli|migriscobra)/go\.mod'
+        text: 'local replacement are not allowed: github.com/akfaiz/migris'
+        linters:
+          - gomoddirectives

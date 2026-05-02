@@ -20,6 +20,7 @@ type Migrate struct {
 	tableName    string
 	dryRun       bool
 	logger       *logger.Logger
+	registry     *Registry
 }
 
 // New creates a new Migrate instance.
@@ -35,6 +36,7 @@ func New(dialectValue string, opts ...Option) (*Migrate, error) {
 		migrationDir: "migrations",
 		tableName:    "schema_migrations",
 		logger:       logger.Get(),
+		registry:     defaultRegistry,
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -46,8 +48,7 @@ func New(dialectValue string, opts ...Option) (*Migrate, error) {
 }
 
 func (m *Migrate) newProvider() (*goose.Provider, error) {
-	val := config.GetDialect()
-	gooseDialect := val.GooseDialect()
+	gooseDialect := m.dialect.GooseDialect()
 	store, err := database.NewStore(gooseDialect, m.tableName)
 	if err != nil {
 		return nil, err
@@ -55,7 +56,7 @@ func (m *Migrate) newProvider() (*goose.Provider, error) {
 	provider, err := goose.NewProvider(database.DialectCustom, m.db, os.DirFS(m.migrationDir),
 		goose.WithStore(store),
 		goose.WithDisableGlobalRegistry(true),
-		goose.WithGoMigrations(gooseMigrations()...),
+		goose.WithGoMigrations(m.registry.gooseMigrations(m.dialect)...),
 	)
 	if err != nil {
 		return nil, err

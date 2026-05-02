@@ -1,4 +1,4 @@
-package util //nolint:revive // Helper functions for general purposes.
+package util
 
 func Optional[T any](defaultValue T, values ...T) T {
 	if len(values) > 0 {
