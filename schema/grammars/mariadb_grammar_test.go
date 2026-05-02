@@ -4,12 +4,13 @@ import (
 	"testing"
 
 	"github.com/akfaiz/migris/schema"
+	"github.com/akfaiz/migris/schema/grammars"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMariadbGrammar_CompileCreate(t *testing.T) {
-	g, err := schema.NewGrammar("mariadb")
+	g, err := grammars.NewGrammar("mariadb")
 	require.NoError(t, err)
 
 	tests := []struct {

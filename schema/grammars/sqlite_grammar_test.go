@@ -1,16 +1,18 @@
-package grammars //nolint:testpackage // Need to access unexported members for testing
+package grammars_test
 
 import (
 	"testing"
 
 	"github.com/akfaiz/migris/schema/blueprint"
+	"github.com/akfaiz/migris/schema/grammars"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSqliteGrammar_CompileCreate(t *testing.T) {
-	g := newSqliteGrammar()
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -75,7 +77,8 @@ func TestSqliteGrammar_CompileCreate(t *testing.T) {
 }
 
 func TestSqliteGrammar_CompileAdd(t *testing.T) {
-	g := newSqliteGrammar()
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -126,7 +129,8 @@ func TestSqliteGrammar_CompileAdd(t *testing.T) {
 }
 
 func TestSqliteGrammar_CompileDrop(t *testing.T) {
-	g := newSqliteGrammar()
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -168,7 +172,8 @@ func TestSqliteGrammar_CompileDrop(t *testing.T) {
 }
 
 func TestSqliteGrammar_CompileDropIfExists(t *testing.T) {
-	g := newSqliteGrammar()
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -204,7 +209,8 @@ func TestSqliteGrammar_CompileDropIfExists(t *testing.T) {
 }
 
 func TestSqliteGrammar_CompileRename(t *testing.T) {
-	g := newSqliteGrammar()
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -243,7 +249,8 @@ func TestSqliteGrammar_CompileRename(t *testing.T) {
 }
 
 func TestSqliteGrammar_CompileIndex(t *testing.T) {
-	g := newSqliteGrammar()
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -293,7 +300,8 @@ func TestSqliteGrammar_CompileIndex(t *testing.T) {
 }
 
 func TestSqliteGrammar_CompileUnique(t *testing.T) {
-	g := newSqliteGrammar()
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -333,42 +341,9 @@ func TestSqliteGrammar_CompileUnique(t *testing.T) {
 	}
 }
 
-func TestSqliteGrammar_TypeMethods(t *testing.T) {
-	g := newSqliteGrammar()
-
-	tests := []struct {
-		name string
-		fn   func(*blueprint.Column) string
-		want string
-	}{
-		{"typeChar", g.typeChar, "TEXT"},
-		{"typeString", g.typeString, "TEXT"},
-		{"typeText", g.typeText, "TEXT"},
-		{"typeInteger", g.typeInteger, "INTEGER"},
-		{"typeBigInteger", g.typeBigInteger, "INTEGER"},
-		{"typeFloat", g.typeFloat, "REAL"},
-		{"typeDouble", g.typeDouble, "REAL"},
-		{"typeDecimal", g.typeDecimal, "NUMERIC"},
-		{"typeBoolean", g.typeBoolean, "INTEGER"},
-		{"typeDate", g.typeDate, "DATE"},
-		{"typeDateTime", g.typeDateTime, "DATETIME"},
-		{"typeTimestamp", g.typeTimestamp, "DATETIME"},
-		{"typeBinary", g.typeBinary, "BLOB"},
-		{"typeUUID", g.typeUUID, "TEXT"},
-		{"typeJSON", g.typeJSON, "TEXT"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			col := &blueprint.Column{} // Empty column definition for testing
-			got := tt.fn(col)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
 func TestSqliteGrammar_UnsupportedOperations(t *testing.T) {
-	g := newSqliteGrammar()
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
 	bp := &blueprint.Blueprint{Name: "test_table", Grammar: g}
 	cmd := &blueprint.Command{} // Empty command for testing
 
@@ -395,7 +370,8 @@ func TestSqliteGrammar_UnsupportedOperations(t *testing.T) {
 }
 
 func TestSqliteGrammar_SupportedButDelegated(t *testing.T) {
-	g := newSqliteGrammar()
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
 	bp := &blueprint.Blueprint{Name: "test_table", Grammar: g}
 	cmd := &blueprint.Command{} // Empty command for testing
 
@@ -413,6 +389,272 @@ func TestSqliteGrammar_SupportedButDelegated(t *testing.T) {
 			sql, err := tt.fn()
 			require.NoError(t, err, "Should not return error as these are handled at table creation time")
 			assert.Empty(t, sql, "Should return empty SQL as these are handled elsewhere")
+		})
+	}
+}
+
+func TestSqliteGrammar_GetType(t *testing.T) {
+	g, err := grammars.NewGrammar("sqlite3")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name      string
+		blueprint func(table *blueprint.Blueprint)
+		want      string
+	}{
+		{
+			name: "custom column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Column("name", "CUSTOM_TYPE")
+			},
+			want: "CUSTOM_TYPE",
+		},
+		{
+			name: "char column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Char("code", 10)
+			},
+			want: "TEXT",
+		},
+		{
+			name: "string column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.String("name", 255)
+			},
+			want: "TEXT",
+		},
+		{
+			name: "tiny text column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.TinyText("content")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "text column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Text("content")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "medium text column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.MediumText("content")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "long text column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.LongText("content")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "big integer column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.BigInteger("id")
+			},
+			want: "INTEGER",
+		},
+		{
+			name: "integer column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Integer("id")
+			},
+			want: "INTEGER",
+		},
+		{
+			name: "medium integer column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.MediumInteger("id")
+			},
+			want: "INTEGER",
+		},
+		{
+			name: "small integer column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.SmallInteger("id")
+			},
+			want: "INTEGER",
+		},
+		{
+			name: "tiny integer column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.TinyInteger("id")
+			},
+			want: "INTEGER",
+		},
+		{
+			name: "float column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Float("val")
+			},
+			want: "REAL",
+		},
+		{
+			name: "double column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Double("val")
+			},
+			want: "REAL",
+		},
+		{
+			name: "decimal column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Decimal("val", 8, 2)
+			},
+			want: "NUMERIC",
+		},
+		{
+			name: "boolean column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Boolean("val")
+			},
+			want: "INTEGER",
+		},
+		{
+			name: "enum column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Enum("val", []string{"a", "b"})
+			},
+			want: "TEXT",
+		},
+		{
+			name: "json column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.JSON("val")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "jsonb column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.JSONB("val")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "date column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Date("val")
+			},
+			want: "DATE",
+		},
+		{
+			name: "datetime column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.DateTime("val", 0)
+			},
+			want: "DATETIME",
+		},
+		{
+			name: "datetime tz column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.DateTimeTz("val", 0)
+			},
+			want: "DATETIME",
+		},
+		{
+			name: "time column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Time("val")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "time tz column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.TimeTz("val", 0)
+			},
+			want: "TEXT",
+		},
+		{
+			name: "timestamp column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Timestamp("val", 0)
+			},
+			want: "DATETIME",
+		},
+		{
+			name: "timestamp tz column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.TimestampTz("val", 0)
+			},
+			want: "DATETIME",
+		},
+		{
+			name: "year column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Year("val")
+			},
+			want: "INTEGER",
+		},
+		{
+			name: "binary column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Binary("val")
+			},
+			want: "BLOB",
+		},
+		{
+			name: "uuid column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.UUID("val")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "ulid column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.ULID("val")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "ip address column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.IPAddress("val")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "mac address column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.MacAddress("val")
+			},
+			want: "TEXT",
+		},
+		{
+			name: "geometry column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Geometry("val", "POLYGON", 4326)
+			},
+			want: "TEXT",
+		},
+		{
+			name: "geography column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Geography("val", "POLYGON", 4326)
+			},
+			want: "TEXT",
+		},
+		{
+			name: "point column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Point("val")
+			},
+			want: "TEXT",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &blueprint.Blueprint{Name: "test_table"}
+			tt.blueprint(bp)
+			got := g.GetType(bp.Columns[0])
+			assert.Equal(t, tt.want, got, "Expected type to match for test case: %s", tt.name)
 		})
 	}
 }

@@ -1,16 +1,18 @@
-package grammars //nolint:testpackage // Need to access unexported members for testing
+package grammars_test
 
 import (
 	"testing"
 
 	"github.com/akfaiz/migris/internal/dialect"
 	"github.com/akfaiz/migris/schema/blueprint"
+	"github.com/akfaiz/migris/schema/grammars"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMysqlGrammar_CompileCreate(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -101,7 +103,8 @@ func TestMysqlGrammar_CompileCreate(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileAdd(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -231,7 +234,8 @@ func TestMysqlGrammar_CompileAdd(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileChange(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -368,7 +372,8 @@ func TestMysqlGrammar_CompileChange(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileRename(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -422,7 +427,8 @@ func TestMysqlGrammar_CompileRename(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileDrop(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -480,7 +486,8 @@ func TestMysqlGrammar_CompileDrop(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileDropIfExists(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -538,7 +545,8 @@ func TestMysqlGrammar_CompileDropIfExists(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileDropColumn(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -605,7 +613,8 @@ func TestMysqlGrammar_CompileDropColumn(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileRenameColumn(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -666,7 +675,8 @@ func TestMysqlGrammar_CompileRenameColumn(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileForeign(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -792,7 +802,8 @@ func TestMysqlGrammar_CompileForeign(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileDropForeign(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -835,7 +846,8 @@ func TestMysqlGrammar_CompileDropForeign(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileIndex(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -919,7 +931,8 @@ func TestMysqlGrammar_CompileIndex(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileUnique(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1011,7 +1024,8 @@ func TestMysqlGrammar_CompileUnique(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompilePrimary(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1111,7 +1125,8 @@ func TestMysqlGrammar_CompilePrimary(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileFullText(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1211,7 +1226,8 @@ func TestMysqlGrammar_CompileFullText(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileDropIndex(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1255,7 +1271,8 @@ func TestMysqlGrammar_CompileDropIndex(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileDropUnique(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1298,7 +1315,8 @@ func TestMysqlGrammar_CompileDropUnique(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileDropFulltext(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1341,7 +1359,8 @@ func TestMysqlGrammar_CompileDropFulltext(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileDropPrimary(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1407,7 +1426,8 @@ func TestMysqlGrammar_CompileDropPrimary(t *testing.T) {
 }
 
 func TestMysqlGrammar_CompileRenameIndex(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -1500,7 +1520,8 @@ func TestMysqlGrammar_CompileRenameIndex(t *testing.T) {
 }
 
 func TestMysqlGrammar_GetType(t *testing.T) {
-	g := newMysqlGrammar()
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1669,6 +1690,55 @@ func TestMysqlGrammar_GetType(t *testing.T) {
 			want: "TIMESTAMP",
 		},
 		{
+			name: "time tz column type with precision",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.TimeTz("created_at", 3)
+			},
+			want: "TIME(3)",
+		},
+		{
+			name: "time tz column type without precision",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.TimeTz("created_at", 0)
+			},
+			want: "TIME",
+		},
+		{
+			name: "set column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Set("tags", []string{"a", "b", "c"})
+			},
+			want: "SET('a', 'b', 'c')",
+		},
+		{
+			name: "ulid column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.ULID("ulid")
+			},
+			want: "CHAR(26)",
+		},
+		{
+			name: "ip address column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.IPAddress("ip")
+			},
+			want: "VARCHAR(45)",
+		},
+		{
+			name: "mac address column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.MacAddress("mac")
+			},
+			want: "VARCHAR(17)",
+		},
+		{
+			name: "vector column type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Vector("embedding")
+			},
+			want: "VECTOR",
+		},
+		{
 			name: "enum column type",
 			blueprint: func(table *blueprint.Blueprint) {
 				table.Enum("status", []string{"active", "inactive", "pending"})
@@ -1774,147 +1844,6 @@ func TestMysqlGrammar_GetType(t *testing.T) {
 			tt.blueprint(bp)
 			got := g.GetType(bp.Columns[0])
 			assert.Equal(t, tt.want, got, "Expected type to match for test case: %s", tt.name)
-		})
-	}
-}
-
-func TestMysqlGrammar_GetColumns(t *testing.T) {
-	g := newMysqlGrammar()
-
-	tests := []struct {
-		name      string
-		blueprint func(table *blueprint.Blueprint)
-		want      []string
-		wantErr   bool
-	}{
-		{
-			name: "single basic column",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.String("name", 255)
-			},
-			want:    []string{"`name` VARCHAR(255) NOT NULL"},
-			wantErr: false,
-		},
-		{
-			name: "multiple basic columns",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.String("name", 255)
-				table.Integer("age")
-			},
-			want:    []string{"`name` VARCHAR(255) NOT NULL", "`age` INT NOT NULL"},
-			wantErr: false,
-		},
-		{
-			name: "column with default value",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.String("status", 50).Default("active")
-			},
-			want:    []string{"`status` VARCHAR(50) NOT NULL DEFAULT 'active'"},
-			wantErr: false,
-		},
-		{
-			name: "nullable column",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.String("email", 255).Nullable()
-			},
-			want:    []string{"`email` VARCHAR(255) NULL"},
-			wantErr: false,
-		},
-		{
-			name: "not nullable column",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.String("username", 100).Nullable(false)
-			},
-			want:    []string{"`username` VARCHAR(100) NOT NULL"},
-			wantErr: false,
-		},
-		{
-			name: "column with comment",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.String("name", 255).Comment("User full name")
-			},
-			want:    []string{"`name` VARCHAR(255) NOT NULL COMMENT 'User full name'"},
-			wantErr: false,
-		},
-		{
-			name: "primary key column",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.BigInteger("id").Primary()
-			},
-			want:    []string{"`id` BIGINT NOT NULL"},
-			wantErr: false,
-		},
-		{
-			name: "column with all attributes",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.String("email", 255).
-					Default("user@example.com").
-					Nullable().
-					Comment("User email address")
-			},
-			want:    []string{"`email` VARCHAR(255) NULL DEFAULT 'user@example.com' COMMENT 'User email address'"},
-			wantErr: false,
-		},
-		{
-			name: "auto increment primary key",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.BigInteger("id").Unsigned().AutoIncrement().Primary()
-			},
-			want:    []string{"`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT"},
-			wantErr: false,
-		},
-		{
-			name: "multiple columns with different attributes",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.BigInteger("id").Unsigned().AutoIncrement().Primary()
-				table.String("name", 255).Comment("User name")
-				table.String("email", 255).Nullable()
-				table.Timestamp("created_at", 0).UseCurrent()
-			},
-			want: []string{
-				"`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT",
-				"`name` VARCHAR(255) NOT NULL COMMENT 'User name'",
-				"`email` VARCHAR(255) NULL",
-				"`created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
-			},
-			wantErr: false,
-		},
-		{
-			name: "column with null default value",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.Text("description").Nullable().Default(nil)
-			},
-			want:    []string{"`description` TEXT NULL DEFAULT NULL"},
-			wantErr: false,
-		},
-		{
-			name: "empty column name should return error",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.String("", 255)
-			},
-			wantErr: true,
-		},
-		{
-			name: "multiple columns with one empty name should return error",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.String("name", 255)
-				table.Integer("")
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bp := &blueprint.Blueprint{Name: "test_table"}
-			tt.blueprint(bp)
-			got, err := g.getColumns(bp)
-			if tt.wantErr {
-				require.Error(t, err, "Expected error for test case: %s", tt.name)
-				return
-			}
-			require.NoError(t, err, "Did not expect error for test case: %s", tt.name)
-			assert.Equal(t, tt.want, got, "Expected columns to match for test case: %s", tt.name)
 		})
 	}
 }

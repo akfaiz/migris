@@ -1,15 +1,17 @@
-package grammars //nolint:testpackage // Need to access unexported members for testing
+package grammars_test
 
 import (
 	"testing"
 
 	"github.com/akfaiz/migris/schema/blueprint"
+	"github.com/akfaiz/migris/schema/grammars"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPgGrammar_CompileCreate(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -71,7 +73,8 @@ func TestPgGrammar_CompileCreate(t *testing.T) {
 }
 
 func TestPgGrammar_CompileAdd(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -211,7 +214,8 @@ func TestPgGrammar_CompileAdd(t *testing.T) {
 }
 
 func TestPgGrammar_CompileChange(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -323,7 +327,8 @@ func TestPgGrammar_CompileChange(t *testing.T) {
 }
 
 func TestPgGrammar_CompileDrop(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -359,7 +364,8 @@ func TestPgGrammar_CompileDrop(t *testing.T) {
 }
 
 func TestPgGrammar_CompileDropIfExists(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -395,7 +401,8 @@ func TestPgGrammar_CompileDropIfExists(t *testing.T) {
 }
 
 func TestPgGrammar_CompileRename(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -429,75 +436,9 @@ func TestPgGrammar_CompileRename(t *testing.T) {
 	}
 }
 
-func TestPgGrammar_GetColumns(t *testing.T) {
-	g := newPostgresGrammar()
-
-	tests := []struct {
-		name      string
-		blueprint func(table *blueprint.Blueprint)
-		want      []string
-		wantErr   bool
-	}{
-		{
-			name: "Simple column",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.String("name", 255)
-			},
-			want: []string{"\"name\" VARCHAR(255) NOT NULL"},
-		},
-		{
-			name: "Nullable column",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.String("email", 255).Nullable()
-			},
-			want: []string{"\"email\" VARCHAR(255) NULL"},
-		},
-		{
-			name: "Nullable column with default null",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.Text("description").Nullable().Default(nil)
-			},
-			want: []string{"\"description\" TEXT NULL DEFAULT NULL"},
-		},
-		{
-			name: "Column with default value",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.Boolean("active").Default(true)
-			},
-			want: []string{"\"active\" BOOLEAN NOT NULL DEFAULT '1'"},
-		},
-		{
-			name: "Primary key column",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.Integer("id").Primary()
-			},
-			want: []string{"\"id\" INTEGER NOT NULL"},
-		},
-		{
-			name: "Error on empty column",
-			blueprint: func(table *blueprint.Blueprint) {
-				table.String("", 255) // Intentionally empty column name
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bp := &blueprint.Blueprint{Name: "test_table", Grammar: g}
-			tt.blueprint(bp)
-			got, err := g.getColumns(bp)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
 func TestPgGrammar_CompileDropColumn(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -556,7 +497,8 @@ func TestPgGrammar_CompileDropColumn(t *testing.T) {
 }
 
 func TestPgGrammar_CompileRenameColumn(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -618,7 +560,8 @@ func TestPgGrammar_CompileRenameColumn(t *testing.T) {
 }
 
 func TestPgGrammar_CompileDropIndex(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -664,7 +607,8 @@ func TestPgGrammar_CompileDropIndex(t *testing.T) {
 }
 
 func TestPgGrammar_CompileDropPrimary(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -709,7 +653,8 @@ func TestPgGrammar_CompileDropPrimary(t *testing.T) {
 }
 
 func TestPgGrammar_CompileRenameIndex(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -779,7 +724,8 @@ func TestPgGrammar_CompileRenameIndex(t *testing.T) {
 }
 
 func TestPgGrammar_CompileForeign(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -944,7 +890,8 @@ func TestPgGrammar_CompileForeign(t *testing.T) {
 }
 
 func TestPgGrammar_CompileDropForeign(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name           string
@@ -997,7 +944,8 @@ func TestPgGrammar_CompileDropForeign(t *testing.T) {
 }
 
 func TestPgGrammar_CompileIndex(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1075,7 +1023,8 @@ func TestPgGrammar_CompileIndex(t *testing.T) {
 }
 
 func TestPgGrammar_CompileUnique(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1178,7 +1127,8 @@ func TestPgGrammar_CompileUnique(t *testing.T) {
 }
 
 func TestPgGrammar_CompileFullText(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1272,7 +1222,8 @@ func TestPgGrammar_CompileFullText(t *testing.T) {
 }
 
 func TestPgGrammar_CompileDropUnique(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1324,7 +1275,8 @@ func TestPgGrammar_CompileDropUnique(t *testing.T) {
 }
 
 func TestPgGrammar_CompileDropFulltext(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1382,7 +1334,8 @@ func TestPgGrammar_CompileDropFulltext(t *testing.T) {
 }
 
 func TestPgGrammar_CompilePrimary(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1460,7 +1413,8 @@ func TestPgGrammar_CompilePrimary(t *testing.T) {
 }
 
 func TestPgGrammar_GetType(t *testing.T) {
-	g := newPostgresGrammar()
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -1767,6 +1721,62 @@ func TestPgGrammar_GetType(t *testing.T) {
 				table.Enum("status", []string{"active", "inactive"})
 			},
 			want: "VARCHAR(255) CHECK (status IN ('active', 'inactive'))",
+		},
+		{
+			name: "Enum type without allowed values",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Enum("status", []string{})
+			},
+			want: "VARCHAR(255)",
+		},
+		{
+			name: "TimeTz with precision",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.TimeTz("created_at", 3)
+			},
+			want: "TIMETZ(3)",
+		},
+		{
+			name: "TimeTz without precision",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.TimeTz("created_at")
+			},
+			want: "TIMETZ(0)",
+		},
+		{
+			name: "IP Address type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.IPAddress("ip")
+			},
+			want: "inet",
+		},
+		{
+			name: "Mac Address type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.MacAddress("mac")
+			},
+			want: "MACADDR",
+		},
+		{
+			name: "TSVector type",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.TSVector("ts")
+			},
+			want: "TSVECTOR",
+		},
+		{
+			name: "Geography type without subtype",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Geography("location", "")
+			},
+			want: "GEOGRAPHY",
+		},
+		{
+			name: "Point type without srid",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Point("location")
+			},
+			want: "POINT(4326)",
 		},
 	}
 

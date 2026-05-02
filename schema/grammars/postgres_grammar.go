@@ -618,14 +618,14 @@ func (g *postgresGrammar) typeMacAddress(_ *blueprint.Column) string {
 }
 
 func (g *postgresGrammar) typeTSVector(_ *blueprint.Column) string {
-	return "tsvector"
+	return "TSVECTOR"
 }
 
 func (g *postgresGrammar) typeGeography(col *blueprint.Column) string {
 	if col.Subtype != nil && *col.Subtype != "" {
 		return fmt.Sprintf("GEOGRAPHY(%s, %d)", strings.ToUpper(*col.Subtype), *col.Srid)
 	}
-	return "geography"
+	return "GEOGRAPHY"
 }
 
 func (g *postgresGrammar) typeGeometry(col *blueprint.Column) string {
@@ -635,14 +635,14 @@ func (g *postgresGrammar) typeGeometry(col *blueprint.Column) string {
 		}
 		return fmt.Sprintf("GEOMETRY(%s)", strings.ToUpper(*col.Subtype))
 	}
-	return "geometry"
+	return "GEOMETRY"
 }
 
 func (g *postgresGrammar) typePoint(col *blueprint.Column) string {
 	if col.Srid != nil {
 		return fmt.Sprintf("POINT(%d)", *col.Srid)
 	}
-	return "point"
+	return "POINT"
 }
 
 func (g *postgresGrammar) getColumns(bp *blueprint.Blueprint) ([]string, error) {
