@@ -32,6 +32,3 @@ go.work.sum
 .idea/
 .vscode/
 .serena/
-
-## References
-references/*

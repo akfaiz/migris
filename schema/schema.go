@@ -1,286 +1,283 @@
 package schema
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
 	"github.com/akfaiz/migris/internal/config"
 	"github.com/akfaiz/migris/internal/dialect"
+	"github.com/akfaiz/migris/schema/blueprint"
+	"github.com/akfaiz/migris/schema/builders"
+	"github.com/akfaiz/migris/schema/core"
+	"github.com/akfaiz/migris/schema/grammars"
 )
 
-// Column represents a database column with its properties.
-type Column struct {
-	Name       string         // Name is the name of the column.
-	TypeName   string         // TypeName is the name of the column type (e.g., "VARCHAR", "INT").
-	TypeFull   string         // TypeFull is the full type name including any modifiers (e.g., "VARCHAR(255)", "INT(11)").
-	Collation  sql.NullString // Collation is the collation of the column, if applicable.
-	Nullable   bool           // Nullable indicates whether the column can contain NULL values.
-	DefaultVal sql.NullString // DefaultVal is the default value for the column, if any.
-	Comment    sql.NullString // Comment is an optional comment for the column.
-	Extra      sql.NullString // Extra contains additional information about the column (e.g., "auto_increment").
-}
+// Type aliases for the public API.
 
-// Index represents a database index with its properties.
-type Index struct {
-	Name    string   // Name is the name of the index.
-	Columns []string // Columns is a slice of column names that are part of the index.
-	Type    string   // e.g., "btree", "hash"
-	Unique  bool     // Indicates if the index is unique
-	Primary bool     // Indicates if the index is a primary key
-}
-
-// TableInfo represents information about a database table.
-// It includes the table name, schema, size, and an optional comment.
-type TableInfo struct {
-	Name      string         // Name is the name of the table.
-	Schema    string         // Schema is the schema where the table resides.
-	Size      int64          // Size is the size of the table in bytes.
-	Comment   sql.NullString // Comment is an optional comment for the table.
-	Engine    sql.NullString // Engine is the storage engine used for the table (e.g., "InnoDB", "MyISAM").
-	Collation sql.NullString // Collation is the collation used for the table (e.g., "utf8mb4_general_ci").
-}
+type (
+	Blueprint            = blueprint.Blueprint
+	ColumnDefinition     = blueprint.ColumnDefinition
+	IndexDefinition      = blueprint.IndexDefinition
+	ForeignKeyDefinition = blueprint.ForeignKeyDefinition
+	Context              = core.Context
+	Rows                 = core.Rows
+	Row                  = core.Row
+	Builder              = builders.Builder
+	Expression           = blueprint.Expression
+	Column               = core.Column
+	Index                = core.Index
+	TableInfo            = core.TableInfo
+)
 
 func newBuilder(c Context) (Builder, error) {
 	dialectVal := dialect.Unknown
 	if c != nil {
-		type dialectContext interface {
-			Dialect() string
-		}
-		if dc, ok := c.(dialectContext); ok {
-			dialectVal = dialect.FromString(dc.Dialect())
-		}
+		dialectVal = dialect.FromString(c.Dialect())
 	}
 	if dialectVal == dialect.Unknown {
 		dialectVal = config.GetDialect()
 	}
 	if dialectVal == dialect.Unknown {
-		return nil, errors.New(
-			"schema dialect is not set, please call schema.SetDialect() before using schema functions",
-		)
+		return nil, errors.New("schema dialect is not set")
 	}
 
-	builder, err := NewBuilder(dialectVal.String())
-	if err != nil {
-		return nil, err
-	}
-
-	return builder, nil
+	return builders.NewBuilder(dialectVal.String())
 }
 
 // Create creates a new table with the given name and blueprint.
-// The blueprint function is used to define the structure of the table.
-// It returns an error if the table creation fails.
 //
 // Example:
 //
-//	err := schema.Create(ctx, tx, "users", func(table *schema.Blueprint) {
-//	    table.ID()
-//	    table.String("name").Nullable(false)
-//	    table.String("email").Unique().Nullable(false)
-//	    table.String("password").Nullable()
-//	    table.Timestamp("created_at").Default("CURRENT_TIMESTAMP").Nullable(false)
-//	    table.Timestamp("updated_at").Default("CURRENT_TIMESTAMP").Nullable(false)
+//	schema.Create(ctx, "users", func(table *schema.Blueprint) {
+//	    table.String("name")
+//	    table.Integer("age")
 //	})
-func Create(c Context, name string, blueprint func(table *Blueprint)) error {
+func Create(c Context, name string, bp func(table *Blueprint)) error {
+	if c == nil || name == "" || bp == nil {
+		return errors.New("invalid arguments")
+	}
 	builder, err := newBuilder(c)
 	if err != nil {
 		return err
 	}
-
-	return builder.Create(c, name, blueprint)
+	return builder.Create(c, name, bp)
 }
 
-// Drop removes the table with the given name.
-// It returns an error if the table removal fails.
+// Drop drops the table with the given name.
 //
 // Example:
 //
-//	err := schema.Drop(ctx, tx, "users")
+//	schema.Drop(ctx, "users")
 func Drop(c Context, name string) error {
+	if c == nil || name == "" {
+		return errors.New("invalid arguments")
+	}
 	builder, err := newBuilder(c)
 	if err != nil {
 		return err
 	}
-
 	return builder.Drop(c, name)
 }
 
-// DropIfExists removes the table with the given name if it exists.
-// It returns an error if the table removal fails.
+// DropIfExists drops the table with the given name if it exists.
 //
 // Example:
 //
-//	err := schema.DropIfExists(ctx, tx, "users")
+//	schema.DropIfExists(ctx, "users")
 func DropIfExists(c Context, name string) error {
+	if c == nil || name == "" {
+		return errors.New("invalid arguments")
+	}
 	builder, err := newBuilder(c)
 	if err != nil {
 		return err
 	}
-
 	return builder.DropIfExists(c, name)
 }
 
-// GetColumns retrieves the columns of the specified table.
-// It returns a slice of Column structs representing the columns in the table.
+// Table modifies the table with the given name using the provided blueprint.
 //
 // Example:
 //
-//	columns, err := schema.GetColumns(ctx, tx, "users")
-func GetColumns(c Context, tableName string) ([]*Column, error) {
+//	schema.Table(ctx, "users", func(table *schema.Blueprint) {
+//	    table.String("email").Unique()
+//	})
+func Table(c Context, name string, bp func(table *Blueprint)) error {
+	if c == nil || name == "" || bp == nil {
+		return errors.New("invalid arguments")
+	}
 	builder, err := newBuilder(c)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	return builder.GetColumns(c, tableName)
+	return builder.Table(c, name, bp)
 }
 
-// GetIndexes retrieves the indexes of the specified table.
-// It returns a slice of Index structs representing the indexes in the table.
+// Rename renames a table from the given name to the new name.
 //
 // Example:
 //
-//	indexes, err := schema.GetIndexes(ctx, tx, "users")
-func GetIndexes(c Context, tableName string) ([]*Index, error) {
+//	schema.Rename(ctx, "users", "app_users")
+func Rename(c Context, from, to string) error {
+	if c == nil || from == "" || to == "" {
+		return errors.New("invalid arguments")
+	}
 	builder, err := newBuilder(c)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	return builder.GetIndexes(c, tableName)
+	return builder.Rename(c, from, to)
 }
 
-// GetTables retrieves all tables in the database.
-// It returns a slice of TableInfo structs containing information about each table.
+// HasTable checks if a table with the given name exists.
 //
 // Example:
 //
-//	tables, err := schema.GetTables(ctx, tx)
-func GetTables(c Context) ([]*TableInfo, error) {
-	builder, err := newBuilder(c)
-	if err != nil {
-		return nil, err
-	}
-
-	return builder.GetTables(c)
-}
-
-// HasColumn checks if a column with the given name exists in the specified table.
-// It returns true if the column exists, false otherwise.
-//
-// Example:
-//
-//	exists, err := schema.HasColumn(ctx, tx, "users", "email")
-func HasColumn(c Context, tableName string, columnName string) (bool, error) {
-	builder, err := newBuilder(c)
-	if err != nil {
-		return false, err
-	}
-
-	return builder.HasColumn(c, tableName, columnName)
-}
-
-// HasColumns checks if the specified columns exist in the given table.
-// It returns true if all specified columns exist, false otherwise.
-//
-// Example:
-//
-//	exists, err := schema.HasColumns(ctx, tx, "users", []string{"email", "name"})
-//
-// If any of the specified columns do not exist, it returns false.
-func HasColumns(c Context, tableName string, columnNames []string) (bool, error) {
-	builder, err := newBuilder(c)
-	if err != nil {
-		return false, err
-	}
-
-	return builder.HasColumns(c, tableName, columnNames)
-}
-
-// HasIndex checks if an index with the given name exists in the specified table.
-// It returns true if the index exists, false otherwise.
-//
-// Example:
-//
-//	exists, err := schema.HasIndex(ctx, tx, "users", []string{"uk_users_email"}) // Checks if the index with name "uk_users_email" exists in the "users" table.
-//
-//	exists, err := schema.HasIndex(ctx, tx, "users", []string{"email", "name"}) // Checks if a composite index exists on the "email" and "name" columns in the "users" table.
-func HasIndex(c Context, tableName string, indexes []string) (bool, error) {
-	builder, err := newBuilder(c)
-	if err != nil {
-		return false, err
-	}
-
-	return builder.HasIndex(c, tableName, indexes)
-}
-
-// HasTable checks if a table with the given name exists in the database.
-// It returns true if the table exists, false otherwise.
-// It returns an error if the check fails.
-//
-// Example:
-//
-//	exists, err := schema.HasTable(ctx, tx, "users")
+//	exists, err := schema.HasTable(ctx, "users")
 func HasTable(c Context, name string) (bool, error) {
+	if c == nil || name == "" {
+		return false, errors.New("invalid arguments")
+	}
 	builder, err := newBuilder(c)
 	if err != nil {
 		return false, err
 	}
-
 	return builder.HasTable(c, name)
 }
 
-// Rename changes the name of the table from name to newName.
-// It returns an error if the renaming fails.
+// HasColumn checks if a column with the given name exists in the specified table.
 //
 // Example:
 //
-//	err := schema.Rename(ctx, tx, "users", "people")
-func Rename(c Context, name string, newName string) error {
+//	exists, err := schema.HasColumn(ctx, "users", "email")
+func HasColumn(c Context, table, column string) (bool, error) {
+	if c == nil || table == "" || column == "" {
+		return false, errors.New("invalid arguments")
+	}
 	builder, err := newBuilder(c)
 	if err != nil {
-		return err
+		return false, err
 	}
-
-	return builder.Rename(c, name, newName)
+	return builder.HasColumn(c, table, column)
 }
 
-// Table modifies an existing table with the given name and blueprint.
-// The blueprint function is used to define the modifications to the table.
-// It returns an error if the table modification fails.
+// HasColumns checks if all specified columns exist in the given table.
 //
 // Example:
 //
-//	err := schema.Table(ctx, tx, "users", func(table *schema.Blueprint) {
-//	    table.Column("name").String().Nullable(false)
-//	    table.DropColumn("password")
-//	    table.RenameColumn("email", "contact_email")
-//	})
-func Table(c Context, name string, blueprint func(table *Blueprint)) error {
+//	exists, err := schema.HasColumns(ctx, "users", []string{"email", "name"})
+func HasColumns(c Context, table string, columns []string) (bool, error) {
+	if c == nil || table == "" || len(columns) == 0 {
+		return false, errors.New("invalid arguments")
+	}
 	builder, err := newBuilder(c)
 	if err != nil {
-		return err
+		return false, err
 	}
-
-	return builder.Table(c, name, blueprint)
+	return builder.HasColumns(c, table, columns)
 }
 
-// NewGrammar creates a new grammar instance for the given dialect.
-// This is primarily used for testing purposes.
-func NewGrammar(dialectValue string) (grammar, error) {
-	dialectVal := dialect.FromString(dialectValue)
-	switch dialectVal {
-	case dialect.MySQL:
-		return newMysqlGrammar(), nil
-	case dialect.MariaDB:
-		return newMariadbGrammar(), nil
-	case dialect.Postgres:
-		return newPostgresGrammar(), nil
-	case dialect.SQLite3:
-		return newSqliteGrammar(), nil
-	case dialect.Unknown:
-		return nil, errors.New("unsupported dialect: unknown")
-	default:
-		return nil, errors.New("unsupported dialect: " + dialectValue)
+// HasIndex checks if an index exists on the specified table for the given columns.
+//
+// Example:
+//
+//	exists, err := schema.HasIndex(ctx, "users", []string{"email"})
+func HasIndex(c Context, table string, columns []string) (bool, error) {
+	if c == nil || table == "" || len(columns) == 0 {
+		return false, errors.New("invalid arguments")
 	}
+	builder, err := newBuilder(c)
+	if err != nil {
+		return false, err
+	}
+	return builder.HasIndex(c, table, columns)
+}
+
+// GetColumns retrieves the columns of the specified table.
+//
+// Example:
+//
+//	columns, err := schema.GetColumns(ctx, "users")
+func GetColumns(c Context, table string) ([]*Column, error) {
+	if c == nil || table == "" {
+		return nil, errors.New("invalid arguments")
+	}
+	builder, err := newBuilder(c)
+	if err != nil {
+		return nil, err
+	}
+	return builder.GetColumns(c, table)
+}
+
+// GetIndexes retrieves the indexes of the specified table.
+//
+// Example:
+//
+//	indexes, err := schema.GetIndexes(ctx, "users")
+func GetIndexes(c Context, table string) ([]*Index, error) {
+	if c == nil || table == "" {
+		return nil, errors.New("invalid arguments")
+	}
+	builder, err := newBuilder(c)
+	if err != nil {
+		return nil, err
+	}
+	return builder.GetIndexes(c, table)
+}
+
+// GetTables retrieves the list of tables in the database.
+//
+// Example:
+//
+//	tables, err := schema.GetTables(ctx)
+func GetTables(c Context) ([]*TableInfo, error) {
+	if c == nil {
+		return nil, errors.New("invalid arguments")
+	}
+	builder, err := newBuilder(c)
+	if err != nil {
+		return nil, err
+	}
+	return builder.GetTables(c)
+}
+
+// NewBuilder creates a new Builder instance for the specified dialect.
+func NewBuilder(dialectValue string) (Builder, error) {
+	return builders.NewBuilder(dialectValue)
+}
+
+// NewGrammar creates a new Grammar instance for the specified dialect.
+func NewGrammar(dialectValue string) (blueprint.Grammar, error) {
+	return grammars.NewGrammar(dialectValue)
+}
+
+// NewContext creates a new Context with the given base context, transaction, and options.
+func NewContext(ctx context.Context, tx *sql.Tx, opts ...core.ContextOptions) Context {
+	return core.NewContext(ctx, tx, opts...)
+}
+
+// NewDryRunContext creates a new DryRunContext with the given base context and options.
+func NewDryRunContext(ctx context.Context, opts ...core.DryRunContextOptions) *core.DryRunContext {
+	return core.NewDryRunContext(ctx, opts...)
+}
+
+// WithFilename returns a ContextOption that sets the filename for the context.
+func WithFilename(filename string) core.ContextOptions {
+	return core.WithFilename(filename)
+}
+
+// WithDialect returns a ContextOption that sets the dialect for the context.
+func WithDialect(dialect string) core.ContextOptions {
+	return core.WithDialect(dialect)
+}
+
+// WithDryRunDialect returns a DryRunContextOption that sets the dialect for the dry run context.
+func WithDryRunDialect(dialect string) core.DryRunContextOptions {
+	return core.WithDryRunDialect(dialect)
+}
+
+// NewBlueprintForTesting creates a new Blueprint instance for testing purposes with the given name and grammar.
+func NewBlueprintForTesting(name string, g blueprint.Grammar) *Blueprint {
+	return blueprint.NewBlueprintForTesting(name, g)
 }

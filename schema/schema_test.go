@@ -7,6 +7,7 @@ import (
 
 	"github.com/akfaiz/migris/internal/config"
 	"github.com/akfaiz/migris/internal/dialect"
+	"github.com/akfaiz/migris/internal/testutil"
 	"github.com/akfaiz/migris/schema"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -29,7 +30,7 @@ func (s *schemaTestSuite) SetupSuite() {
 	ctx := context.Background()
 	s.ctx = ctx
 
-	container, db, err := startPostgresTestDB(s.ctx)
+	container, db, err := testutil.StartPostgresTestDB(s.ctx)
 	s.Require().NoError(err)
 	s.tc = container
 	s.db = db
@@ -342,6 +343,21 @@ func (s *schemaTestSuite) TestHasIndex() {
 
 	c := schema.NewContext(s.ctx, tx)
 
+	s.Run("when context is nil should return error", func() {
+		exists, err := schema.HasIndex(nil, "users", []string{"email"})
+		s.Require().Error(err)
+		s.False(exists)
+	})
+	s.Run("when table name is empty should return error", func() {
+		exists, err := schema.HasIndex(c, "", []string{"email"})
+		s.Require().Error(err)
+		s.False(exists)
+	})
+	s.Run("when columns is empty should return error", func() {
+		exists, err := schema.HasIndex(c, "users", nil)
+		s.Require().Error(err)
+		s.False(exists)
+	})
 	s.Run("when index exists should return true", func() {
 		err := schema.Create(c, "users", func(table *schema.Blueprint) {
 			table.ID()
@@ -538,4 +554,90 @@ func (s *schemaTestSuite) TestChangeStateAware() {
 	s.True(bioCol.Nullable, "bio column should still be nullable after type change")
 	s.True(bioCol.DefaultVal.Valid)
 	s.Contains(bioCol.DefaultVal.String, "Hello")
+}
+
+type mockContext struct {
+	schema.Context
+
+	dialect string
+}
+
+func (m *mockContext) Dialect() string {
+	return m.dialect
+}
+
+func (s *schemaTestSuite) TestConstructors() {
+	s.Run("NewBuilder", func() {
+		b, err := schema.NewBuilder("mysql")
+		s.Require().NoError(err)
+		s.Require().NotNil(b)
+	})
+
+	s.Run("NewGrammar", func() {
+		g, err := schema.NewGrammar("postgres")
+		s.Require().NoError(err)
+		s.Require().NotNil(g)
+	})
+
+	s.Run("NewContext", func() {
+		c := schema.NewContext(context.Background(), nil, schema.WithDialect("sqlite3"), schema.WithFilename("test.go"))
+		s.Require().NotNil(c)
+		s.Require().Equal("sqlite3", c.Dialect())
+	})
+
+	s.Run("NewDryRunContext", func() {
+		c := schema.NewDryRunContext(context.Background(), schema.WithDryRunDialect("mysql"))
+		s.Require().NotNil(c)
+		s.Require().Equal("mysql", c.Dialect())
+	})
+
+	s.Run("NewBlueprintForTesting", func() {
+		g, _ := schema.NewGrammar("sqlite3")
+		bp := schema.NewBlueprintForTesting("test", g)
+		s.Require().NotNil(bp)
+		s.Require().Equal("test", bp.Name)
+	})
+
+	s.Run("newBuilder error", func() {
+		originalDialect := config.GetDialect()
+		config.SetDialect(dialect.Unknown)
+		defer config.SetDialect(originalDialect)
+
+		mc := &mockContext{dialect: "unknown_dialect"}
+
+		err := schema.Create(mc, "users", func(_ *schema.Blueprint) {})
+		s.Require().Error(err)
+
+		err = schema.Drop(mc, "users")
+		s.Require().Error(err)
+
+		err = schema.DropIfExists(mc, "users")
+		s.Require().Error(err)
+
+		err = schema.Table(mc, "users", func(_ *schema.Blueprint) {})
+		s.Require().Error(err)
+		err = schema.Rename(mc, "users", "new_users")
+		s.Require().Error(err)
+
+		_, err = schema.HasTable(mc, "users")
+		s.Require().Error(err)
+
+		_, err = schema.HasColumn(mc, "users", "id")
+		s.Require().Error(err)
+
+		_, err = schema.HasColumns(mc, "users", []string{"id"})
+		s.Require().Error(err)
+
+		_, err = schema.HasIndex(mc, "users", []string{"id"})
+		s.Require().Error(err)
+
+		_, err = schema.GetColumns(mc, "users")
+		s.Require().Error(err)
+
+		_, err = schema.GetIndexes(mc, "users")
+		s.Require().Error(err)
+
+		_, err = schema.GetTables(mc)
+		s.Require().Error(err)
+	})
 }
