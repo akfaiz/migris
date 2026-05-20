@@ -1,9 +1,9 @@
-module github.com/akfaiz/migris/examples/migriscli
+module github.com/akfaiz/migris/extra/migriscli/example
 
 go 1.25.7
 
 require (
-	github.com/akfaiz/migris v0.4.0
+	github.com/akfaiz/migris v0.4.1
 	github.com/akfaiz/migris/extra/migriscli v0.0.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/joho/godotenv v1.5.1
@@ -27,6 +27,6 @@ require (
 	golang.org/x/text v0.36.0 // indirect
 )
 
-replace github.com/akfaiz/migris => ../..
+replace github.com/akfaiz/migris => ../../..
 
-replace github.com/akfaiz/migris/extra/migriscli => ../../extra/migriscli
+replace github.com/akfaiz/migris/extra/migriscli => ../

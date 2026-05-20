@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	_ "github.com/akfaiz/migris/examples/migriscli/migrations" // Import migrations directory
+	_ "github.com/akfaiz/migris/extra/migriscli/example/migrations" // Import migrations directory
 	"github.com/akfaiz/migris/extra/migriscli"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"

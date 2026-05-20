@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	_ "github.com/akfaiz/migris/examples/migriscobra/migrations" // Import migrations directory
+	_ "github.com/akfaiz/migris/extra/migriscobra/example/migrations" // Import migrations directory
 	"github.com/akfaiz/migris/extra/migriscobra"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
