@@ -3,6 +3,7 @@ package logger
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -160,7 +161,11 @@ func (l *Logger) PrintStatus(status *goose.MigrationStatus) {
 // DryRun specific logger functions
 
 func (l *Logger) DryRunStart(version int64) {
-	l.Printf("%s Starting DRY RUN migration (UP) to version %d\n", whiteBgBlue(" DRY RUN "), version)
+	if version == math.MaxInt64 {
+		l.Printf("%s Starting DRY RUN migration (UP) - applying all pending\n", whiteBgBlue(" DRY RUN "))
+	} else {
+		l.Printf("%s Starting DRY RUN migration (UP) to version %d\n", whiteBgBlue(" DRY RUN "), version)
+	}
 	l.Printf("%s Mode: DRY RUN - No actual database changes will be made\n\n", grey("📍"))
 }
 
@@ -194,9 +199,12 @@ func (l *Logger) DryRunSummary(totalMigrations, totalStatements int) {
 // DryRun DOWN specific logger functions
 
 func (l *Logger) DryRunDownStart(version int64) {
-	if version == 0 {
+	switch version {
+	case 0:
 		l.Printf("%s Starting DRY RUN migration (RESET) - Rolling back all migrations\n", whiteBgRed(" DRY RUN "))
-	} else {
+	case -1:
+		l.Printf("%s Starting DRY RUN migration (DOWN) - Rolling back 1 migration\n", whiteBgRed(" DRY RUN "))
+	default:
 		l.Printf("%s Starting DRY RUN migration (DOWN) to version %d\n", whiteBgRed(" DRY RUN "), version)
 	}
 	l.Printf("%s Mode: DRY RUN - No actual database changes will be made\n\n", grey("🔍"))

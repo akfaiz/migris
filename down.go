@@ -3,7 +3,6 @@ package migris
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/pressly/goose/v3"
 )
@@ -87,17 +86,9 @@ func (m *Migrate) DownToContext(ctx context.Context, version int64, opts ...Opti
 	return nil
 }
 
-// executeDryRunDown executes migrations in dry-run mode for down operations.
-func (m *Migrate) executeDryRunDown(ctx context.Context, version int64, ro runOptions) error {
-	provider, err := m.newProvider(ro)
-	if err != nil {
-		return fmt.Errorf("cannot connect to database for dry-run: %w", err)
-	}
-
-	currentVersion, err := provider.GetDBVersion(ctx)
-	if err != nil {
-		return fmt.Errorf("cannot get current database version: %w", err)
-	}
+// executeDryRunDown executes migrations in dry-run mode for down operations without touching the DB schema.
+func (m *Migrate) executeDryRunDown(ctx context.Context, version int64, _ runOptions) error {
+	currentVersion := m.queryCurrentVersion(ctx)
 
 	if currentVersion == 0 {
 		m.logger.Info("Nothing to rollback.")
@@ -121,7 +112,6 @@ func (m *Migrate) executeDryRunDown(ctx context.Context, version int64, ro runOp
 		operation = "RESET"
 	}
 	m.logger.DryRunDownSummary(totalMigrations, totalStatements, operation)
-
 	return nil
 }
 
