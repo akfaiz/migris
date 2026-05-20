@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/akfaiz/migris/internal/config"
 	"github.com/akfaiz/migris/internal/dialect"
 	"github.com/akfaiz/migris/schema/blueprint"
 	"github.com/akfaiz/migris/schema/builders"
@@ -34,9 +33,6 @@ func newBuilder(c Context) (Builder, error) {
 	dialectVal := dialect.Unknown
 	if c != nil {
 		dialectVal = dialect.FromString(c.Dialect())
-	}
-	if dialectVal == dialect.Unknown {
-		dialectVal = config.GetDialect()
 	}
 	if dialectVal == dialect.Unknown {
 		return nil, errors.New("schema dialect is not set")

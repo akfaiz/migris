@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 
-	"github.com/akfaiz/migris/internal/config"
 	"github.com/akfaiz/migris/internal/dialect"
 	"github.com/akfaiz/migris/internal/logger"
 	"github.com/pressly/goose/v3"
@@ -28,7 +27,6 @@ func New(dialectValue string, opts ...MigrisOption) (*Migrate, error) {
 	if dialectVal == dialect.Unknown {
 		return nil, errors.New("unknown database dialect")
 	}
-	config.SetDialect(dialectVal)
 
 	m := &Migrate{
 		dialect:      dialectVal,

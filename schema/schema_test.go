@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/akfaiz/migris/internal/config"
-	"github.com/akfaiz/migris/internal/dialect"
 	"github.com/akfaiz/migris/internal/testutil"
 	"github.com/akfaiz/migris/schema"
 	"github.com/stretchr/testify/suite"
@@ -26,7 +24,6 @@ type schemaTestSuite struct {
 }
 
 func (s *schemaTestSuite) SetupSuite() {
-	config.SetDialect(dialect.Postgres)
 	ctx := context.Background()
 	s.ctx = ctx
 
@@ -48,7 +45,7 @@ func (s *schemaTestSuite) TestCreate() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	c := schema.NewContext(s.ctx, tx)
+	c := schema.NewContext(s.ctx, tx, schema.WithDialect("postgres"))
 
 	s.Run("when parameters are valid should create table", func() {
 		err := schema.Create(c, "users", func(table *schema.Blueprint) {
@@ -87,7 +84,7 @@ func (s *schemaTestSuite) TestDrop() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	c := schema.NewContext(s.ctx, tx)
+	c := schema.NewContext(s.ctx, tx, schema.WithDialect("postgres"))
 
 	s.Run("when parameters are valid should drop table", func() {
 		err := schema.Create(c, "users", func(table *schema.Blueprint) {
@@ -123,7 +120,7 @@ func (s *schemaTestSuite) TestDropIfExists() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	c := schema.NewContext(s.ctx, tx)
+	c := schema.NewContext(s.ctx, tx, schema.WithDialect("postgres"))
 
 	s.Run("when parameters are valid should drop table", func() {
 		err := schema.Create(c, "users", func(table *schema.Blueprint) {
@@ -159,7 +156,7 @@ func (s *schemaTestSuite) TestGetColumns() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	c := schema.NewContext(s.ctx, tx)
+	c := schema.NewContext(s.ctx, tx, schema.WithDialect("postgres"))
 
 	s.Run("when parameters are valid should return columns", func() {
 		err := schema.Create(c, "users", func(table *schema.Blueprint) {
@@ -198,7 +195,7 @@ func (s *schemaTestSuite) TestGetIndexes() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	c := schema.NewContext(s.ctx, tx)
+	c := schema.NewContext(s.ctx, tx, schema.WithDialect("postgres"))
 
 	s.Run("when parameters are valid should return indexes", func() {
 		err := schema.Create(c, "users", func(table *schema.Blueprint) {
@@ -237,7 +234,7 @@ func (s *schemaTestSuite) TestGetTables() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	c := schema.NewContext(s.ctx, tx)
+	c := schema.NewContext(s.ctx, tx, schema.WithDialect("postgres"))
 
 	s.Run("when no tables exist should return empty", func() {
 		tables, err := schema.GetTables(c)
@@ -271,7 +268,7 @@ func (s *schemaTestSuite) TestHasColumn() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	c := schema.NewContext(s.ctx, tx)
+	c := schema.NewContext(s.ctx, tx, schema.WithDialect("postgres"))
 
 	s.Run("when column exists should return true", func() {
 		err := schema.Create(c, "users", func(table *schema.Blueprint) {
@@ -307,7 +304,7 @@ func (s *schemaTestSuite) TestHasColumns() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	c := schema.NewContext(s.ctx, tx)
+	c := schema.NewContext(s.ctx, tx, schema.WithDialect("postgres"))
 
 	s.Run("when all columns exist should return true", func() {
 		err := schema.Create(c, "users", func(table *schema.Blueprint) {
@@ -341,7 +338,7 @@ func (s *schemaTestSuite) TestHasIndex() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	c := schema.NewContext(s.ctx, tx)
+	c := schema.NewContext(s.ctx, tx, schema.WithDialect("postgres"))
 
 	s.Run("when context is nil should return error", func() {
 		exists, err := schema.HasIndex(nil, "users", []string{"email"})
@@ -396,7 +393,7 @@ func (s *schemaTestSuite) TestHasTable() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	c := schema.NewContext(s.ctx, tx)
+	c := schema.NewContext(s.ctx, tx, schema.WithDialect("postgres"))
 
 	s.Run("when table exists should return true", func() {
 		err := schema.Create(c, "users", func(table *schema.Blueprint) {
@@ -435,7 +432,7 @@ func (s *schemaTestSuite) TestRename() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	c := schema.NewContext(s.ctx, tx)
+	c := schema.NewContext(s.ctx, tx, schema.WithDialect("postgres"))
 
 	s.Run("when parameters are valid should rename table", func() {
 		err := schema.Create(c, "users", func(table *schema.Blueprint) {
@@ -478,7 +475,7 @@ func (s *schemaTestSuite) TestTable() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	c := schema.NewContext(s.ctx, tx)
+	c := schema.NewContext(s.ctx, tx, schema.WithDialect("postgres"))
 
 	s.Run("when parameters are valid should alter table", func() {
 		err := schema.Create(c, "users", func(table *schema.Blueprint) {
@@ -521,7 +518,7 @@ func (s *schemaTestSuite) TestChangeStateAware() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	c := schema.NewContext(s.ctx, tx)
+	c := schema.NewContext(s.ctx, tx, schema.WithDialect("postgres"))
 
 	// Create a table with a nullable column and a default value
 	err = schema.Create(c, "test_change", func(table *schema.Blueprint) {
@@ -599,10 +596,6 @@ func (s *schemaTestSuite) TestConstructors() {
 	})
 
 	s.Run("newBuilder error", func() {
-		originalDialect := config.GetDialect()
-		config.SetDialect(dialect.Unknown)
-		defer config.SetDialect(originalDialect)
-
 		mc := &mockContext{dialect: "unknown_dialect"}
 
 		err := schema.Create(mc, "users", func(_ *schema.Blueprint) {})
