@@ -18,13 +18,12 @@ type Migrate struct {
 	db           *sql.DB
 	migrationDir string
 	tableName    string
-	dryRun       bool
 	logger       *logger.Logger
 	registry     *Registry
 }
 
 // New creates a new Migrate instance.
-func New(dialectValue string, opts ...Option) (*Migrate, error) {
+func New(dialectValue string, opts ...MigrisOption) (*Migrate, error) {
 	dialectVal := dialect.FromString(dialectValue)
 	if dialectVal == dialect.Unknown {
 		return nil, errors.New("unknown database dialect")
@@ -47,7 +46,7 @@ func New(dialectValue string, opts ...Option) (*Migrate, error) {
 	return m, nil
 }
 
-func (m *Migrate) newProvider() (*goose.Provider, error) {
+func (m *Migrate) newProvider(ro runOptions) (*goose.Provider, error) {
 	gooseDialect := m.dialect.GooseDialect()
 	store, err := database.NewStore(gooseDialect, m.tableName)
 	if err != nil {
@@ -57,6 +56,7 @@ func (m *Migrate) newProvider() (*goose.Provider, error) {
 		goose.WithStore(store),
 		goose.WithDisableGlobalRegistry(true),
 		goose.WithGoMigrations(m.registry.gooseMigrations(m.dialect)...),
+		goose.WithAllowOutofOrder(ro.allowMissing),
 	)
 	if err != nil {
 		return nil, err

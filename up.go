@@ -12,29 +12,30 @@ import (
 )
 
 // Up applies the migrations in the specified directory.
-func (m *Migrate) Up() error {
+func (m *Migrate) Up(opts ...Option) error {
 	ctx := context.Background()
-	return m.UpContext(ctx)
+	return m.UpContext(ctx, opts...)
 }
 
 // UpContext applies the migrations in the specified directory.
-func (m *Migrate) UpContext(ctx context.Context) error {
-	return m.UpToContext(ctx, goose.MaxVersion)
+func (m *Migrate) UpContext(ctx context.Context, opts ...Option) error {
+	return m.UpToContext(ctx, goose.MaxVersion, opts...)
 }
 
 // UpTo applies the migrations up to the specified version.
-func (m *Migrate) UpTo(version int64) error {
+func (m *Migrate) UpTo(version int64, opts ...Option) error {
 	ctx := context.Background()
-	return m.UpToContext(ctx, version)
+	return m.UpToContext(ctx, version, opts...)
 }
 
 // UpToContext applies the migrations up to the specified version.
-func (m *Migrate) UpToContext(ctx context.Context, version int64) error {
-	if m.dryRun {
-		return m.executeDryRunUp(ctx, version)
+func (m *Migrate) UpToContext(ctx context.Context, version int64, opts ...Option) error {
+	ro := applyRunOptions(opts)
+	if ro.dryRun {
+		return m.executeDryRunUp(ctx, version, ro)
 	}
 
-	provider, err := m.newProvider()
+	provider, err := m.newProvider(ro)
 	if err != nil {
 		return err
 	}
@@ -64,14 +65,12 @@ func (m *Migrate) UpToContext(ctx context.Context, version int64) error {
 }
 
 // executeDryRunUp executes migrations in dry-run mode.
-func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
-	// Create provider to check migration status
-	provider, err := m.newProvider()
+func (m *Migrate) executeDryRunUp(ctx context.Context, version int64, ro runOptions) error {
+	provider, err := m.newProvider(ro)
 	if err != nil {
 		return fmt.Errorf("cannot connect to database for dry-run: %w", err)
 	}
 
-	// Check if there are pending migrations
 	hasPending, err := provider.HasPending(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot check pending migrations: %w", err)
@@ -82,22 +81,18 @@ func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
 	}
 
 	m.logger.DryRunStart(version)
-	// Get current database version
 	currentVersion, err := provider.GetDBVersion(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot get current database version: %w", err)
 	}
 
-	// Get migrations to apply
 	migrationsToApply := m.determineMigrationsToApply(version, currentVersion)
 
-	// Process migrations in dry-run mode
 	totalMigrations, totalStatements, _, err := m.processDryRunUpMigrations(ctx, migrationsToApply)
 	if err != nil {
 		return err
 	}
 
-	// Print summary
 	m.logger.DryRunSummary(totalMigrations, totalStatements)
 
 	return nil
@@ -107,9 +102,7 @@ func (m *Migrate) executeDryRunUp(ctx context.Context, version int64) error {
 func (m *Migrate) determineMigrationsToApply(version, currentVersion int64) []*Migration {
 	var migrationsToApply []*Migration
 
-	// Get all registered migrations that need to be applied (only pending ones)
 	for _, migration := range m.registry.migrationsSnapshot() {
-		// Skip migrations that are already applied
 		if migration.version <= currentVersion {
 			continue
 		}
@@ -140,10 +133,8 @@ func (m *Migrate) processDryRunMigrations(
 
 		m.logger.DryRunMigrationStart(filepath.Base(migration.source), migration.version)
 
-		// Create dry-run context for this migration
 		dryRunCtx := schema.NewDryRunContext(ctx, schema.WithDryRunDialect(m.dialect.String()))
 
-		// Execute the migration in dry-run mode
 		var migrationFunc MigrationContext
 		var direction string
 		if isUp {
@@ -163,7 +154,6 @@ func (m *Migrate) processDryRunMigrations(
 			capturedSQL := dryRunCtx.GetCapturedSQL()
 			totalStatements += len(capturedSQL)
 
-			// Print captured SQL
 			if dryRunCtx.HasPendingQuery() {
 				queries := dryRunCtx.GetPendingQueries()
 				for _, q := range queries {

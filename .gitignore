@@ -32,3 +32,4 @@ go.work.sum
 .idea/
 .vscode/
 .serena/
+.claude/

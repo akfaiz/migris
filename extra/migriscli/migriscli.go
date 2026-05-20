@@ -13,6 +13,7 @@ type Config struct {
 	DB            *sql.DB // Database connection
 	Dialect       string  // Database dialect (e.g., "pgx", "mysql", etc.)
 	MigrationsDir string  // Directory where migration files are stored
+	AllowMissing  bool    // Allow out-of-order migrations
 }
 
 // NewCLI creates a new CLI interface for migris with subcommands.
@@ -60,11 +61,11 @@ func newUpCommand(cfg Config) *cli.Command {
 		Usage: "Apply all up migrations",
 		Flags: []cli.Flag{dryRunFlag()},
 		Action: func(ctx context.Context, c *cli.Command) error {
-			migrator, err := createMigrator(c, cfg.DB, cfg)
+			migrator, err := createMigrator(cfg)
 			if err != nil {
 				return err
 			}
-			return migrator.UpContext(ctx)
+			return migrator.UpContext(ctx, runOpts(c, cfg)...)
 		},
 	}
 }
@@ -75,11 +76,11 @@ func newUpToCommand(cfg Config) *cli.Command {
 		Usage: "Apply migrations up to a specific version",
 		Flags: []cli.Flag{dryRunFlag(), versionFlag("Target version to migrate up to")},
 		Action: func(ctx context.Context, c *cli.Command) error {
-			migrator, err := createMigrator(c, cfg.DB, cfg)
+			migrator, err := createMigrator(cfg)
 			if err != nil {
 				return err
 			}
-			return migrator.UpToContext(ctx, c.Int64("version"))
+			return migrator.UpToContext(ctx, c.Int64("version"), runOpts(c, cfg)...)
 		},
 	}
 }
@@ -90,11 +91,11 @@ func newDownCommand(cfg Config) *cli.Command {
 		Usage: "Rollback the last migration",
 		Flags: []cli.Flag{dryRunFlag()},
 		Action: func(ctx context.Context, c *cli.Command) error {
-			migrator, err := createMigrator(c, cfg.DB, cfg)
+			migrator, err := createMigrator(cfg)
 			if err != nil {
 				return err
 			}
-			return migrator.DownContext(ctx)
+			return migrator.DownContext(ctx, runOpts(c, cfg)...)
 		},
 	}
 }
@@ -105,11 +106,11 @@ func newDownToCommand(cfg Config) *cli.Command {
 		Usage: "Rollback migrations down to a specific version",
 		Flags: []cli.Flag{dryRunFlag(), versionFlag("Target version to migrate down to")},
 		Action: func(ctx context.Context, c *cli.Command) error {
-			migrator, err := createMigrator(c, cfg.DB, cfg)
+			migrator, err := createMigrator(cfg)
 			if err != nil {
 				return err
 			}
-			return migrator.DownToContext(ctx, c.Int64("version"))
+			return migrator.DownToContext(ctx, c.Int64("version"), runOpts(c, cfg)...)
 		},
 	}
 }
@@ -120,11 +121,11 @@ func newResetCommand(cfg Config) *cli.Command {
 		Usage: "Rollback all migrations",
 		Flags: []cli.Flag{dryRunFlag()},
 		Action: func(ctx context.Context, c *cli.Command) error {
-			migrator, err := createMigrator(c, cfg.DB, cfg)
+			migrator, err := createMigrator(cfg)
 			if err != nil {
 				return err
 			}
-			return migrator.ResetContext(ctx)
+			return migrator.ResetContext(ctx, runOpts(c, cfg)...)
 		},
 	}
 }
@@ -133,8 +134,8 @@ func newStatusCommand(cfg Config) *cli.Command {
 	return &cli.Command{
 		Name:  "status",
 		Usage: "Show the status of migrations",
-		Action: func(ctx context.Context, c *cli.Command) error {
-			migrator, err := createMigrator(c, cfg.DB, cfg)
+		Action: func(ctx context.Context, _ *cli.Command) error {
+			migrator, err := createMigrator(cfg)
 			if err != nil {
 				return err
 			}
@@ -159,20 +160,20 @@ func versionFlag(usage string) *cli.Int64Flag {
 	}
 }
 
-func createMigrator(c *cli.Command, db *sql.DB, cfg Config) (*migris.Migrate, error) {
-	options := []migris.Option{
-		migris.WithDB(db),
+func createMigrator(cfg Config) (*migris.Migrate, error) {
+	return migris.New(cfg.Dialect,
+		migris.WithDB(cfg.DB),
 		migris.WithMigrationDir(cfg.MigrationsDir),
-	}
+	)
+}
 
+func runOpts(c *cli.Command, cfg Config) []migris.Option {
+	var opts []migris.Option
 	if c.Bool("dry-run") {
-		options = append(options, migris.WithDryRun(true))
+		opts = append(opts, migris.WithDryRun(true))
 	}
-
-	migrator, err := migris.New(cfg.Dialect, options...)
-	if err != nil {
-		return nil, err
+	if cfg.AllowMissing {
+		opts = append(opts, migris.WithAllowMissing(true))
 	}
-
-	return migrator, nil
+	return opts
 }

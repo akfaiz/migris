@@ -21,7 +21,6 @@ func TestNew_ValidOptions(t *testing.T) {
 		migris.WithDB(db),
 		migris.WithMigrationDir("migrations_test_dir"),
 		migris.WithTableName("test_schema_migrations"),
-		migris.WithDryRun(true),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, m)

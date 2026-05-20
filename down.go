@@ -9,19 +9,19 @@ import (
 )
 
 // Down rolls back the last migration.
-func (m *Migrate) Down() error {
+func (m *Migrate) Down(opts ...Option) error {
 	ctx := context.Background()
-	return m.DownContext(ctx)
+	return m.DownContext(ctx, opts...)
 }
 
 // DownContext rolls back the last migration.
-func (m *Migrate) DownContext(ctx context.Context) error {
-	// Check if dry-run mode is enabled
-	if m.dryRun {
-		return m.executeDryRunDown(ctx, -1) // -1 means rollback last migration
+func (m *Migrate) DownContext(ctx context.Context, opts ...Option) error {
+	ro := applyRunOptions(opts)
+	if ro.dryRun {
+		return m.executeDryRunDown(ctx, -1, ro)
 	}
 
-	provider, err := m.newProvider()
+	provider, err := m.newProvider(ro)
 	if err != nil {
 		return err
 	}
@@ -49,19 +49,19 @@ func (m *Migrate) DownContext(ctx context.Context) error {
 }
 
 // DownTo rolls back the migrations to the specified version.
-func (m *Migrate) DownTo(version int64) error {
+func (m *Migrate) DownTo(version int64, opts ...Option) error {
 	ctx := context.Background()
-	return m.DownToContext(ctx, version)
+	return m.DownToContext(ctx, version, opts...)
 }
 
 // DownToContext rolls back the migrations to the specified version.
-func (m *Migrate) DownToContext(ctx context.Context, version int64) error {
-	// Check if dry-run mode is enabled
-	if m.dryRun {
-		return m.executeDryRunDown(ctx, version)
+func (m *Migrate) DownToContext(ctx context.Context, version int64, opts ...Option) error {
+	ro := applyRunOptions(opts)
+	if ro.dryRun {
+		return m.executeDryRunDown(ctx, version, ro)
 	}
 
-	provider, err := m.newProvider()
+	provider, err := m.newProvider(ro)
 	if err != nil {
 		return err
 	}
@@ -88,14 +88,12 @@ func (m *Migrate) DownToContext(ctx context.Context, version int64) error {
 }
 
 // executeDryRunDown executes migrations in dry-run mode for down operations.
-func (m *Migrate) executeDryRunDown(ctx context.Context, version int64) error {
-	// Create provider to check migration status
-	provider, err := m.newProvider()
+func (m *Migrate) executeDryRunDown(ctx context.Context, version int64, ro runOptions) error {
+	provider, err := m.newProvider(ro)
 	if err != nil {
 		return fmt.Errorf("cannot connect to database for dry-run: %w", err)
 	}
 
-	// Get current database version
 	currentVersion, err := provider.GetDBVersion(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot get current database version: %w", err)
@@ -107,20 +105,17 @@ func (m *Migrate) executeDryRunDown(ctx context.Context, version int64) error {
 	}
 
 	m.logger.DryRunDownStart(version)
-	// Determine which migrations to rollback
 	migrationsToRollback := m.determineMigrationsToRollback(version, currentVersion)
 	if len(migrationsToRollback) == 0 {
 		m.logger.Info("Nothing to rollback.")
 		return nil
 	}
 
-	// Process migrations in dry-run mode
 	totalMigrations, totalStatements, _, err := m.processDryRunDownMigrations(ctx, migrationsToRollback)
 	if err != nil {
 		return err
 	}
 
-	// Print summary
 	operation := "DOWN"
 	if version == 0 {
 		operation = "RESET"
@@ -135,17 +130,15 @@ func (m *Migrate) determineMigrationsToRollback(version, currentVersion int64) [
 	var migrationsToRollback []*Migration
 
 	if version == -1 {
-		// Rollback last applied migration only
 		registeredMigrations := m.registry.migrationsSnapshot()
 		for i := len(registeredMigrations) - 1; i >= 0; i-- {
 			migration := registeredMigrations[i]
 			if migration.version <= currentVersion {
 				migrationsToRollback = append(migrationsToRollback, migration)
-				break // Only the last one
+				break
 			}
 		}
 	} else {
-		// Rollback migrations down to specified version (only applied ones)
 		registeredMigrations := m.registry.migrationsSnapshot()
 		for i := len(registeredMigrations) - 1; i >= 0; i-- {
 			migration := registeredMigrations[i]

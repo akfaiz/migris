@@ -65,14 +65,14 @@ func TestReset_DryRun(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run Reset in dry-run mode and capture output
-	mDry, err := migris.New("sqlite3", migris.WithDB(db), migris.WithDryRun(true))
+	mDry, err := migris.New("sqlite3", migris.WithDB(db))
 	require.NoError(t, err)
 
 	var buf bytes.Buffer
 	lg := logger.Get()
 	lg.SetOutput(&buf)
 
-	err = mDry.Reset()
+	err = mDry.Reset(migris.WithDryRun(true))
 	require.NoError(t, err)
 
 	out := buf.String()

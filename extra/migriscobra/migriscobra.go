@@ -13,6 +13,7 @@ type Config struct {
 	DB            *sql.DB // Database connection
 	Dialect       string  // Database dialect (e.g., "pgx", "mysql", etc.)
 	MigrationsDir string  // Directory where migration files are stored
+	AllowMissing  bool    // Allow out-of-order migrations
 }
 
 // NewCLI creates a new CLI interface for migris with subcommands using Cobra.
@@ -59,11 +60,11 @@ func createUpCommand(cfg Config) *cobra.Command {
 		Use:   "up",
 		Short: "Apply all up migrations",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			migrator, err := createMigrator(cmd, cfg)
+			migrator, err := createMigrator(cfg)
 			if err != nil {
 				return err
 			}
-			return migrator.UpContext(context.Background())
+			return migrator.UpContext(context.Background(), runOpts(cmd, cfg)...)
 		},
 	}
 	cmd.Flags().Bool("dry-run", false, "Simulate the migration without applying changes")
@@ -76,11 +77,11 @@ func createUpToCommand(cfg Config) *cobra.Command {
 		Short: "Apply migrations up to a specific version",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			version, _ := cmd.Flags().GetInt64("version")
-			migrator, err := createMigrator(cmd, cfg)
+			migrator, err := createMigrator(cfg)
 			if err != nil {
 				return err
 			}
-			return migrator.UpToContext(context.Background(), version)
+			return migrator.UpToContext(context.Background(), version, runOpts(cmd, cfg)...)
 		},
 	}
 	cmd.Flags().Bool("dry-run", false, "Simulate the migration without applying changes")
@@ -94,11 +95,11 @@ func createDownCommand(cfg Config) *cobra.Command {
 		Use:   "down",
 		Short: "Rollback the last migration",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			migrator, err := createMigrator(cmd, cfg)
+			migrator, err := createMigrator(cfg)
 			if err != nil {
 				return err
 			}
-			return migrator.DownContext(context.Background())
+			return migrator.DownContext(context.Background(), runOpts(cmd, cfg)...)
 		},
 	}
 	cmd.Flags().Bool("dry-run", false, "Simulate the migration without applying changes")
@@ -111,11 +112,11 @@ func createDownToCommand(cfg Config) *cobra.Command {
 		Short: "Rollback migrations down to a specific version",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			version, _ := cmd.Flags().GetInt64("version")
-			migrator, err := createMigrator(cmd, cfg)
+			migrator, err := createMigrator(cfg)
 			if err != nil {
 				return err
 			}
-			return migrator.DownToContext(context.Background(), version)
+			return migrator.DownToContext(context.Background(), version, runOpts(cmd, cfg)...)
 		},
 	}
 	cmd.Flags().Bool("dry-run", false, "Simulate the migration without applying changes")
@@ -129,11 +130,11 @@ func createResetCommand(cfg Config) *cobra.Command {
 		Use:   "reset",
 		Short: "Rollback all migrations",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			migrator, err := createMigrator(cmd, cfg)
+			migrator, err := createMigrator(cfg)
 			if err != nil {
 				return err
 			}
-			return migrator.ResetContext(context.Background())
+			return migrator.ResetContext(context.Background(), runOpts(cmd, cfg)...)
 		},
 	}
 	cmd.Flags().Bool("dry-run", false, "Simulate the migration without applying changes")
@@ -144,8 +145,8 @@ func createStatusCommand(cfg Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show the status of migrations",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			migrator, err := createMigrator(cmd, cfg)
+		RunE: func(_ *cobra.Command, _ []string) error {
+			migrator, err := createMigrator(cfg)
 			if err != nil {
 				return err
 			}
@@ -155,22 +156,22 @@ func createStatusCommand(cfg Config) *cobra.Command {
 	return cmd
 }
 
-func createMigrator(cmd *cobra.Command, cfg Config) (*migris.Migrate, error) {
-	options := []migris.Option{
+func createMigrator(cfg Config) (*migris.Migrate, error) {
+	return migris.New(cfg.Dialect,
 		migris.WithDB(cfg.DB),
 		migris.WithMigrationDir(cfg.MigrationsDir),
-	}
+	)
+}
 
+func runOpts(cmd *cobra.Command, cfg Config) []migris.Option {
+	var opts []migris.Option
 	if dryRun, _ := cmd.Flags().GetBool("dry-run"); dryRun {
-		options = append(options, migris.WithDryRun(true))
+		opts = append(opts, migris.WithDryRun(true))
 	}
-
-	migrator, err := migris.New(cfg.Dialect, options...)
-	if err != nil {
-		return nil, err
+	if cfg.AllowMissing {
+		opts = append(opts, migris.WithAllowMissing(true))
 	}
-
-	return migrator, nil
+	return opts
 }
 
 func mustMarkFlagRequired(cmd *cobra.Command, name string) {

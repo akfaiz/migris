@@ -27,22 +27,14 @@ func loadDatabaseURL() string {
 	return databaseURL
 }
 
-// createMigrator creates a migrator instance with dry-run configuration
-func createMigrator(db *sql.DB, dryRun bool) *migris.Migrate {
-	options := []migris.Option{
+func createMigrator(db *sql.DB) *migris.Migrate {
+	migrator, err := migris.New("pgx",
 		migris.WithDB(db),
 		migris.WithMigrationDir(migrationDir),
-	}
-
-	if dryRun {
-		options = append(options, migris.WithDryRun(true))
-	}
-
-	migrator, err := migris.New("pgx", options...)
+	)
 	if err != nil {
 		log.Fatalf("Failed to create migrator: %v", err)
 	}
-
 	return migrator
 }
 
@@ -54,7 +46,6 @@ func main() {
 	}
 	defer db.Close()
 
-	// Global flags for dry-run mode
 	var dryRun bool
 
 	cmd := &cli.Command{
@@ -81,40 +72,38 @@ func main() {
 					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
-					migrator := createMigrator(db, dryRun)
-					return migrator.Create(c.String("name"))
+					return createMigrator(db).Create(c.String("name"))
 				},
 			},
 			{
 				Name:  "up",
 				Usage: "Run all pending migrations",
 				Action: func(ctx context.Context, c *cli.Command) error {
-					migrator := createMigrator(db, dryRun)
-					return migrator.UpContext(ctx)
+					opts := dryRunOpt(dryRun)
+					return createMigrator(db).UpContext(ctx, opts...)
 				},
 			},
 			{
 				Name:  "reset",
 				Usage: "Rollback all migrations",
 				Action: func(ctx context.Context, c *cli.Command) error {
-					migrator := createMigrator(db, dryRun)
-					return migrator.ResetContext(ctx)
+					opts := dryRunOpt(dryRun)
+					return createMigrator(db).ResetContext(ctx, opts...)
 				},
 			},
 			{
 				Name:  "down",
 				Usage: "Rollback the last migration",
 				Action: func(ctx context.Context, c *cli.Command) error {
-					migrator := createMigrator(db, dryRun)
-					return migrator.DownContext(ctx)
+					opts := dryRunOpt(dryRun)
+					return createMigrator(db).DownContext(ctx, opts...)
 				},
 			},
 			{
 				Name:  "status",
 				Usage: "Show the status of migrations",
 				Action: func(ctx context.Context, c *cli.Command) error {
-					migrator := createMigrator(db, dryRun)
-					return migrator.StatusContext(ctx)
+					return createMigrator(db).StatusContext(ctx)
 				},
 			},
 		},
@@ -123,4 +112,11 @@ func main() {
 		log.Printf("Error running app: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func dryRunOpt(enabled bool) []migris.Option {
+	if enabled {
+		return []migris.Option{migris.WithDryRun(true)}
+	}
+	return nil
 }

@@ -82,14 +82,14 @@ func TestDown_DryRun(t *testing.T) {
 	require.NoError(t, err)
 
 	// Now run Down in dry-run mode and capture logger output
-	mDry, err := migris.New("sqlite3", migris.WithDB(db), migris.WithDryRun(true))
+	mDry, err := migris.New("sqlite3", migris.WithDB(db))
 	require.NoError(t, err)
 
 	var buf bytes.Buffer
 	lg := logger.Get()
 	lg.SetOutput(&buf)
 
-	err = mDry.Down()
+	err = mDry.Down(migris.WithDryRun(true))
 	require.NoError(t, err)
 
 	out := buf.String()
@@ -159,14 +159,14 @@ func TestDownTo_DryRun(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run DownTo in dry-run mode to rollback to dt1 only
-	mDry, err := migris.New("sqlite3", migris.WithDB(db), migris.WithDryRun(true))
+	mDry, err := migris.New("sqlite3", migris.WithDB(db))
 	require.NoError(t, err)
 
 	var buf bytes.Buffer
 	lg := logger.Get()
 	lg.SetOutput(&buf)
 
-	err = mDry.DownTo(20250101000033)
+	err = mDry.DownTo(20250101000033, migris.WithDryRun(true))
 	require.NoError(t, err)
 
 	out := buf.String()
