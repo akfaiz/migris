@@ -10,7 +10,8 @@ import (
 
 // Config holds the configuration for the migris CLI commands.
 type Config struct {
-	DB            *sql.DB // Database connection
+	DB            *sql.DB // Existing database connection (takes precedence over DSN)
+	DSN           string  // Data source name; used when DB is nil
 	Dialect       string  // Database dialect (e.g., "pgx", "mysql", etc.)
 	MigrationsDir string  // Directory where migration files are stored
 	AllowMissing  bool    // Allow out-of-order migrations
@@ -65,6 +66,7 @@ func newUpCommand(cfg Config) *cli.Command {
 			if err != nil {
 				return err
 			}
+			defer migrator.Close()
 			return migrator.UpContext(ctx, runOpts(c, cfg)...)
 		},
 	}
@@ -80,6 +82,7 @@ func newUpToCommand(cfg Config) *cli.Command {
 			if err != nil {
 				return err
 			}
+			defer migrator.Close()
 			return migrator.UpToContext(ctx, c.Int64("version"), runOpts(c, cfg)...)
 		},
 	}
@@ -95,6 +98,7 @@ func newDownCommand(cfg Config) *cli.Command {
 			if err != nil {
 				return err
 			}
+			defer migrator.Close()
 			return migrator.DownContext(ctx, runOpts(c, cfg)...)
 		},
 	}
@@ -110,6 +114,7 @@ func newDownToCommand(cfg Config) *cli.Command {
 			if err != nil {
 				return err
 			}
+			defer migrator.Close()
 			return migrator.DownToContext(ctx, c.Int64("version"), runOpts(c, cfg)...)
 		},
 	}
@@ -125,6 +130,7 @@ func newResetCommand(cfg Config) *cli.Command {
 			if err != nil {
 				return err
 			}
+			defer migrator.Close()
 			return migrator.ResetContext(ctx, runOpts(c, cfg)...)
 		},
 	}
@@ -139,6 +145,7 @@ func newStatusCommand(cfg Config) *cli.Command {
 			if err != nil {
 				return err
 			}
+			defer migrator.Close()
 			return migrator.StatusContext(ctx)
 		},
 	}
@@ -163,6 +170,7 @@ func versionFlag(usage string) *cli.Int64Flag {
 func createMigrator(cfg Config) (*migris.Migrate, error) {
 	return migris.New(cfg.Dialect,
 		migris.WithDB(cfg.DB),
+		migris.WithDSN(cfg.DSN),
 		migris.WithMigrationDir(cfg.MigrationsDir),
 	)
 }

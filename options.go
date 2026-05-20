@@ -28,6 +28,14 @@ func WithDB(db *sql.DB) MigrisOption {
 	}
 }
 
+// WithDSN opens a database connection from the given DSN string.
+// The migrator takes ownership of the connection; call Close when done.
+func WithDSN(dsn string) MigrisOption {
+	return func(m *Migrate) {
+		m.dsn = dsn
+	}
+}
+
 // WithRegistry sets the migration registry for the migrator.
 func WithRegistry(registry *Registry) MigrisOption {
 	return func(m *Migrate) {

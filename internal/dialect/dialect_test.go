@@ -41,6 +41,26 @@ func TestGooseDialect(t *testing.T) {
 	}
 }
 
+func TestDriverName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"pgx", "pgx"},
+		{"postgres", "postgres"},
+		{"mysql", "mysql"},
+		{"mariadb", "mysql"},
+		{"sqlite3", "sqlite3"},
+		{"sqlite", "sqlite3"},
+	}
+
+	for _, tt := range tests {
+		d := dialect.FromString(tt.input)
+		result := dialect.DriverName(d, tt.input)
+		assert.Equal(t, tt.expected, result, "input: %s", tt.input)
+	}
+}
+
 func TestFromString(t *testing.T) {
 	tests := []struct {
 		input    string
