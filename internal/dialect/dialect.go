@@ -46,3 +46,20 @@ func FromString(dialect string) Dialect {
 		return Unknown
 	}
 }
+
+// DriverName returns the Go sql driver name to use with sql.Open.
+// originalValue is the raw string passed by the caller; it is preserved for
+// postgres so that "pgx" and "postgres" (lib/pq) remain distinct.
+func DriverName(d Dialect, originalValue string) string {
+	switch d {
+	case MySQL, MariaDB:
+		return "mysql"
+	case SQLite3:
+		return "sqlite3"
+	case Postgres:
+		return originalValue // preserve "pgx" vs "postgres"
+	case Unknown:
+		return originalValue
+	}
+	return originalValue
+}

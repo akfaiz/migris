@@ -47,7 +47,7 @@ func TestUp_DryRun(t *testing.T) {
 	require.NoError(t, err, "failed to open in-memory sqlite3 database")
 	defer db.Close()
 
-	m, err := migris.New("sqlite3", migris.WithDB(db), migris.WithDryRun(true))
+	m, err := migris.New("sqlite3", migris.WithDB(db))
 	require.NoError(t, err, "failed to create migris instance")
 
 	migris.AddNamedMigrationContext("20250101000003_insert_data.go", func(ctx schema.Context) error {
@@ -66,7 +66,7 @@ func TestUp_DryRun(t *testing.T) {
 	lg.SetOutput(&buf)
 
 	// Run Up in dry-run mode
-	err = m.Up()
+	err = m.Up(migris.WithDryRun(true))
 	require.NoError(t, err, "failed to run Up in dry-run mode")
 
 	out := buf.String()
@@ -116,7 +116,7 @@ func TestUpTo_DryRun(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	m, err := migris.New("sqlite3", migris.WithDB(db), migris.WithDryRun(true))
+	m, err := migris.New("sqlite3", migris.WithDB(db))
 	require.NoError(t, err)
 
 	migris.AddNamedMigrationContext("20250101000012_create_a1.go", func(ctx schema.Context) error {
@@ -132,7 +132,7 @@ func TestUpTo_DryRun(t *testing.T) {
 	lg.SetOutput(&buf)
 
 	// Apply up to the first migration only
-	err = m.UpTo(20250101000012)
+	err = m.UpTo(20250101000012, migris.WithDryRun(true))
 	require.NoError(t, err)
 
 	out := buf.String()

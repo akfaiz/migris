@@ -3,21 +3,21 @@ package main
 import (
 	"context"
 	"database/sql"
+	"flag"
+	"fmt"
 	"log"
 	"os"
 
 	"github.com/akfaiz/migris"
-	_ "github.com/akfaiz/migris/examples/basic/migrations" // Import migrations directory
+	_ "github.com/akfaiz/migris/examples/basic/migrations"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
-	"github.com/urfave/cli/v3"
 )
 
 const migrationDir = "migrations"
 
 func loadDatabaseURL() string {
-	err := godotenv.Load()
-	if err != nil {
+	if err := godotenv.Load(); err != nil {
 		log.Fatal("Error loading .env file")
 	}
 	databaseURL := os.Getenv("DATABASE_URL")
@@ -27,26 +27,23 @@ func loadDatabaseURL() string {
 	return databaseURL
 }
 
-// createMigrator creates a migrator instance with dry-run configuration
-func createMigrator(db *sql.DB, dryRun bool) *migris.Migrate {
-	options := []migris.Option{
+func newMigrator(db *sql.DB) *migris.Migrate {
+	m, err := migris.New("pgx",
 		migris.WithDB(db),
 		migris.WithMigrationDir(migrationDir),
-	}
-
-	if dryRun {
-		options = append(options, migris.WithDryRun(true))
-	}
-
-	migrator, err := migris.New("pgx", options...)
+	)
 	if err != nil {
 		log.Fatalf("Failed to create migrator: %v", err)
 	}
-
-	return migrator
+	return m
 }
 
 func main() {
+	if len(os.Args) < 2 {
+		printUsage()
+		os.Exit(1)
+	}
+
 	databaseURL := loadDatabaseURL()
 	db, err := sql.Open("pgx", databaseURL)
 	if err != nil {
@@ -54,73 +51,78 @@ func main() {
 	}
 	defer db.Close()
 
-	// Global flags for dry-run mode
-	var dryRun bool
+	ctx := context.Background()
+	subcmd := os.Args[1]
+	args := os.Args[2:]
 
-	cmd := &cli.Command{
-		Name:  "migrate",
-		Usage: "Migration tool",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:        "dry-run",
-				Aliases:     []string{"d"},
-				Usage:       "Run migrations in dry-run mode (print SQL without executing)",
-				Destination: &dryRun,
-			},
-		},
-		Commands: []*cli.Command{
-			{
-				Name:  "create",
-				Usage: "Create a new migration file",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:     "name",
-						Aliases:  []string{"n"},
-						Usage:    "Name of the migration",
-						Required: true,
-					},
-				},
-				Action: func(ctx context.Context, c *cli.Command) error {
-					migrator := createMigrator(db, dryRun)
-					return migrator.Create(c.String("name"))
-				},
-			},
-			{
-				Name:  "up",
-				Usage: "Run all pending migrations",
-				Action: func(ctx context.Context, c *cli.Command) error {
-					migrator := createMigrator(db, dryRun)
-					return migrator.UpContext(ctx)
-				},
-			},
-			{
-				Name:  "reset",
-				Usage: "Rollback all migrations",
-				Action: func(ctx context.Context, c *cli.Command) error {
-					migrator := createMigrator(db, dryRun)
-					return migrator.ResetContext(ctx)
-				},
-			},
-			{
-				Name:  "down",
-				Usage: "Rollback the last migration",
-				Action: func(ctx context.Context, c *cli.Command) error {
-					migrator := createMigrator(db, dryRun)
-					return migrator.DownContext(ctx)
-				},
-			},
-			{
-				Name:  "status",
-				Usage: "Show the status of migrations",
-				Action: func(ctx context.Context, c *cli.Command) error {
-					migrator := createMigrator(db, dryRun)
-					return migrator.StatusContext(ctx)
-				},
-			},
-		},
-	}
-	if err := cmd.Run(context.Background(), os.Args); err != nil {
-		log.Printf("Error running app: %v\n", err)
+	switch subcmd {
+	case "create":
+		fs := flag.NewFlagSet("create", flag.ExitOnError)
+		name := fs.String("name", "", "Name of the migration (required)")
+		fs.StringVar(name, "n", "", "Name of the migration (required)")
+		_ = fs.Parse(args)
+		if *name == "" {
+			fmt.Fprintln(os.Stderr, "error: --name is required")
+			fs.Usage()
+			os.Exit(1)
+		}
+		if err := newMigrator(db).Create(*name); err != nil {
+			log.Fatalf("create failed: %v", err)
+		}
+
+	case "up":
+		fs := flag.NewFlagSet("up", flag.ExitOnError)
+		dryRun := fs.Bool("dry-run", false, "Simulate without applying changes")
+		fs.BoolVar(dryRun, "d", false, "Simulate without applying changes")
+		_ = fs.Parse(args)
+		if err := newMigrator(db).UpContext(ctx, runOpts(*dryRun)...); err != nil {
+			log.Fatalf("up failed: %v", err)
+		}
+
+	case "down":
+		fs := flag.NewFlagSet("down", flag.ExitOnError)
+		dryRun := fs.Bool("dry-run", false, "Simulate without applying changes")
+		fs.BoolVar(dryRun, "d", false, "Simulate without applying changes")
+		_ = fs.Parse(args)
+		if err := newMigrator(db).DownContext(ctx, runOpts(*dryRun)...); err != nil {
+			log.Fatalf("down failed: %v", err)
+		}
+
+	case "reset":
+		fs := flag.NewFlagSet("reset", flag.ExitOnError)
+		dryRun := fs.Bool("dry-run", false, "Simulate without applying changes")
+		fs.BoolVar(dryRun, "d", false, "Simulate without applying changes")
+		_ = fs.Parse(args)
+		if err := newMigrator(db).ResetContext(ctx, runOpts(*dryRun)...); err != nil {
+			log.Fatalf("reset failed: %v", err)
+		}
+
+	case "status":
+		if err := newMigrator(db).StatusContext(ctx); err != nil {
+			log.Fatalf("status failed: %v", err)
+		}
+
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command: %s\n", subcmd)
+		printUsage()
 		os.Exit(1)
 	}
+}
+
+func runOpts(dryRun bool) []migris.Option {
+	if dryRun {
+		return []migris.Option{migris.WithDryRun(true)}
+	}
+	return nil
+}
+
+func printUsage() {
+	fmt.Println("Usage: migrate <command> [options]")
+	fmt.Println()
+	fmt.Println("Commands:")
+	fmt.Println("  create  -n <name>          Create a new migration file")
+	fmt.Println("  up      [-d|--dry-run]      Apply all pending migrations")
+	fmt.Println("  down    [-d|--dry-run]      Rollback the last migration")
+	fmt.Println("  reset   [-d|--dry-run]      Rollback all migrations")
+	fmt.Println("  status                      Show migration status")
 }

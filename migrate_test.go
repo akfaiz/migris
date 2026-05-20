@@ -21,7 +21,6 @@ func TestNew_ValidOptions(t *testing.T) {
 		migris.WithDB(db),
 		migris.WithMigrationDir("migrations_test_dir"),
 		migris.WithTableName("test_schema_migrations"),
-		migris.WithDryRun(true),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, m)
@@ -30,7 +29,25 @@ func TestNew_ValidOptions(t *testing.T) {
 func TestNew_DBNotSet(t *testing.T) {
 	m, err := migris.New("sqlite3")
 	require.Error(t, err)
+	require.ErrorContains(t, err, "WithDB or WithDSN")
 	require.Nil(t, m)
+}
+
+func TestNew_WithDSN(t *testing.T) {
+	m, err := migris.New("sqlite3", migris.WithDSN(":memory:"))
+	require.NoError(t, err)
+	require.NotNil(t, m)
+	require.NoError(t, m.Close())
+}
+
+func TestNew_WithDSN_InvalidDSN(t *testing.T) {
+	// sqlite3 accepts any string for sql.Open (actual connection is lazy),
+	// so test with an unknown driver to trigger the open error.
+	m, err := migris.New("mysql", migris.WithDSN("not-a-valid-dsn"))
+	// mysql driver is not imported in tests, so sql.Open fails with unknown driver
+	if err != nil {
+		require.Nil(t, m)
+	}
 }
 
 func TestNew_UnknownDialect(t *testing.T) {

@@ -57,7 +57,10 @@ func (m MigrationContext) runTxFunc(
 
 // AddMigrationContext adds Go migrations to the default registry.
 func AddMigrationContext(up, down MigrationContext) {
-	_, filename, _, _ := runtime.Caller(1)
+	_, filename, _, ok := runtime.Caller(1)
+	if !ok {
+		panic("migris: failed to determine migration source file")
+	}
 	AddNamedMigrationContext(filename, up, down)
 }
 
@@ -70,7 +73,10 @@ func AddNamedMigrationContext(source string, up, down MigrationContext) {
 
 // AddMigrationContext adds Go migrations to the registry.
 func (r *Registry) AddMigrationContext(up, down MigrationContext) {
-	_, filename, _, _ := runtime.Caller(1)
+	_, filename, _, ok := runtime.Caller(1)
+	if !ok {
+		panic("migris: failed to determine migration source file")
+	}
 	if err := r.AddNamedMigrationContext(filename, up, down); err != nil {
 		panic(err)
 	}
@@ -78,7 +84,10 @@ func (r *Registry) AddMigrationContext(up, down MigrationContext) {
 
 // AddNamedMigrationContext adds named Go migrations to the registry.
 func (r *Registry) AddNamedMigrationContext(source string, up, down MigrationContext) error {
-	v, _ := goose.NumericComponent(source)
+	v, err := goose.NumericComponent(source)
+	if err != nil {
+		return fmt.Errorf("failed to parse migration version from %q: %w", source, err)
+	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -123,13 +132,19 @@ func (r *Registry) gooseMigrations(dialectVal dialect.Dialect) []*goose.Migratio
 	registeredMigrations := r.migrationsSnapshot()
 	migrations := make([]*goose.Migration, 0, len(registeredMigrations))
 	for _, m := range registeredMigrations {
-		upFunc := &goose.GoFunc{
-			RunTx: m.upFnContext.runTxFunc(m.source, dialectVal),
-			Mode:  goose.TransactionEnabled,
+		var upFunc *goose.GoFunc
+		if m.upFnContext != nil {
+			upFunc = &goose.GoFunc{
+				RunTx: m.upFnContext.runTxFunc(m.source, dialectVal),
+				Mode:  goose.TransactionEnabled,
+			}
 		}
-		downFunc := &goose.GoFunc{
-			RunTx: m.downFnContext.runTxFunc(m.source, dialectVal),
-			Mode:  goose.TransactionEnabled,
+		var downFunc *goose.GoFunc
+		if m.downFnContext != nil {
+			downFunc = &goose.GoFunc{
+				RunTx: m.downFnContext.runTxFunc(m.source, dialectVal),
+				Mode:  goose.TransactionEnabled,
+			}
 		}
 		gm := goose.NewGoMigration(m.version, upFunc, downFunc)
 		migrations = append(migrations, gm)

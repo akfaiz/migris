@@ -8,19 +8,19 @@ import (
 )
 
 // Reset rolls back all migrations.
-func (m *Migrate) Reset() error {
+func (m *Migrate) Reset(opts ...Option) error {
 	ctx := context.Background()
-	return m.ResetContext(ctx)
+	return m.ResetContext(ctx, opts...)
 }
 
 // ResetContext rolls back all migrations.
-func (m *Migrate) ResetContext(ctx context.Context) error {
-	// Check if dry-run mode is enabled
-	if m.dryRun {
-		return m.DownToContext(ctx, 0) // Use DownToContext with version 0 for reset
+func (m *Migrate) ResetContext(ctx context.Context, opts ...Option) error {
+	ro := applyRunOptions(opts)
+	if ro.dryRun {
+		return m.DownToContext(ctx, 0, opts...)
 	}
 
-	provider, err := m.newProvider()
+	provider, err := m.newProvider(ro)
 	if err != nil {
 		return err
 	}

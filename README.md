@@ -58,7 +58,7 @@ func downCreateUsersTable(c schema.Context) error {
 
 ### Running Migrations
 
-For a complete CLI setup example, see [examples/basic](examples/basic/). For quick setup, use the CLI helpers below.
+For a complete stdlib-only example, see [examples/basic](examples/basic/). For quick setup with a CLI framework, use the helpers below.
 
 ### CLI Helpers
 
@@ -90,6 +90,7 @@ func main() {
         DB:            db,
         Dialect:       "pgx",
         MigrationsDir: "./migrations",
+        AllowMissing:  false, // set true to allow out-of-order migrations
     }
 
     cmd := migriscli.NewCLI(cfg)
@@ -124,6 +125,7 @@ func main() {
         DB:            db,
         Dialect:       "pgx",
         MigrationsDir: "./migrations",
+        AllowMissing:  false, // set true to allow out-of-order migrations
     }
 
     cmd := migriscobra.NewCLI(cfg)
@@ -133,7 +135,7 @@ func main() {
 }
 ```
 
-Both CLI helpers support all migration commands: `create`, `up`, `up-to`, `down`, `down-to`, `reset`, `status` with `--dry-run` support.
+Both CLI helpers support all migration commands: `create`, `up`, `up-to`, `down`, `down-to`, `reset`, `status`. The `--dry-run` flag is available per-command. `AllowMissing` in `Config` applies to all run operations.
 
 ## Schema Builder API
 
@@ -163,29 +165,117 @@ schema.Table(c, "posts", func(table *schema.Blueprint) {
 })
 ```
 
-## Migration Operations
+## Options
 
-Migris supports all standard migration operations:
+Migris uses two distinct option types:
+
+### `MigrisOption` — constructor options
+
+Passed to `New()` to configure the migrator instance:
 
 ```go
-migrator.Up()           // Run all pending migrations
-migrator.Down()         // Rollback the last migration
-migrator.Reset()        // Rollback all migrations
-migrator.Status()       // Show migration status
-migrator.Create(name)   // Create a new migration file
+m, err := migris.New("pgx",
+    migris.WithDB(db),
+    migris.WithMigrationDir("./migrations"),
+    migris.WithTableName("schema_migrations"),
+    migris.WithRegistry(registry),
+)
+```
+
+| Option | Description |
+|---|---|
+| `WithDB(db)` | Existing `*sql.DB` connection (caller manages lifecycle) |
+| `WithDSN(dsn)` | Open a new connection from DSN string (migrator manages lifecycle, call `Close()`) |
+| `WithMigrationDir(dir)` | Directory for SQL migration files (default: `"migrations"`) |
+| `WithTableName(name)` | Migrations tracking table name (default: `"schema_migrations"`) |
+| `WithRegistry(r)` | Use an isolated migration registry instead of the global one |
+
+`WithDB` and `WithDSN` are mutually exclusive; `WithDB` takes precedence if both are set.
+
+When using `WithDSN`, the migrator opens the connection internally and owns it. Call `Close()` when done:
+
+```go
+m, err := migris.New("pgx",
+    migris.WithDSN("postgres://user:pass@localhost:5432/mydb"),
+    migris.WithMigrationDir("./migrations"),
+)
+if err != nil {
+    log.Fatal(err)
+}
+defer m.Close()
+
+if err := m.Up(); err != nil {
+    log.Fatal(err)
+}
+```
+
+When using `WithDB`, the caller owns the connection lifecycle:
+
+```go
+db, err := sql.Open("pgx", os.Getenv("DATABASE_URL"))
+if err != nil {
+    log.Fatal(err)
+}
+defer db.Close()
+
+m, err := migris.New("pgx",
+    migris.WithDB(db),
+    migris.WithMigrationDir("./migrations"),
+)
+```
+
+### `Option` — run-time options
+
+Passed per-operation to control execution behaviour:
+
+```go
+// Dry-run: print SQL without applying changes
+migrator.Up(migris.WithDryRun(true))
+migrator.Down(migris.WithDryRun(true))
+migrator.Reset(migris.WithDryRun(true))
+
+// Allow out-of-order migrations
+migrator.Up(migris.WithAllowMissing(true))
+
+// Combine options
+migrator.UpTo(20250101000005, migris.WithDryRun(true), migris.WithAllowMissing(true))
+```
+
+| Option | Description |
+|---|---|
+| `WithDryRun(bool)` | Preview SQL without executing |
+| `WithAllowMissing(bool)` | Apply out-of-order migrations instead of failing |
+
+All operation methods accept run-time options:
+
+```go
+migrator.Up(opts...)
+migrator.UpTo(version, opts...)
+migrator.Down(opts...)
+migrator.DownTo(version, opts...)
+migrator.Reset(opts...)
+
+// Context variants
+migrator.UpContext(ctx, opts...)
+migrator.UpToContext(ctx, version, opts...)
+migrator.DownContext(ctx, opts...)
+migrator.DownToContext(ctx, version, opts...)
+migrator.ResetContext(ctx, opts...)
+
+// No run-time options
+migrator.Status()
+migrator.Create(name)
 ```
 
 ### Dry-Run Mode
 
 Preview migrations without executing them:
 
-```bash
-# Preview pending migrations
-go run main.go --dry-run up
-
-# Preview rollback operations
-go run main.go --dry-run down
-go run main.go --dry-run reset
+```go
+// In code
+if err := migrator.Up(migris.WithDryRun(true)); err != nil {
+    log.Fatal(err)
+}
 ```
 
 Dry-run mode shows:

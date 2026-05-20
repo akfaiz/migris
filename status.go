@@ -12,7 +12,7 @@ func (m *Migrate) Status() error {
 
 // StatusContext returns the status of the migrations.
 func (m *Migrate) StatusContext(ctx context.Context) error {
-	provider, err := m.newProvider()
+	provider, err := m.newProvider(runOptions{})
 	if err != nil {
 		return err
 	}

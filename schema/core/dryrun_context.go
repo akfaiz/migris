@@ -78,8 +78,9 @@ func WithDryRunDialect(dialect string) DryRunContextOptions {
 
 func NewDryRunContext(ctx context.Context, opts ...DryRunContextOptions) *DryRunContext {
 	c := &DryRunContext{
-		ctx:         ctx,
-		capturedSQL: make([]string, 0),
+		ctx:            ctx,
+		capturedSQL:    make([]string, 0),
+		pendingQueries: make([]QueryWithArgs, 0),
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -113,7 +114,9 @@ func (drc *DryRunContext) QueryRow(query string, args ...any) Row {
 }
 
 func (drc *DryRunContext) GetCapturedSQL() []string {
-	return drc.capturedSQL
+	result := make([]string, len(drc.capturedSQL))
+	copy(result, drc.capturedSQL)
+	return result
 }
 
 func (drc *DryRunContext) GetPendingQueries() []QueryWithArgs {
