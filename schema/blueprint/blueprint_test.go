@@ -85,12 +85,11 @@ func TestBlueprint_ColumnAddition(t *testing.T) {
 
 	assert.Equal(t, "created_at", columns[4].Name)
 	assert.Equal(t, blueprint.ColumnTypeTimestamp, columns[4].ColumnType)
-	assert.True(t, columns[4].UseCurrentVal)
+	assert.True(t, *columns[4].NullableVal)
 
 	assert.Equal(t, "updated_at", columns[5].Name)
 	assert.Equal(t, blueprint.ColumnTypeTimestamp, columns[5].ColumnType)
-	assert.True(t, columns[5].UseCurrentVal)
-	assert.True(t, columns[5].UseCurrentOnUpdateVal)
+	assert.True(t, *columns[5].NullableVal)
 }
 
 func TestBlueprint_Indexes(t *testing.T) {
@@ -354,4 +353,363 @@ func TestBlueprint_ToSQL_Errors(t *testing.T) {
 	bp.Commands = append(bp.Commands, &blueprint.Command{Name: "unknown"})
 	_, err := bp.ToSQL()
 	assert.Error(t, err)
+}
+
+func TestBlueprint_Temporary(t *testing.T) {
+	bp := blueprint.NewBlueprintForTesting("logs", &mockGrammar{})
+	assert.False(t, bp.TemporaryVal)
+	bp.Temporary()
+	assert.True(t, bp.TemporaryVal)
+}
+
+func TestBlueprint_InnoDB(t *testing.T) {
+	bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+	bp.InnoDB()
+	assert.Equal(t, "InnoDB", bp.EngineVal)
+}
+
+func TestBlueprint_SoftDeletes(t *testing.T) {
+	t.Run("SoftDeletes adds nullable deleted_at timestamp", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+		bp.SoftDeletes("deleted_at")
+		require.Len(t, bp.Columns, 1)
+		assert.Equal(t, "deleted_at", bp.Columns[0].Name)
+		assert.Equal(t, blueprint.ColumnTypeTimestamp, bp.Columns[0].ColumnType)
+		assert.True(t, *bp.Columns[0].NullableVal)
+	})
+
+	t.Run("SoftDeletes custom name", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+		bp.SoftDeletes("removed_at")
+		assert.Equal(t, "removed_at", bp.Columns[0].Name)
+	})
+
+	t.Run("SoftDeletesTz adds nullable timestamptz", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+		bp.SoftDeletesTz("deleted_at")
+		assert.Equal(t, blueprint.ColumnTypeTimestampTz, bp.Columns[0].ColumnType)
+		assert.True(t, *bp.Columns[0].NullableVal)
+	})
+
+	t.Run("SoftDeletesDatetime adds nullable datetime", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+		bp.SoftDeletesDatetime("deleted_at")
+		assert.Equal(t, blueprint.ColumnTypeDateTime, bp.Columns[0].ColumnType)
+		assert.True(t, *bp.Columns[0].NullableVal)
+	})
+
+	t.Run("DropSoftDeletes adds dropColumn command", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+		bp.DropSoftDeletes()
+		require.Len(t, bp.Commands, 1)
+		assert.Equal(t, blueprint.CommandDropColumn, bp.Commands[0].Name)
+		assert.Equal(t, []string{"deleted_at"}, bp.Commands[0].Columns)
+	})
+
+	t.Run("DropSoftDeletesTz delegates to DropSoftDeletes", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+		bp.DropSoftDeletesTz()
+		require.Len(t, bp.Commands, 1)
+		assert.Equal(t, []string{"deleted_at"}, bp.Commands[0].Columns)
+	})
+}
+
+func TestBlueprint_NullableTimestampHelpers(t *testing.T) {
+	t.Run("NullableTimestamps produces nullable created_at and updated_at", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+		bp.NullableTimestamps()
+		require.Len(t, bp.Columns, 2)
+		assert.Equal(t, "created_at", bp.Columns[0].Name)
+		assert.True(t, *bp.Columns[0].NullableVal)
+		assert.Equal(t, "updated_at", bp.Columns[1].Name)
+		assert.True(t, *bp.Columns[1].NullableVal)
+	})
+
+	t.Run("NullableTimestampsTz produces nullable timestamptz columns", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+		bp.NullableTimestampsTz()
+		require.Len(t, bp.Columns, 2)
+		assert.Equal(t, blueprint.ColumnTypeTimestampTz, bp.Columns[0].ColumnType)
+		assert.True(t, *bp.Columns[0].NullableVal)
+	})
+
+	t.Run("Datetimes produces nullable datetime columns", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+		bp.Datetimes()
+		require.Len(t, bp.Columns, 2)
+		assert.Equal(t, blueprint.ColumnTypeDateTime, bp.Columns[0].ColumnType)
+		assert.True(t, *bp.Columns[0].NullableVal)
+		assert.Equal(t, blueprint.ColumnTypeDateTime, bp.Columns[1].ColumnType)
+		assert.True(t, *bp.Columns[1].NullableVal)
+	})
+}
+
+func TestBlueprint_RawColumn(t *testing.T) {
+	bp := blueprint.NewBlueprintForTesting("logs", &mockGrammar{})
+	bp.RawColumn("payload", "MEDIUMBLOB NOT NULL")
+	require.Len(t, bp.Columns, 1)
+	assert.Equal(t, "payload", bp.Columns[0].Name)
+	assert.Equal(t, blueprint.ColumnTypeRaw, bp.Columns[0].ColumnType)
+	assert.Equal(t, "MEDIUMBLOB NOT NULL", *bp.Columns[0].RawDefinition)
+}
+
+func TestBlueprint_RemoveColumn(t *testing.T) {
+	bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+	bp.String("email")
+	bp.String("name")
+	bp.String("phone")
+	require.Len(t, bp.Columns, 3)
+
+	bp.RemoveColumn("name")
+	require.Len(t, bp.Columns, 2)
+	assert.Equal(t, "email", bp.Columns[0].Name)
+	assert.Equal(t, "phone", bp.Columns[1].Name)
+}
+
+func TestBlueprint_SpatialVectorIndex(t *testing.T) {
+	t.Run("SpatialIndex adds spatialIndex command", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("locations", &mockGrammar{})
+		bp.SpatialIndex("geom")
+		require.Len(t, bp.Commands, 1)
+		assert.Equal(t, blueprint.CommandSpatialIndex, bp.Commands[0].Name)
+		assert.Equal(t, []string{"geom"}, bp.Commands[0].Columns)
+	})
+
+	t.Run("SpatialIndex with name", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("locations", &mockGrammar{})
+		bp.SpatialIndex("geom").Name("idx_geom")
+		assert.Equal(t, "idx_geom", bp.Commands[0].Index)
+	})
+
+	t.Run("VectorIndex adds vectorIndex command", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("items", &mockGrammar{})
+		bp.VectorIndex("embedding")
+		require.Len(t, bp.Commands, 1)
+		assert.Equal(t, blueprint.CommandVectorIndex, bp.Commands[0].Name)
+		assert.Equal(t, []string{"embedding"}, bp.Commands[0].Columns)
+	})
+
+	t.Run("DropSpatialIndex adds dropSpatialIndex command", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("locations", &mockGrammar{})
+		bp.DropSpatialIndex("idx_geom")
+		require.Len(t, bp.Commands, 1)
+		assert.Equal(t, blueprint.CommandDropSpatialIndex, bp.Commands[0].Name)
+		assert.Equal(t, "idx_geom", bp.Commands[0].Index)
+	})
+}
+
+func TestBlueprint_Morphs(t *testing.T) {
+	t.Run("NumericMorphs adds type+id columns and index", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.NumericMorphs("commentable")
+		require.Len(t, bp.Columns, 2)
+		assert.Equal(t, "commentable_type", bp.Columns[0].Name)
+		assert.Equal(t, "commentable_id", bp.Columns[1].Name)
+		assert.Equal(t, blueprint.ColumnTypeBigInteger, bp.Columns[1].ColumnType)
+		assert.True(t, *bp.Columns[1].UnsignedVal)
+		require.Len(t, bp.Commands, 1)
+		assert.Equal(t, blueprint.CommandIndex, bp.Commands[0].Name)
+	})
+
+	t.Run("NullableNumericMorphs adds nullable columns", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.NullableNumericMorphs("commentable")
+		assert.True(t, *bp.Columns[0].NullableVal)
+		assert.True(t, *bp.Columns[1].NullableVal)
+	})
+
+	t.Run("UUIDMorphs adds uuid id column", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.UUIDMorphs("commentable")
+		assert.Equal(t, blueprint.ColumnTypeUUID, bp.Columns[1].ColumnType)
+	})
+
+	t.Run("ULIDMorphs adds ulid id column", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.ULIDMorphs("commentable")
+		assert.Equal(t, blueprint.ColumnTypeULID, bp.Columns[1].ColumnType)
+	})
+
+	t.Run("Morphs with default key type delegates to NumericMorphs", func(t *testing.T) {
+		// DefaultMorphKeyType defaults to "int" → NumericMorphs
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.NumericMorphs("commentable")
+		assert.Equal(t, blueprint.ColumnTypeBigInteger, bp.Columns[1].ColumnType)
+	})
+
+	t.Run("UUIDMorphs produces uuid id", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.UUIDMorphs("commentable")
+		assert.Equal(t, blueprint.ColumnTypeUUID, bp.Columns[1].ColumnType)
+	})
+
+	t.Run("DropMorphs drops columns and index", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.DropMorphs("commentable")
+		require.Len(t, bp.Commands, 2)
+		assert.Equal(t, blueprint.CommandDropIndex, bp.Commands[0].Name)
+		assert.Equal(t, blueprint.CommandDropColumn, bp.Commands[1].Name)
+		assert.Equal(t, []string{"commentable_type", "commentable_id"}, bp.Commands[1].Columns)
+	})
+}
+
+func TestBlueprint_ForeignID(t *testing.T) {
+	t.Run("ForeignID adds bigint unsigned column", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("posts", &mockGrammar{})
+		bp.ForeignID("user_id")
+		require.Len(t, bp.Columns, 1)
+		assert.Equal(t, "user_id", bp.Columns[0].Name)
+		assert.Equal(t, blueprint.ColumnTypeBigInteger, bp.Columns[0].ColumnType)
+		assert.True(t, *bp.Columns[0].UnsignedVal)
+	})
+
+	t.Run("ForeignID Constrained infers table name", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("posts", &mockGrammar{})
+		bp.ForeignID("user_id").Constrained()
+		require.Len(t, bp.Commands, 1)
+		assert.Equal(t, blueprint.CommandForeign, bp.Commands[0].Name)
+		assert.Equal(t, "users", bp.Commands[0].On)
+		assert.Equal(t, []string{"id"}, bp.Commands[0].References)
+	})
+
+	t.Run("ForeignID Constrained with explicit table", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("posts", &mockGrammar{})
+		bp.ForeignID("author_id").Constrained("accounts")
+		assert.Equal(t, "accounts", bp.Commands[0].On)
+	})
+
+	t.Run("ForeignUUID adds uuid column", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("posts", &mockGrammar{})
+		bp.ForeignUUID("user_id")
+		assert.Equal(t, blueprint.ColumnTypeUUID, bp.Columns[0].ColumnType)
+	})
+
+	t.Run("ForeignULID adds char(26) column", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("posts", &mockGrammar{})
+		bp.ForeignULID("user_id")
+		assert.Equal(t, blueprint.ColumnTypeChar, bp.Columns[0].ColumnType)
+		assert.Equal(t, 26, *bp.Columns[0].Length)
+	})
+
+	t.Run("DropConstrainedForeignID drops foreign and column", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("posts", &mockGrammar{})
+		bp.DropConstrainedForeignID("user_id")
+		require.Len(t, bp.Commands, 2)
+		assert.Equal(t, blueprint.CommandDropForeign, bp.Commands[0].Name)
+		assert.Equal(t, blueprint.CommandDropColumn, bp.Commands[1].Name)
+	})
+}
+
+func TestBlueprint_After(t *testing.T) {
+	bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+	bp.String("email")
+	bp.After("email", func(b *blueprint.Blueprint) {
+		b.String("phone")
+		b.String("bio")
+	})
+	require.Len(t, bp.Columns, 3)
+	assert.Equal(t, "email", bp.Columns[0].Name)
+	// phone positioned after email, bio positioned after phone (chained)
+	assert.Equal(t, "phone", bp.Columns[1].Name)
+	assert.Equal(t, "email", *bp.Columns[1].AfterVal)
+	assert.Equal(t, "bio", bp.Columns[2].Name)
+	assert.Equal(t, "phone", *bp.Columns[2].AfterVal)
+}
+
+func TestBlueprint_RawIndex(t *testing.T) {
+	bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+	bp.RawIndex("(lower(email))", "idx_email_lower")
+	require.Len(t, bp.Commands, 1)
+	assert.Equal(t, blueprint.CommandIndex, bp.Commands[0].Name)
+	assert.Equal(t, []string{"(lower(email))"}, bp.Commands[0].Columns)
+	assert.Equal(t, "idx_email_lower", bp.Commands[0].Index)
+}
+
+func TestBlueprint_IntegerIncrements(t *testing.T) {
+	bp := blueprint.NewBlueprintForTesting("users", &mockGrammar{})
+	bp.IntegerIncrements("id")
+	require.Len(t, bp.Columns, 1)
+	assert.Equal(t, "id", bp.Columns[0].Name)
+	assert.Equal(t, blueprint.ColumnTypeInteger, bp.Columns[0].ColumnType)
+	assert.True(t, *bp.Columns[0].UnsignedVal)
+	assert.True(t, *bp.Columns[0].AutoIncrementVal)
+}
+
+func TestBlueprint_Morphs_KeyTypeDispatch(t *testing.T) {
+	original := blueprint.DefaultMorphKeyType
+	t.Cleanup(func() {
+		blueprint.DefaultMorphKeyType = original //nolint:reassign // Tests verify global morph-key dispatch.
+	})
+
+	t.Run("int dispatches to NumericMorphs", func(t *testing.T) {
+		blueprint.DefaultMorphKeyType = "int" //nolint:reassign // Tests verify global morph-key dispatch.
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.Morphs("commentable")
+		require.Len(t, bp.Columns, 2)
+		assert.Equal(t, blueprint.ColumnTypeBigInteger, bp.Columns[1].ColumnType)
+		assert.True(t, *bp.Columns[1].UnsignedVal)
+	})
+
+	t.Run("uuid dispatches to UUIDMorphs", func(t *testing.T) {
+		blueprint.DefaultMorphKeyType = "uuid" //nolint:reassign // Tests verify global morph-key dispatch.
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.Morphs("commentable")
+		require.Len(t, bp.Columns, 2)
+		assert.Equal(t, blueprint.ColumnTypeUUID, bp.Columns[1].ColumnType)
+	})
+
+	t.Run("ulid dispatches to ULIDMorphs", func(t *testing.T) {
+		blueprint.DefaultMorphKeyType = "ulid" //nolint:reassign // Tests verify global morph-key dispatch.
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.Morphs("commentable")
+		require.Len(t, bp.Columns, 2)
+		assert.Equal(t, blueprint.ColumnTypeULID, bp.Columns[1].ColumnType)
+	})
+}
+
+func TestBlueprint_NullableMorphs(t *testing.T) {
+	original := blueprint.DefaultMorphKeyType
+	t.Cleanup(func() {
+		blueprint.DefaultMorphKeyType = original //nolint:reassign // Tests verify global morph-key dispatch.
+	})
+
+	t.Run("NullableMorphs delegates to NullableNumericMorphs by default", func(t *testing.T) {
+		blueprint.DefaultMorphKeyType = "int" //nolint:reassign // Tests verify global morph-key dispatch.
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.NullableMorphs("taggable")
+		require.Len(t, bp.Columns, 2)
+		assert.True(t, *bp.Columns[0].NullableVal)
+		assert.True(t, *bp.Columns[1].NullableVal)
+		assert.Equal(t, blueprint.ColumnTypeBigInteger, bp.Columns[1].ColumnType)
+	})
+
+	t.Run("NullableUUIDMorphs adds nullable uuid columns and index", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.NullableUUIDMorphs("taggable")
+		require.Len(t, bp.Columns, 2)
+		assert.Equal(t, "taggable_type", bp.Columns[0].Name)
+		assert.True(t, *bp.Columns[0].NullableVal)
+		assert.Equal(t, "taggable_id", bp.Columns[1].Name)
+		assert.Equal(t, blueprint.ColumnTypeUUID, bp.Columns[1].ColumnType)
+		assert.True(t, *bp.Columns[1].NullableVal)
+		require.Len(t, bp.Commands, 1)
+		assert.Equal(t, blueprint.CommandIndex, bp.Commands[0].Name)
+	})
+
+	t.Run("NullableULIDMorphs adds nullable ulid columns and index", func(t *testing.T) {
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.NullableULIDMorphs("taggable")
+		require.Len(t, bp.Columns, 2)
+		assert.Equal(t, blueprint.ColumnTypeULID, bp.Columns[1].ColumnType)
+		assert.True(t, *bp.Columns[1].NullableVal)
+	})
+
+	t.Run("NullableMorphs with uuid key type", func(t *testing.T) {
+		blueprint.DefaultMorphKeyType = "uuid" //nolint:reassign // Tests verify global morph-key dispatch.
+		bp := blueprint.NewBlueprintForTesting("comments", &mockGrammar{})
+		bp.NullableMorphs("taggable")
+		require.Len(t, bp.Columns, 2)
+		assert.Equal(t, blueprint.ColumnTypeUUID, bp.Columns[1].ColumnType)
+		assert.True(t, *bp.Columns[1].NullableVal)
+	})
 }

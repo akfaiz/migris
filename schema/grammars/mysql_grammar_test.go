@@ -231,7 +231,7 @@ func TestMysqlGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *blueprint.Blueprint) {
 				table.String("full_name").VirtualAs("concat(first_name, ' ', last_name)")
 			},
-			want:    "ALTER TABLE `users` ADD COLUMN `full_name` VARCHAR(255) GENERATED ALWAYS AS (concat(first_name, ' ', last_name)) VIRTUAL NOT NULL",
+			want:    "ALTER TABLE `users` ADD COLUMN `full_name` VARCHAR(255) GENERATED ALWAYS AS (concat(first_name, ' ', last_name)) VIRTUAL",
 			wantErr: false,
 		},
 		{
@@ -240,7 +240,7 @@ func TestMysqlGrammar_CompileAdd(t *testing.T) {
 			blueprint: func(table *blueprint.Blueprint) {
 				table.String("full_name").StoredAs("concat(first_name, ' ', last_name)")
 			},
-			want:    "ALTER TABLE `users` ADD COLUMN `full_name` VARCHAR(255) GENERATED ALWAYS AS (concat(first_name, ' ', last_name)) STORED NOT NULL",
+			want:    "ALTER TABLE `users` ADD COLUMN `full_name` VARCHAR(255) GENERATED ALWAYS AS (concat(first_name, ' ', last_name)) STORED",
 			wantErr: false,
 		},
 		{
@@ -434,21 +434,21 @@ func TestMysqlGrammar_CompileRename(t *testing.T) {
 			name:    "rename table with valid names",
 			table:   "users",
 			newName: "customers",
-			want:    "ALTER TABLE `users` RENAME TO `customers`",
+			want:    "RENAME TABLE `users` TO `customers`",
 			wantErr: false,
 		},
 		{
 			name:    "rename table with underscore names",
 			table:   "old_table_name",
 			newName: "new_table_name",
-			want:    "ALTER TABLE `old_table_name` RENAME TO `new_table_name`",
+			want:    "RENAME TABLE `old_table_name` TO `new_table_name`",
 			wantErr: false,
 		},
 		{
 			name:    "rename table with numeric names",
 			table:   "table1",
 			newName: "table2",
-			want:    "ALTER TABLE `table1` RENAME TO `table2`",
+			want:    "RENAME TABLE `table1` TO `table2`",
 			wantErr: false,
 		},
 	}
@@ -1894,4 +1894,311 @@ func TestMysqlGrammar_GetType(t *testing.T) {
 			assert.Equal(t, tt.want, got, "Expected type to match for test case: %s", tt.name)
 		})
 	}
+}
+
+func TestMysqlGrammar_CompileCreate_Temporary(t *testing.T) {
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
+
+	bp := &blueprint.Blueprint{Name: "temp_logs", TemporaryVal: true}
+	bp.String("message")
+	sql, err := g.CompileCreate(bp)
+	require.NoError(t, err)
+	assert.Contains(t, sql, "CREATE TEMPORARY TABLE")
+	assert.Contains(t, sql, "`temp_logs`")
+}
+
+func TestMysqlGrammar_CompileSpatialIndex(t *testing.T) {
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name    string
+		setup   func(*blueprint.Blueprint)
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "basic spatial index",
+			setup: func(bp *blueprint.Blueprint) {
+				bp.SpatialIndex("location")
+			},
+			want: "CREATE SPATIAL INDEX `locations_location_spatialindex` ON `locations` (`location`)",
+		},
+		{
+			name: "spatial index with custom name",
+			setup: func(bp *blueprint.Blueprint) {
+				bp.SpatialIndex("location").Name("idx_loc")
+			},
+			want: "CREATE SPATIAL INDEX `idx_loc` ON `locations` (`location`)",
+		},
+		{
+			name:    "spatial index with empty column",
+			setup:   func(bp *blueprint.Blueprint) { bp.SpatialIndex("") },
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &blueprint.Blueprint{Name: "locations"}
+			tt.setup(bp)
+			got, err := g.CompileSpatialIndex(bp, bp.Commands[0])
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestMysqlGrammar_CompileDropSpatialIndex(t *testing.T) {
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
+
+	bp := &blueprint.Blueprint{Name: "locations"}
+	bp.DropSpatialIndex("idx_loc")
+	got, err := g.CompileDropSpatialIndex(bp, bp.Commands[0])
+	require.NoError(t, err)
+	assert.Equal(t, "ALTER TABLE `locations` DROP INDEX `idx_loc`", got)
+}
+
+func TestMysqlGrammar_CompileTableComment(t *testing.T) {
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
+
+	t.Run("alter table comment", func(t *testing.T) {
+		bp := &blueprint.Blueprint{Name: "users"}
+		bp.Comment("User accounts")
+		got, err := g.CompileTableComment(bp, bp.Commands[0])
+		require.NoError(t, err)
+		assert.Equal(t, "ALTER TABLE `users` COMMENT = 'User accounts'", got)
+	})
+
+	t.Run("skip comment during create", func(t *testing.T) {
+		bp := &blueprint.Blueprint{Name: "users"}
+		bp.Create()
+		bp.Comment("User accounts")
+		// find tableComment command
+		var cmd *blueprint.Command
+		for _, c := range bp.Commands {
+			if c.Name == blueprint.CommandTableComment {
+				cmd = c
+			}
+		}
+		require.NotNil(t, cmd)
+		got, err := g.CompileTableComment(bp, cmd)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+}
+
+func TestMysqlGrammar_CompileAutoIncrementStartingValues(t *testing.T) {
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
+
+	t.Run("sets auto increment start", func(t *testing.T) {
+		bp := &blueprint.Blueprint{Name: "orders"}
+		bp.AutoIncrementStartingValues(1000)
+		var cmd *blueprint.Command
+		for _, c := range bp.Commands {
+			if c.Name == blueprint.CommandAutoIncrementStartingValues {
+				cmd = c
+			}
+		}
+		require.NotNil(t, cmd)
+		got, err := g.CompileAutoIncrementStartingValues(bp, cmd)
+		require.NoError(t, err)
+		assert.Equal(t, "ALTER TABLE `orders` AUTO_INCREMENT = 1000", got)
+	})
+
+	t.Run("zero value produces empty string", func(t *testing.T) {
+		bp := &blueprint.Blueprint{Name: "orders"}
+		cmd := &blueprint.Command{Name: blueprint.CommandAutoIncrementStartingValues, Value: 0}
+		got, err := g.CompileAutoIncrementStartingValues(bp, cmd)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+}
+
+func TestMysqlGrammar_GetType_NewTypes(t *testing.T) {
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name      string
+		blueprint func(*blueprint.Blueprint)
+		want      string
+	}{
+		{
+			name: "binary without length returns BLOB",
+			blueprint: func(bp *blueprint.Blueprint) {
+				bp.Binary("data")
+			},
+			want: "BLOB",
+		},
+		{
+			name: "binary with length returns VARBINARY",
+			blueprint: func(bp *blueprint.Blueprint) {
+				bp.Binary("data", 255)
+			},
+			want: "VARBINARY(255)",
+		},
+		{
+			name: "binary with length and Fixed returns BINARY",
+			blueprint: func(bp *blueprint.Blueprint) {
+				bp.Binary("hash", 32).Fixed()
+			},
+			want: "BINARY(32)",
+		},
+		{
+			name: "float without explicit precision defaults to FLOAT(53)",
+			blueprint: func(bp *blueprint.Blueprint) {
+				bp.Float("score")
+			},
+			want: "FLOAT(53)",
+		},
+		{
+			name: "float with precision returns FLOAT(n)",
+			blueprint: func(bp *blueprint.Blueprint) {
+				bp.Float("score", 6)
+			},
+			want: "FLOAT(6)",
+		},
+		{
+			name: "float with zero precision returns bare FLOAT",
+			blueprint: func(bp *blueprint.Blueprint) {
+				bp.Float("score", 0)
+			},
+			want: "FLOAT",
+		},
+		{
+			name: "vector without dimensions returns VECTOR",
+			blueprint: func(bp *blueprint.Blueprint) {
+				bp.Vector("embedding")
+			},
+			want: "VECTOR",
+		},
+		{
+			name: "vector with dimensions returns VECTOR(n)",
+			blueprint: func(bp *blueprint.Blueprint) {
+				bp.Vector("embedding", 1536)
+			},
+			want: "VECTOR(1536)",
+		},
+		{
+			name: "raw column returns definition",
+			blueprint: func(bp *blueprint.Blueprint) {
+				bp.RawColumn("payload", "MEDIUMBLOB NOT NULL")
+			},
+			want: "MEDIUMBLOB NOT NULL",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &blueprint.Blueprint{Name: "t"}
+			tt.blueprint(bp)
+			got := g.GetType(bp.Columns[0])
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestMysqlGrammar_CompileAdd_Modifiers(t *testing.T) {
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name      string
+		table     string
+		blueprint func(*blueprint.Blueprint)
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:  "on update current timestamp",
+			table: "users",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.Timestamp("updated_at").UseCurrentOnUpdate()
+			},
+			want: "ALTER TABLE `users` ADD COLUMN `updated_at` TIMESTAMP NOT NULL ON UPDATE CURRENT_TIMESTAMP",
+		},
+		{
+			name:  "column charset",
+			table: "users",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.String("name", 255).Charset("utf8mb4")
+			},
+			want: "ALTER TABLE `users` ADD COLUMN `name` VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL",
+		},
+		{
+			name:  "column collation",
+			table: "users",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.String("name", 255).Collation("utf8mb4_unicode_ci")
+			},
+			want: "ALTER TABLE `users` ADD COLUMN `name` VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL",
+		},
+		{
+			name:  "column charset and collation",
+			table: "users",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.String("bio", 500).Charset("utf8mb4").Collation("utf8mb4_unicode_ci")
+			},
+			want: "ALTER TABLE `users` ADD COLUMN `bio` VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL",
+		},
+		{
+			name:  "invisible column",
+			table: "users",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.String("secret", 100).Invisible()
+			},
+			want: "ALTER TABLE `users` ADD COLUMN `secret` VARCHAR(100) NOT NULL INVISIBLE",
+		},
+		{
+			name:  "raw column definition",
+			table: "events",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.RawColumn("payload", "MEDIUMBLOB")
+			},
+			want: "ALTER TABLE `events` ADD COLUMN `payload` MEDIUMBLOB NOT NULL",
+		},
+		{
+			name:  "invisible nullable column",
+			table: "users",
+			blueprint: func(table *blueprint.Blueprint) {
+				table.String("token", 255).Nullable().Invisible()
+			},
+			want: "ALTER TABLE `users` ADD COLUMN `token` VARCHAR(255) NULL INVISIBLE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &blueprint.Blueprint{Name: tt.table}
+			tt.blueprint(bp)
+			got, err := g.CompileAdd(bp)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestMysqlGrammar_CompileCreate_RawColumn(t *testing.T) {
+	g, err := grammars.NewGrammar("mysql")
+	require.NoError(t, err)
+
+	bp := &blueprint.Blueprint{Name: "events"}
+	bp.RawColumn("payload", "MEDIUMBLOB")
+	bp.String("source", 100)
+	sql, err := g.CompileCreate(bp)
+	require.NoError(t, err)
+	assert.Equal(t, "CREATE TABLE `events` (`payload` MEDIUMBLOB NOT NULL, `source` VARCHAR(100) NOT NULL)", sql)
 }

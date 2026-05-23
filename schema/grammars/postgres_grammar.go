@@ -103,8 +103,44 @@ func (g *postgresGrammar) CompileCreate(bp *blueprint.Blueprint) (string, error)
 	}
 	columns = append(columns, g.getConstraints(bp)...)
 
-	sql := fmt.Sprintf("CREATE TABLE %s (%s)", g.WrapTable(bp.Name, `"`), strings.Join(columns, ", "))
+	create := "CREATE TABLE"
+	if bp.TemporaryVal {
+		create = "CREATE TEMPORARY TABLE"
+	}
+	sql := fmt.Sprintf("%s %s (%s)", create, g.WrapTable(bp.Name, `"`), strings.Join(columns, ", "))
 	return sql, nil
+}
+
+func (g *postgresGrammar) CompileVectorIndex(bp *blueprint.Blueprint, command *blueprint.Command) (string, error) {
+	if len(command.Columns) == 0 || slices.Contains(command.Columns, "") {
+		return "", errors.New("vector index columns cannot be empty")
+	}
+	index := command.Index
+	if index == "" {
+		index = g.CreateIndexName(bp, "vectorindex", command.Columns...)
+	}
+	operatorClass := command.OperatorClass
+	if operatorClass == "" {
+		operatorClass = "vector_cosine_ops"
+	}
+	return fmt.Sprintf(
+		`CREATE INDEX %s ON %s USING hnsw (%s %s)`,
+		g.WrapIndexName(index, `"`),
+		g.WrapTable(bp.Name, `"`),
+		g.WrapColumnize(command.Columns, `"`),
+		operatorClass,
+	), nil
+}
+
+func (g *postgresGrammar) CompileTableComment(bp *blueprint.Blueprint, command *blueprint.Command) (string, error) {
+	if bp.IsCreating() {
+		return "", nil
+	}
+	return fmt.Sprintf(
+		`COMMENT ON TABLE %s IS %s`,
+		g.WrapTable(bp.Name, `"`),
+		g.QuoteString(command.Comment),
+	), nil
 }
 
 func (g *postgresGrammar) CompileAdd(bp *blueprint.Blueprint) (string, error) {
@@ -495,11 +531,19 @@ func (g *postgresGrammar) GetType(col *blueprint.Column) string {
 		blueprint.ColumnTypeGeography:     g.typeGeography,
 		blueprint.ColumnTypeGeometry:      g.typeGeometry,
 		blueprint.ColumnTypePoint:         g.typePoint,
+		blueprint.ColumnTypeRaw:           g.typeRaw,
 	}
 	if fn, ok := typeMapFunc[col.ColumnType]; ok {
 		return fn(col)
 	}
 	return col.ColumnType
+}
+
+func (g *postgresGrammar) typeRaw(col *blueprint.Column) string {
+	if col.RawDefinition != nil {
+		return *col.RawDefinition
+	}
+	return ""
 }
 
 func (g *postgresGrammar) typeChar(col *blueprint.Column) string {

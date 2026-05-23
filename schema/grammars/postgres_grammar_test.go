@@ -1829,3 +1829,100 @@ func TestPgGrammar_GetType(t *testing.T) {
 		})
 	}
 }
+
+func TestPgGrammar_CompileCreate_Temporary(t *testing.T) {
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
+
+	bp := &blueprint.Blueprint{Name: "temp_logs", TemporaryVal: true}
+	bp.String("message")
+	sql, err := g.CompileCreate(bp)
+	require.NoError(t, err)
+	assert.Contains(t, sql, "CREATE TEMPORARY TABLE")
+	assert.Contains(t, sql, `"temp_logs"`)
+}
+
+func TestPgGrammar_CompileVectorIndex(t *testing.T) {
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name    string
+		setup   func(*blueprint.Blueprint)
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "basic vector index uses cosine ops",
+			setup: func(bp *blueprint.Blueprint) {
+				bp.VectorIndex("embedding")
+			},
+			want: `CREATE INDEX "items_embedding_vectorindex" ON "items" USING hnsw ("embedding" vector_cosine_ops)`,
+		},
+		{
+			name: "vector index with custom name",
+			setup: func(bp *blueprint.Blueprint) {
+				bp.VectorIndex("embedding").Name("idx_emb")
+			},
+			want: `CREATE INDEX "idx_emb" ON "items" USING hnsw ("embedding" vector_cosine_ops)`,
+		},
+		{
+			name:    "empty column returns error",
+			setup:   func(bp *blueprint.Blueprint) { bp.VectorIndex("") },
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &blueprint.Blueprint{Name: "items"}
+			tt.setup(bp)
+			got, err := g.CompileVectorIndex(bp, bp.Commands[0])
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestPgGrammar_CompileTableComment(t *testing.T) {
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
+
+	t.Run("alter table comment", func(t *testing.T) {
+		bp := &blueprint.Blueprint{Name: "users"}
+		bp.Comment("User accounts")
+		got, err := g.CompileTableComment(bp, bp.Commands[0])
+		require.NoError(t, err)
+		assert.Equal(t, `COMMENT ON TABLE "users" IS 'User accounts'`, got)
+	})
+
+	t.Run("skip comment during create", func(t *testing.T) {
+		bp := &blueprint.Blueprint{Name: "users"}
+		bp.Create()
+		bp.Comment("User accounts")
+		var cmd *blueprint.Command
+		for _, c := range bp.Commands {
+			if c.Name == blueprint.CommandTableComment {
+				cmd = c
+			}
+		}
+		require.NotNil(t, cmd)
+		got, err := g.CompileTableComment(bp, cmd)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+}
+
+func TestPgGrammar_GetType_RawColumn(t *testing.T) {
+	g, err := grammars.NewGrammar("postgres")
+	require.NoError(t, err)
+
+	bp := &blueprint.Blueprint{Name: "t"}
+	bp.RawColumn("payload", "BYTEA NOT NULL")
+	got := g.GetType(bp.Columns[0])
+	assert.Equal(t, "BYTEA NOT NULL", got)
+}

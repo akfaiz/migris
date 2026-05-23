@@ -14,6 +14,7 @@ type ColumnDefinition interface {
 	Collation(collation string) ColumnDefinition
 	Comment(comment string) ColumnDefinition
 	Default(value any) ColumnDefinition
+	Fixed() ColumnDefinition
 	Index(params ...any) ColumnDefinition
 	Nullable(value ...bool) ColumnDefinition
 	OnUpdate(value any) ColumnDefinition
@@ -63,6 +64,8 @@ type Column struct {
 	Srid                  *int     // for geography and geometry types
 	AfterVal              *string
 	FirstVal              bool
+	FixedVal              *bool
+	RawDefinition         *string
 	VirtualAsVal          *string
 	StoredAsVal           *string
 	InvisibleVal          *bool
@@ -221,5 +224,10 @@ func (c *Column) Always(value ...bool) ColumnDefinition {
 
 func (c *Column) RenameTo(name string) ColumnDefinition {
 	c.RenameToVal = name
+	return c
+}
+
+func (c *Column) Fixed() ColumnDefinition {
+	c.FixedVal = util.PtrOf(true)
 	return c
 }

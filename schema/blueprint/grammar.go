@@ -27,13 +27,18 @@ type Grammar interface {
 	CompileUnique(blueprint *Blueprint, command *Command) (string, error)
 	CompilePrimary(blueprint *Blueprint, command *Command) (string, error)
 	CompileFullText(blueprint *Blueprint, command *Command) (string, error)
+	CompileSpatialIndex(blueprint *Blueprint, command *Command) (string, error)
+	CompileVectorIndex(blueprint *Blueprint, command *Command) (string, error)
 	CompileDropIndex(blueprint *Blueprint, command *Command) (string, error)
 	CompileDropUnique(blueprint *Blueprint, command *Command) (string, error)
 	CompileDropFulltext(blueprint *Blueprint, command *Command) (string, error)
 	CompileDropPrimary(blueprint *Blueprint, command *Command) (string, error)
+	CompileDropSpatialIndex(blueprint *Blueprint, command *Command) (string, error)
 	CompileRenameIndex(blueprint *Blueprint, command *Command) (string, error)
 	CompileForeign(blueprint *Blueprint, command *Command) (string, error)
 	CompileDropForeign(blueprint *Blueprint, command *Command) (string, error)
+	CompileTableComment(blueprint *Blueprint, command *Command) (string, error)
+	CompileAutoIncrementStartingValues(blueprint *Blueprint, command *Command) (string, error)
 	GetFluentCommands() []func(blueprint *Blueprint, command *Command) string
 	GetTableFluentCommands() []func(blueprint *Blueprint) string
 	CreateIndexName(blueprint *Blueprint, idxType string, columns ...string) string
@@ -92,6 +97,26 @@ func (g *BaseGrammar) CompileRenameIndex(_ *Blueprint, _ *Command) (string, erro
 
 func (g *BaseGrammar) CompileDropForeign(_ *Blueprint, _ *Command) (string, error) {
 	return "", errors.New("drop foreign operation not supported by this grammar")
+}
+
+func (g *BaseGrammar) CompileSpatialIndex(_ *Blueprint, _ *Command) (string, error) {
+	return "", errors.New("spatial index operation not supported by this grammar")
+}
+
+func (g *BaseGrammar) CompileVectorIndex(_ *Blueprint, _ *Command) (string, error) {
+	return "", errors.New("vector index operation not supported by this grammar")
+}
+
+func (g *BaseGrammar) CompileDropSpatialIndex(_ *Blueprint, _ *Command) (string, error) {
+	return "", errors.New("drop spatial index operation not supported by this grammar")
+}
+
+func (g *BaseGrammar) CompileTableComment(_ *Blueprint, _ *Command) (string, error) {
+	return "", errors.New("table comment operation not supported by this grammar")
+}
+
+func (g *BaseGrammar) CompileAutoIncrementStartingValues(_ *Blueprint, _ *Command) (string, error) {
+	return "", nil
 }
 
 func (g *BaseGrammar) CompileForeign(blueprint *Blueprint, command *Command) (string, error) {

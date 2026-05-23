@@ -37,7 +37,11 @@ func (g *sqliteGrammar) CompileCreate(bp *blueprint.Blueprint) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	sql := fmt.Sprintf("CREATE TABLE %q (%s)", bp.Name, strings.Join(columns, ", "))
+	create := "CREATE TABLE"
+	if bp.TemporaryVal {
+		create = "CREATE TEMPORARY TABLE"
+	}
+	sql := fmt.Sprintf("%s %q (%s)", create, bp.Name, strings.Join(columns, ", "))
 	return sql, nil
 }
 
@@ -147,11 +151,19 @@ func (g *sqliteGrammar) GetType(col *blueprint.Column) string {
 		blueprint.ColumnTypeGeometry:      g.typeGeometry,
 		blueprint.ColumnTypeGeography:     g.typeGeography,
 		blueprint.ColumnTypePoint:         g.typePoint,
+		blueprint.ColumnTypeRaw:           g.typeRaw,
 	}
 	if fn, ok := typeFuncMap[col.ColumnType]; ok {
 		return fn(col)
 	}
 	return col.ColumnType
+}
+
+func (g *sqliteGrammar) typeRaw(col *blueprint.Column) string {
+	if col.RawDefinition != nil {
+		return *col.RawDefinition
+	}
+	return ""
 }
 
 func (g *sqliteGrammar) typeChar(_ *blueprint.Column) string {
