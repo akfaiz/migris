@@ -50,12 +50,16 @@ const (
 	ColumnTypeInet          string = "inet"
 	ColumnTypeMacaddr       string = "macaddr"
 	ColumnTypeMacaddr8      string = "macaddr8"
+	ColumnTypeRaw           string = "raw"
 )
 
 const (
 	defaultStringLength  int = 255
 	defaultTimePrecision int = 0
 )
+
+// DefaultMorphKeyType controls the key type used by Morphs/NullableMorphs ("int", "uuid", "ulid").
+var DefaultMorphKeyType = "int"
 
 // Blueprint represents a schema blueprint for creating or altering a database table.
 type Blueprint struct {
@@ -69,7 +73,9 @@ type Blueprint struct {
 	CollationVal                   string
 	EngineVal                      string
 	CommentVal                     string
+	TemporaryVal                   bool
 	AutoIncrementStartingValuesVal *int
+	afterColumn                    string
 }
 
 // Builder interface.
@@ -112,10 +118,12 @@ func (b *Blueprint) Engine(engine string) {
 
 func (b *Blueprint) Comment(comment string) {
 	b.CommentVal = comment
+	b.addCommand(CommandTableComment, &Command{Comment: comment})
 }
 
 func (b *Blueprint) AutoIncrementStartingValues(value int) {
 	b.AutoIncrementStartingValuesVal = &value
+	b.addCommand(CommandAutoIncrementStartingValues, &Command{Value: value})
 }
 
 func (b *Blueprint) Column(name string, columnType string) ColumnDefinition {
@@ -280,13 +288,13 @@ func (b *Blueprint) TimestampTz(name string, precision ...int) ColumnDefinition 
 }
 
 func (b *Blueprint) Timestamps(precision ...int) {
-	b.Timestamp("created_at", precision...).UseCurrent()
-	b.Timestamp("updated_at", precision...).UseCurrent().UseCurrentOnUpdate()
+	b.Timestamp("created_at", precision...).Nullable()
+	b.Timestamp("updated_at", precision...).Nullable()
 }
 
 func (b *Blueprint) TimestampsTz(precision ...int) {
-	b.TimestampTz("created_at", precision...).UseCurrent()
-	b.TimestampTz("updated_at", precision...).UseCurrent().UseCurrentOnUpdate()
+	b.TimestampTz("created_at", precision...).Nullable()
+	b.TimestampTz("updated_at", precision...).Nullable()
 }
 
 func (b *Blueprint) Year(name string) ColumnDefinition {
@@ -379,6 +387,177 @@ func (b *Blueprint) MacAddr(name string) ColumnDefinition {
 
 func (b *Blueprint) MacAddr8(name string) ColumnDefinition {
 	return b.addColumn(ColumnTypeMacaddr8, name)
+}
+
+func (b *Blueprint) Temporary() {
+	b.TemporaryVal = true
+}
+
+func (b *Blueprint) InnoDB() {
+	b.Engine("InnoDB")
+}
+
+func (b *Blueprint) IntegerIncrements(name string) ColumnDefinition {
+	return b.Increments(name)
+}
+
+func (b *Blueprint) SoftDeletes(name string, precision ...int) ColumnDefinition {
+	return b.Timestamp(util.Optional("deleted_at", name), precision...).Nullable()
+}
+
+func (b *Blueprint) SoftDeletesTz(name string, precision ...int) ColumnDefinition {
+	return b.TimestampTz(util.Optional("deleted_at", name), precision...).Nullable()
+}
+
+func (b *Blueprint) SoftDeletesDatetime(name string, precision ...int) ColumnDefinition {
+	return b.DateTime(util.Optional("deleted_at", name), precision...).Nullable()
+}
+
+func (b *Blueprint) DropSoftDeletes(name ...string) {
+	b.DropColumn(util.Optional("deleted_at", name...))
+}
+
+func (b *Blueprint) DropSoftDeletesTz(name ...string) {
+	b.DropSoftDeletes(name...)
+}
+
+func (b *Blueprint) NullableTimestamps(precision ...int) {
+	b.Timestamps(precision...)
+}
+
+func (b *Blueprint) NullableTimestampsTz(precision ...int) {
+	b.TimestampsTz(precision...)
+}
+
+func (b *Blueprint) Datetimes(precision ...int) {
+	b.DateTime("created_at", precision...).Nullable()
+	b.DateTime("updated_at", precision...).Nullable()
+}
+
+func (b *Blueprint) RawColumn(name string, definition string) ColumnDefinition {
+	return b.addColumn(ColumnTypeRaw, name, &Column{RawDefinition: &definition})
+}
+
+func (b *Blueprint) RawIndex(expression string, name string) IndexDefinition {
+	return b.indexCommand(CommandIndex, expression).Name(name)
+}
+
+func (b *Blueprint) After(column string, callback func(*Blueprint)) {
+	b.afterColumn = column
+	callback(b)
+	b.afterColumn = ""
+}
+
+func (b *Blueprint) RemoveColumn(name string) {
+	filtered := b.Columns[:0]
+	for _, col := range b.Columns {
+		if col.Name != name {
+			filtered = append(filtered, col)
+		}
+	}
+	b.Columns = filtered
+}
+
+func (b *Blueprint) SpatialIndex(column string, otherColumns ...string) IndexDefinition {
+	return b.indexCommand(CommandSpatialIndex, append([]string{column}, otherColumns...)...)
+}
+
+func (b *Blueprint) VectorIndex(column string) IndexDefinition {
+	return b.indexCommand(CommandVectorIndex, column)
+}
+
+func (b *Blueprint) DropSpatialIndex(index any) {
+	b.dropIndexCommand(CommandDropSpatialIndex, CommandSpatialIndex, index)
+}
+
+func (b *Blueprint) Morphs(name string, indexName ...string) {
+	switch DefaultMorphKeyType {
+	case "uuid":
+		b.UUIDMorphs(name, indexName...)
+	case "ulid":
+		b.ULIDMorphs(name, indexName...)
+	default:
+		b.NumericMorphs(name, indexName...)
+	}
+}
+
+func (b *Blueprint) NullableMorphs(name string, indexName ...string) {
+	switch DefaultMorphKeyType {
+	case "uuid":
+		b.NullableUUIDMorphs(name, indexName...)
+	case "ulid":
+		b.NullableULIDMorphs(name, indexName...)
+	default:
+		b.NullableNumericMorphs(name, indexName...)
+	}
+}
+
+func (b *Blueprint) NumericMorphs(name string, indexName ...string) {
+	b.String(name + "_type")
+	b.UnsignedBigInteger(name + "_id")
+	b.Index(name+"_type", name+"_id").Name(util.Optional("", indexName...))
+}
+
+func (b *Blueprint) NullableNumericMorphs(name string, indexName ...string) {
+	b.String(name + "_type").Nullable()
+	b.UnsignedBigInteger(name + "_id").Nullable()
+	b.Index(name+"_type", name+"_id").Name(util.Optional("", indexName...))
+}
+
+func (b *Blueprint) UUIDMorphs(name string, indexName ...string) {
+	b.String(name + "_type")
+	b.UUID(name + "_id")
+	b.Index(name+"_type", name+"_id").Name(util.Optional("", indexName...))
+}
+
+func (b *Blueprint) NullableUUIDMorphs(name string, indexName ...string) {
+	b.String(name + "_type").Nullable()
+	b.UUID(name + "_id").Nullable()
+	b.Index(name+"_type", name+"_id").Name(util.Optional("", indexName...))
+}
+
+func (b *Blueprint) ULIDMorphs(name string, indexName ...string) {
+	b.String(name + "_type")
+	b.ULID(name + "_id")
+	b.Index(name+"_type", name+"_id").Name(util.Optional("", indexName...))
+}
+
+func (b *Blueprint) NullableULIDMorphs(name string, indexName ...string) {
+	b.String(name + "_type").Nullable()
+	b.ULID(name + "_id").Nullable()
+	b.Index(name+"_type", name+"_id").Name(util.Optional("", indexName...))
+}
+
+func (b *Blueprint) DropMorphs(name string, indexName ...string) {
+	idx := util.Optional("", indexName...)
+	if idx == "" {
+		idx = b.Grammar.CreateIndexName(b, "index", name+"_type", name+"_id")
+	}
+	b.DropIndex(idx)
+	b.DropColumn(name+"_type", name+"_id")
+}
+
+func (b *Blueprint) ForeignID(name string) ForeignIDColumnDefinition {
+	col := b.addColumn(ColumnTypeBigInteger, name)
+	col.UnsignedVal = util.PtrOf(true)
+	return &foreignIDColumnDefinition{column: col, blueprint: b}
+}
+
+func (b *Blueprint) ForeignUUID(name string) ForeignIDColumnDefinition {
+	col := b.addColumn(ColumnTypeUUID, name)
+	return &foreignIDColumnDefinition{column: col, blueprint: b}
+}
+
+func (b *Blueprint) ForeignULID(name string, length ...int) ForeignIDColumnDefinition {
+	col := b.addColumn(ColumnTypeChar, name, &Column{
+		Length: util.OptionalPtr(26, length...),
+	})
+	return &foreignIDColumnDefinition{column: col, blueprint: b}
+}
+
+func (b *Blueprint) DropConstrainedForeignID(name string) {
+	b.DropForeign([]string{name})
+	b.DropColumn(name)
 }
 
 func (b *Blueprint) DropTimestamps() {
@@ -660,21 +839,26 @@ func (b *Blueprint) ToSQL() ([]string, error) {
 		CommandDropIfExists: b.Grammar.CompileDropIfExists,
 	}
 	secondaryCommandMap := map[string]func(blueprint *Blueprint, command *Command) (string, error){
-		CommandChange:       b.Grammar.CompileChange,
-		CommandDropColumn:   b.Grammar.CompileDropColumn,
-		CommandDropIndex:    b.Grammar.CompileDropIndex,
-		CommandDropForeign:  b.Grammar.CompileDropForeign,
-		CommandDropFullText: b.Grammar.CompileDropFulltext,
-		CommandDropPrimary:  b.Grammar.CompileDropPrimary,
-		CommandDropUnique:   b.Grammar.CompileDropUnique,
-		CommandForeign:      b.Grammar.CompileForeign,
-		CommandFullText:     b.Grammar.CompileFullText,
-		CommandIndex:        b.Grammar.CompileIndex,
-		CommandPrimary:      b.Grammar.CompilePrimary,
-		CommandRename:       b.Grammar.CompileRename,
-		CommandRenameColumn: b.Grammar.CompileRenameColumn,
-		CommandRenameIndex:  b.Grammar.CompileRenameIndex,
-		CommandUnique:       b.Grammar.CompileUnique,
+		CommandChange:                      b.Grammar.CompileChange,
+		CommandDropColumn:                  b.Grammar.CompileDropColumn,
+		CommandDropIndex:                   b.Grammar.CompileDropIndex,
+		CommandDropForeign:                 b.Grammar.CompileDropForeign,
+		CommandDropFullText:                b.Grammar.CompileDropFulltext,
+		CommandDropPrimary:                 b.Grammar.CompileDropPrimary,
+		CommandDropUnique:                  b.Grammar.CompileDropUnique,
+		CommandDropSpatialIndex:            b.Grammar.CompileDropSpatialIndex,
+		CommandForeign:                     b.Grammar.CompileForeign,
+		CommandFullText:                    b.Grammar.CompileFullText,
+		CommandIndex:                       b.Grammar.CompileIndex,
+		CommandPrimary:                     b.Grammar.CompilePrimary,
+		CommandRename:                      b.Grammar.CompileRename,
+		CommandRenameColumn:                b.Grammar.CompileRenameColumn,
+		CommandRenameIndex:                 b.Grammar.CompileRenameIndex,
+		CommandUnique:                      b.Grammar.CompileUnique,
+		CommandSpatialIndex:                b.Grammar.CompileSpatialIndex,
+		CommandVectorIndex:                 b.Grammar.CompileVectorIndex,
+		CommandTableComment:                b.Grammar.CompileTableComment,
+		CommandAutoIncrementStartingValues: b.Grammar.CompileAutoIncrementStartingValues,
 	}
 	for _, cmd := range b.Commands {
 		if compileFunc, exists := mainCommandMap[cmd.Name]; exists {
@@ -720,6 +904,11 @@ func (b *Blueprint) addColumn(colType string, name string, columnDefs ...*Column
 
 func (b *Blueprint) addColumnDefinition(col *Column) *Column {
 	b.Columns = append(b.Columns, col)
+	if b.afterColumn != "" {
+		after := b.afterColumn
+		col.AfterVal = &after
+		b.afterColumn = col.Name
+	}
 	return col
 }
 

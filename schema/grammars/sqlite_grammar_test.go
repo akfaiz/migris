@@ -710,3 +710,25 @@ func TestSqliteGrammar_GetType(t *testing.T) {
 		})
 	}
 }
+
+func TestSqliteGrammar_CompileCreate_Temporary(t *testing.T) {
+	g, err := grammars.NewGrammar("sqlite")
+	require.NoError(t, err)
+
+	bp := &blueprint.Blueprint{Name: "temp_logs", TemporaryVal: true}
+	bp.String("message")
+	sql, err := g.CompileCreate(bp)
+	require.NoError(t, err)
+	assert.Contains(t, sql, "CREATE TEMPORARY TABLE")
+	assert.Contains(t, sql, `"temp_logs"`)
+}
+
+func TestSqliteGrammar_GetType_RawColumn(t *testing.T) {
+	g, err := grammars.NewGrammar("sqlite")
+	require.NoError(t, err)
+
+	bp := &blueprint.Blueprint{Name: "t"}
+	bp.RawColumn("payload", "BLOB NOT NULL")
+	got := g.GetType(bp.Columns[0])
+	assert.Equal(t, "BLOB NOT NULL", got)
+}

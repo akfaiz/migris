@@ -71,7 +71,11 @@ func (g *mysqlGrammar) CompileCreate(bp *blueprint.Blueprint) (string, error) {
 	}
 	columns = append(columns, g.getConstraints(bp)...)
 
-	sql := fmt.Sprintf("CREATE TABLE %s (%s)", g.WrapTable(bp.Name, "`"), strings.Join(columns, ", "))
+	create := "CREATE TABLE"
+	if bp.TemporaryVal {
+		create = "CREATE TEMPORARY TABLE"
+	}
+	sql := fmt.Sprintf("%s %s (%s)", create, g.WrapTable(bp.Name, "`"), strings.Join(columns, ", "))
 	sql += g.compileTableModifiers(bp)
 
 	return sql, nil
@@ -118,14 +122,6 @@ func (g *mysqlGrammar) CompileChange(bp *blueprint.Blueprint, command *blueprint
 	sql += sqlBuilder.String()
 
 	return sql, nil
-}
-
-func (g *mysqlGrammar) CompileRename(blueprint *blueprint.Blueprint, command *blueprint.Command) (string, error) {
-	return fmt.Sprintf(
-		"ALTER TABLE %s RENAME TO %s",
-		g.WrapTable(blueprint.Name, "`"),
-		g.WrapTable(command.To, "`"),
-	), nil
 }
 
 func (g *mysqlGrammar) CompileDrop(blueprint *blueprint.Blueprint) (string, error) {
@@ -406,6 +402,7 @@ func (g *mysqlGrammar) getTypeFuncMap() map[string]func(*blueprint.Column) strin
 		blueprint.ColumnTypeGeography:     g.typeGeography,
 		blueprint.ColumnTypeGeometry:      g.typeGeometry,
 		blueprint.ColumnTypePoint:         g.typePoint,
+		blueprint.ColumnTypeRaw:           g.typeRaw,
 	}
 }
 
@@ -454,7 +451,10 @@ func (g *mysqlGrammar) typeTinyInteger(_ *blueprint.Column) string {
 }
 
 func (g *mysqlGrammar) typeFloat(col *blueprint.Column) string {
-	return fmt.Sprintf("FLOAT(%d)", *col.Precision)
+	if col.Precision != nil && *col.Precision > 0 {
+		return fmt.Sprintf("FLOAT(%d)", *col.Precision)
+	}
+	return "FLOAT"
 }
 
 func (g *mysqlGrammar) typeDouble(_ *blueprint.Column) string {
@@ -526,7 +526,13 @@ func (g *mysqlGrammar) typeYear(_ *blueprint.Column) string {
 	return "YEAR"
 }
 
-func (g *mysqlGrammar) typeBinary(_ *blueprint.Column) string {
+func (g *mysqlGrammar) typeBinary(col *blueprint.Column) string {
+	if col.Length != nil && *col.Length > 0 {
+		if col.FixedVal != nil && *col.FixedVal {
+			return fmt.Sprintf("BINARY(%d)", *col.Length)
+		}
+		return fmt.Sprintf("VARBINARY(%d)", *col.Length)
+	}
 	return "BLOB"
 }
 
@@ -546,7 +552,10 @@ func (g *mysqlGrammar) typeMacAddress(_ *blueprint.Column) string {
 	return "VARCHAR(17)"
 }
 
-func (g *mysqlGrammar) typeVector(_ *blueprint.Column) string {
+func (g *mysqlGrammar) typeVector(col *blueprint.Column) string {
+	if col.Places != nil {
+		return fmt.Sprintf("VECTOR(%d)", *col.Places)
+	}
 	return "VECTOR"
 }
 
@@ -591,6 +600,13 @@ func (g *mysqlGrammar) typePoint(col *blueprint.Column) string {
 	return "POINT"
 }
 
+func (g *mysqlGrammar) typeRaw(col *blueprint.Column) string {
+	if col.RawDefinition != nil {
+		return *col.RawDefinition
+	}
+	return ""
+}
+
 func (g *mysqlGrammar) modifiers() []func(*blueprint.Column) string {
 	return []func(*blueprint.Column) string{
 		g.modifyUnsigned,
@@ -602,6 +618,7 @@ func (g *mysqlGrammar) modifiers() []func(*blueprint.Column) string {
 		g.modifyDefault,
 		g.modifyIncrement,
 		g.modifyOnUpdate,
+		g.modifyInvisible,
 		g.modifyComment,
 		g.modifyAfter,
 		g.modifyFirst,
@@ -626,6 +643,12 @@ func (g *mysqlGrammar) compileTableModifiers(bp *blueprint.Blueprint) string {
 }
 
 func (g *mysqlGrammar) modifyNullable(col *blueprint.Column) string {
+	if col.VirtualAsVal != nil || col.StoredAsVal != nil {
+		if col.NullableVal != nil && !*col.NullableVal {
+			return " NOT NULL"
+		}
+		return ""
+	}
 	if col.NullableVal != nil && *col.NullableVal {
 		return " NULL"
 	}
@@ -647,7 +670,10 @@ func (g *mysqlGrammar) modifyDefault(col *blueprint.Column) string {
 
 func (g *mysqlGrammar) modifyIncrement(col *blueprint.Column) string {
 	if slices.Contains(g.serials, col.ColumnType) && col.AutoIncrementVal != nil && *col.AutoIncrementVal {
-		return " AUTO_INCREMENT"
+		if col.PrimaryVal != nil || col.ChangeVal {
+			return " AUTO_INCREMENT"
+		}
+		return " AUTO_INCREMENT PRIMARY KEY"
 	}
 	return ""
 }
@@ -716,6 +742,65 @@ func (g *mysqlGrammar) modifyStoredAs(col *blueprint.Column) string {
 		return fmt.Sprintf(" GENERATED ALWAYS AS (%s) STORED", *col.StoredAsVal)
 	}
 	return ""
+}
+
+func (g *mysqlGrammar) modifyInvisible(col *blueprint.Column) string {
+	if col.InvisibleVal != nil && *col.InvisibleVal {
+		return " INVISIBLE"
+	}
+	return ""
+}
+
+func (g *mysqlGrammar) CompileSpatialIndex(bp *blueprint.Blueprint, command *blueprint.Command) (string, error) {
+	if len(command.Columns) == 0 || slices.Contains(command.Columns, "") {
+		return "", errors.New("spatial index columns cannot be empty")
+	}
+	index := g.WrapIndexName(command.Index, "`")
+	if index == "" {
+		index = g.WrapIndexName(g.CreateIndexName(bp, "spatialindex", command.Columns...), "`")
+	}
+	return fmt.Sprintf(
+		"CREATE SPATIAL INDEX %s ON %s (%s)",
+		index,
+		g.WrapTable(bp.Name, "`"),
+		g.WrapColumnize(command.Columns, "`"),
+	), nil
+}
+
+func (g *mysqlGrammar) CompileDropSpatialIndex(bp *blueprint.Blueprint, command *blueprint.Command) (string, error) {
+	return g.CompileDropIndex(bp, command)
+}
+
+func (g *mysqlGrammar) CompileTableComment(bp *blueprint.Blueprint, command *blueprint.Command) (string, error) {
+	if bp.IsCreating() {
+		return "", nil
+	}
+	return fmt.Sprintf(
+		"ALTER TABLE %s COMMENT = %s",
+		g.WrapTable(bp.Name, "`"),
+		g.QuoteString(strings.ReplaceAll(command.Comment, "'", "''")),
+	), nil
+}
+
+func (g *mysqlGrammar) CompileAutoIncrementStartingValues(
+	bp *blueprint.Blueprint, command *blueprint.Command,
+) (string, error) {
+	if command.Value <= 0 {
+		return "", nil
+	}
+	return fmt.Sprintf(
+		"ALTER TABLE %s AUTO_INCREMENT = %d",
+		g.WrapTable(bp.Name, "`"),
+		command.Value,
+	), nil
+}
+
+func (g *mysqlGrammar) CompileRename(bp *blueprint.Blueprint, command *blueprint.Command) (string, error) {
+	return fmt.Sprintf(
+		"RENAME TABLE %s TO %s",
+		g.WrapTable(bp.Name, "`"),
+		g.WrapTable(command.To, "`"),
+	), nil
 }
 
 func (g *mysqlGrammar) GetFluentCommands() []func(*blueprint.Blueprint, *blueprint.Command) string {
