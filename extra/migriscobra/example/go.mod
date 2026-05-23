@@ -3,7 +3,7 @@ module github.com/akfaiz/migris/extra/migriscobra/example
 go 1.25.0
 
 require (
-	github.com/akfaiz/migris v0.4.1
+	github.com/akfaiz/migris v0.4.2
 	github.com/akfaiz/migris/extra/migriscobra v0.0.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/joho/godotenv v1.5.1

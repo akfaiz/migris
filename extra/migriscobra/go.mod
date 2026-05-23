@@ -3,7 +3,7 @@ module github.com/akfaiz/migris/extra/migriscobra
 go 1.25.0
 
 require (
-	github.com/akfaiz/migris v0.4.1
+	github.com/akfaiz/migris v0.4.2
 	github.com/spf13/cobra v1.8.1
 )
 
