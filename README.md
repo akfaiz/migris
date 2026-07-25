@@ -1,7 +1,6 @@
 # Migris
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/akfaiz/migris.svg)](https://pkg.go.dev/github.com/akfaiz/migris)
-[![Go Report Card](https://goreportcard.com/badge/github.com/akfaiz/migris)](https://goreportcard.com/report/github.com/akfaiz/migris)
 [![codecov](https://codecov.io/gh/akfaiz/migris/graph/badge.svg?token=7tbSVRaD4b)](https://codecov.io/gh/akfaiz/migris)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/akfaiz/migris/blob/main/LICENSE)
 
@@ -182,13 +181,13 @@ m, err := migris.New("pgx",
 )
 ```
 
-| Option | Description |
-|---|---|
-| `WithDB(db)` | Existing `*sql.DB` connection (caller manages lifecycle) |
-| `WithDSN(dsn)` | Open a new connection from DSN string (migrator manages lifecycle, call `Close()`) |
-| `WithMigrationDir(dir)` | Directory for SQL migration files (default: `"migrations"`) |
-| `WithTableName(name)` | Migrations tracking table name (default: `"schema_migrations"`) |
-| `WithRegistry(r)` | Use an isolated migration registry instead of the global one |
+| Option                  | Description                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------------- |
+| `WithDB(db)`            | Existing `*sql.DB` connection (caller manages lifecycle)                           |
+| `WithDSN(dsn)`          | Open a new connection from DSN string (migrator manages lifecycle, call `Close()`) |
+| `WithMigrationDir(dir)` | Directory for SQL migration files (default: `"migrations"`)                        |
+| `WithTableName(name)`   | Migrations tracking table name (default: `"schema_migrations"`)                    |
+| `WithRegistry(r)`       | Use an isolated migration registry instead of the global one                       |
 
 `WithDB` and `WithDSN` are mutually exclusive; `WithDB` takes precedence if both are set.
 
@@ -241,9 +240,9 @@ migrator.Up(migris.WithAllowMissing(true))
 migrator.UpTo(20250101000005, migris.WithDryRun(true), migris.WithAllowMissing(true))
 ```
 
-| Option | Description |
-|---|---|
-| `WithDryRun(bool)` | Preview SQL without executing |
+| Option                   | Description                                      |
+| ------------------------ | ------------------------------------------------ |
+| `WithDryRun(bool)`       | Preview SQL without executing                    |
 | `WithAllowMissing(bool)` | Apply out-of-order migrations instead of failing |
 
 All operation methods accept run-time options:
